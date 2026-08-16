@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using System.Xml.Linq;
+using PageArc.Models;
 using PageArc.Services;
 using Xunit;
 
@@ -53,6 +55,83 @@ public sealed class FoundationTests
         Assert.Contains("<meta charset=\"utf-8\">", html, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/\">", html, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("images/a.png", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EpubPipeline_ParsesEncodedSpineAndBuildsRenderableChapter()
+    {
+        var epubPath = Path.Combine(Path.GetTempPath(), $"pagearc-{Guid.NewGuid():N}.epub");
+        var bookId = $"test-{Guid.NewGuid():N}";
+        try
+        {
+            using (var archive = ZipFile.Open(epubPath, ZipArchiveMode.Create))
+            {
+                WriteEntry(archive, "mimetype", "application/epub+zip");
+                WriteEntry(archive, "META-INF/container.xml", """
+                    <?xml version="1.0"?>
+                    <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+                      <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+                    </container>
+                    """);
+                WriteEntry(archive, "OEBPS/content.opf", """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
+                      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                        <dc:identifier id="id">pagearc-test</dc:identifier>
+                        <dc:title>PageArc EPUB Test</dc:title>
+                        <dc:creator>Test Author</dc:creator>
+                        <dc:language>en</dc:language>
+                      </metadata>
+                      <manifest>
+                        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+                        <item id="ch1" href="Text/Chapter%201.xhtml" media-type="application/xhtml+xml"/>
+                      </manifest>
+                      <spine><itemref idref="ch1"/></spine>
+                    </package>
+                    """);
+                WriteEntry(archive, "OEBPS/nav.xhtml", """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <html xmlns="http://www.w3.org/1999/xhtml"><head><title>TOC</title></head><body>
+                    <nav><ol><li><a href="Text/Chapter%201.xhtml#start">Chapter One</a></li></ol></nav>
+                    </body></html>
+                    """);
+                WriteEntry(archive, "OEBPS/Text/Chapter 1.xhtml", """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter One</title></head>
+                    <body><h1 id="start">Chapter One</h1><p>Hello PageArc.</p></body></html>
+                    """);
+            }
+
+            var metadata = await EpubParser.ReadMetadataAsync(epubPath);
+            Assert.Equal("PageArc EPUB Test", metadata.Title);
+            Assert.Equal("Test Author", metadata.Author);
+
+            var book = new BookEntry
+            {
+                Id = bookId,
+                FilePath = epubPath,
+                Format = "EPUB",
+                Title = metadata.Title,
+                Author = metadata.Author
+            };
+            var document = await EpubParser.OpenAsync(book);
+            Assert.Single(document.Spine);
+            Assert.Equal("OEBPS/Text/Chapter 1.xhtml", document.Spine[0].RelativePath);
+            Assert.Single(document.Toc);
+            Assert.Equal("OEBPS/Text/Chapter 1.xhtml#start", document.Toc[0].Href);
+
+            var rendered = await EpubWebRenderer.PrepareAsync(document, 0);
+            Assert.Equal("__pagearc/spine-0000.html", rendered.WebPath);
+            Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/\">", rendered.Html, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Hello PageArc.", rendered.Html, StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(document.ExtractionRoot, "__pagearc", "spine-0000.html")));
+        }
+        finally
+        {
+            if (File.Exists(epubPath)) File.Delete(epubPath);
+            var cache = Path.Combine(AppPaths.BooksCacheRoot, bookId);
+            if (Directory.Exists(cache)) Directory.Delete(cache, true);
+        }
     }
 
     [Fact]
@@ -126,6 +205,13 @@ public sealed class FoundationTests
         Assert.Contains("public void ApplyAppTheme(string theme)", windowCode, StringComparison.Ordinal);
         Assert.Contains("BeginThemeTransition", windowCode, StringComparison.Ordinal);
         Assert.Contains("ThemeTransitionOverlay", windowXaml, StringComparison.Ordinal);
+    }
+
+    private static void WriteEntry(ZipArchive archive, string path, string content)
+    {
+        var entry = archive.CreateEntry(path, CompressionLevel.Fastest);
+        using var writer = new StreamWriter(entry.Open());
+        writer.Write(content);
     }
 
     private static SortedSet<string> ReadKeys(string path) =>
