@@ -135,6 +135,95 @@ public sealed class FoundationTests
     }
 
     [Fact]
+    public async Task Epub2CalibrePipeline_ParsesRootOpfNcxHtmlSpineAndSvgCover()
+    {
+        // Regression shape based on a real Calibre 5 EPUB2 supplied for acceptance:
+        // package at archive root, NCX TOC, .html spine items, and an SVG cover using xlink:href.
+        var epubPath = Path.Combine(Path.GetTempPath(), $"pagearc-epub2-{Guid.NewGuid():N}.epub");
+        var bookId = $"epub2-{Guid.NewGuid():N}";
+        try
+        {
+            using (var archive = ZipFile.Open(epubPath, ZipArchiveMode.Create))
+            {
+                WriteEntry(archive, "mimetype", "application/epub+zip");
+                WriteEntry(archive, "META-INF/container.xml", """
+                    <?xml version="1.0"?>
+                    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+                      <rootfiles><rootfile full-path="content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+                    </container>
+                    """);
+                WriteEntry(archive, "content.opf", """
+                    <?xml version='1.0' encoding='utf-8'?>
+                    <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uuid_id">
+                      <metadata xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/">
+                        <dc:title>Calibre EPUB2 Regression</dc:title>
+                        <dc:creator opf:role="aut">Test Author</dc:creator>
+                        <dc:identifier id="uuid_id" opf:scheme="uuid">fixture</dc:identifier>
+                        <dc:language>zh</dc:language>
+                      </metadata>
+                      <manifest>
+                        <item id="cover" href="cover.jpeg" media-type="image/jpeg"/>
+                        <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
+                        <item id="chapter" href="text/part0000.html" media-type="application/xhtml+xml"/>
+                        <item id="css" href="stylesheet.css" media-type="text/css"/>
+                        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+                      </manifest>
+                      <spine toc="ncx"><itemref idref="titlepage"/><itemref idref="chapter"/></spine>
+                    </package>
+                    """);
+                WriteEntry(archive, "toc.ncx", """
+                    <?xml version='1.0' encoding='utf-8'?>
+                    <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+                      <docTitle><text>Calibre EPUB2 Regression</text></docTitle>
+                      <navMap>
+                        <navPoint id="n1" playOrder="1"><navLabel><text>Chapter</text></navLabel><content src="text/part0000.html#start"/></navPoint>
+                      </navMap>
+                    </ncx>
+                    """);
+                WriteEntry(archive, "titlepage.xhtml", """
+                    <?xml version='1.0' encoding='utf-8'?>
+                    <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Cover</title></head><body>
+                      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 160">
+                        <image width="100" height="160" xlink:href="cover.jpeg"/>
+                      </svg>
+                    </body></html>
+                    """);
+                WriteEntry(archive, "text/part0000.html", """
+                    <?xml version='1.0' encoding='utf-8'?>
+                    <html xmlns="http://www.w3.org/1999/xhtml"><head><link href="../stylesheet.css" rel="stylesheet" type="text/css"/></head>
+                    <body><h1 id="start">Synthetic chapter</h1><p>Readable EPUB2 content.</p></body></html>
+                    """);
+                WriteEntry(archive, "stylesheet.css", "body { margin: 0; }");
+                WriteEntry(archive, "cover.jpeg", "synthetic-fixture");
+            }
+
+            var book = new BookEntry { Id = bookId, FilePath = epubPath, Format = "EPUB", Title = "Fixture" };
+            var document = await EpubParser.OpenAsync(book);
+
+            Assert.Equal(2, document.Spine.Count);
+            Assert.Equal("titlepage.xhtml", document.Spine[0].RelativePath);
+            Assert.Equal("text/part0000.html", document.Spine[1].RelativePath);
+            Assert.Single(document.Toc);
+            Assert.Equal("text/part0000.html#start", document.Toc[0].Href);
+
+            var cover = await EpubWebRenderer.PrepareAsync(document, 0);
+            Assert.Contains("href=\"cover.jpeg\"", cover.Html, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("xlink:href", cover.Html, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("<base href=\"https://pagearc.local/\">", cover.Html, StringComparison.OrdinalIgnoreCase);
+
+            var chapter = await EpubWebRenderer.PrepareAsync(document, 1);
+            Assert.Contains("<base href=\"https://pagearc.local/text/\">", chapter.Html, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Readable EPUB2 content.", chapter.Html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(epubPath)) File.Delete(epubPath);
+            var cache = Path.Combine(AppPaths.BooksCacheRoot, bookId);
+            if (Directory.Exists(cache)) Directory.Delete(cache, true);
+        }
+    }
+
+    [Fact]
     public void ResourceFiles_HaveIdenticalKeys()
     {
         var root = FindRepoRoot();
@@ -161,32 +250,30 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void ShellThemeResources_AreDynamicGradientsForLightAndDarkModes()
+    public void ShellTheme_UsesMicaAndUrbanPlanToolboxPalette()
     {
         var root = FindRepoRoot();
         var appXaml = File.ReadAllText(Path.Combine(root, "App.xaml"));
         var mainWindowXaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
         var readerXaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
 
-        Assert.Contains("ResourceDictionary.ThemeDictionaries", appXaml, StringComparison.Ordinal);
-        Assert.Contains("x:Key=\"Light\"", appXaml, StringComparison.Ordinal);
-        Assert.Contains("x:Key=\"Dark\"", appXaml, StringComparison.Ordinal);
-        Assert.Contains("LinearGradientBrush x:Key=\"PageArcCanvasBrush\"", appXaml, StringComparison.Ordinal);
-        Assert.Contains("#102A2E", appXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("#F8FCFB", appXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("{ThemeResource PageArcCardBrush}", appXaml, StringComparison.Ordinal);
-        Assert.Contains("{ThemeResource PageArcCanvasBrush}", mainWindowXaml, StringComparison.Ordinal);
-        Assert.DoesNotContain("Background=\"#F6F6F6\"", mainWindowXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<MicaBackdrop/>", mainWindowXaml, StringComparison.Ordinal);
+        Assert.Contains("#E5F9F9", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#1A2323", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PageArcNavigationPaneBrush", appXaml, StringComparison.Ordinal);
+        Assert.Contains("CardBackgroundFillColorDefaultBrush", appXaml, StringComparison.Ordinal);
+        Assert.Contains("Background=\"Transparent\"", mainWindowXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("ThemeTransitionOverlay", mainWindowXaml, StringComparison.Ordinal);
         Assert.DoesNotContain("Background=\"#F9F9F9\"", readerXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("{ThemeResource PageArcToolbarBrush}", readerXaml, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void NavigationShell_HidesItsImplicitBackButtonAndUsesFigmaInformationArchitecture()
+    public void NavigationShell_HidesImplicitBackButtonUsesFigmaIaAndToolboxCompactWidth()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
         Assert.Contains("IsBackButtonVisible=\"Collapsed\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("CompactPaneLength=\"48\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Uid=\"Nav_Categories\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Uid=\"Nav_Conversion\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Uid=\"Nav_Recent\"", xaml, StringComparison.Ordinal);
@@ -195,7 +282,7 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void ThemeSwitch_UsesLiveWindowApplicationWithCrossfade()
+    public void ThemeSwitch_UsesDirectRequestedThemeWithoutFullWindowCrossfade()
     {
         var root = FindRepoRoot();
         var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
@@ -203,8 +290,9 @@ public sealed class FoundationTests
         var windowXaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
         Assert.Contains("App.MainWindow?.ApplyAppTheme(tag);", settingsCode, StringComparison.Ordinal);
         Assert.Contains("public void ApplyAppTheme(string theme)", windowCode, StringComparison.Ordinal);
-        Assert.Contains("BeginThemeTransition", windowCode, StringComparison.Ordinal);
-        Assert.Contains("ThemeTransitionOverlay", windowXaml, StringComparison.Ordinal);
+        Assert.Contains("RootGrid.RequestedTheme", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("BeginThemeTransition", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("ThemeTransitionOverlay", windowXaml, StringComparison.Ordinal);
     }
 
     private static void WriteEntry(ZipArchive archive, string path, string content)
