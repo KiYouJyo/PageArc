@@ -14,6 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../../Models/BookEntry.cs" Link="Models/BookEntry.cs" />
+    <Compile Include="../../Models/BookMetadataSnapshot.cs" Link="Models/BookMetadataSnapshot.cs" />
     <Compile Include="../../Models/LibraryImportModels.cs" Link="Models/LibraryImportModels.cs" />
     <Compile Include="../../Models/ImportFolderEntry.cs" Link="Models/ImportFolderEntry.cs" />
     <Compile Include="../../Models/EbookFormatDescriptor.cs" Link="Models/EbookFormatDescriptor.cs" />
@@ -25,6 +26,7 @@
     <Compile Include="../../Models/ReadingData.cs" Link="Models/ReadingData.cs" />
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
     <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
+    <Compile Include="../../Services/BookMetadataService.cs" Link="Services/BookMetadataService.cs" />
     <Compile Include="../../Services/LibraryFingerprintService.cs" Link="Services/LibraryFingerprintService.cs" />
     <Compile Include="../../Services/LibraryService.cs" Link="Services/LibraryService.cs" />
     <Compile Include="../../Services/ImportFolderService.cs" Link="Services/ImportFolderService.cs" />
