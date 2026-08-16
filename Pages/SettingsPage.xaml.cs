@@ -40,9 +40,18 @@ public sealed partial class SettingsPage : Page
     {
         if (!_loaded || LanguageCombo.SelectedItem is not ComboBoxItem { Tag: string tag }) return;
         if (LanguagePreference.Normalize(tag) == App.Settings.Current.Language) return;
+
         PersistReadingSettings();
-        App.Localization.SwitchLanguage(tag);
-        App.ReloadMainWindow("settings");
+        LanguageCombo.IsEnabled = false;
+        var switched = App.Localization.SwitchLanguage(tag);
+        if (!switched)
+        {
+            SelectByTag(LanguageCombo, App.Settings.Current.Language);
+            LanguageCombo.IsEnabled = true;
+        }
+        // On success the existing MainWindow handles LanguageChanged and reloads only the
+        // current content page in place. This intentionally mirrors UrbanPlanToolbox:
+        // window bounds, NavigationView display mode, pane state and title bar never move.
     }
 
     private void ThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
