@@ -11,22 +11,42 @@
 
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#F3F3F3"/>
-                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#F9F9F9"/>
-                    <SolidColorBrush x:Key="PageArcCardBrush" Color="#FFFFFFFF"/>
-                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#F9F9F9"/>
-                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="#FFFFFFFF"/>
-                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="#14000000"/>
-                    <SolidColorBrush x:Key="PageArcAccentBrush" Color="#005FB8"/>
+                    <LinearGradientBrush x:Key="PageArcCanvasBrush" StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#F8FCFB" Offset="0"/>
+                        <GradientStop Color="#EEF8F7" Offset="0.48"/>
+                        <GradientStop Color="#E5F2F3" Offset="1"/>
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PageArcPaneBrush" StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#F5FBFA" Offset="0"/>
+                        <GradientStop Color="#EAF5F4" Offset="1"/>
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PageArcToolbarBrush" StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#F8FCFB" Offset="0"/>
+                        <GradientStop Color="#EDF7F6" Offset="1"/>
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="PageArcCardBrush" Color="#E8FFFFFF"/>
+                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="#ECFFFFFF"/>
+                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="#180B3438"/>
+                    <SolidColorBrush x:Key="PageArcAccentBrush" Color="#006C78"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#202020"/>
-                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#272727"/>
-                    <SolidColorBrush x:Key="PageArcCardBrush" Color="#2B2B2B"/>
-                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#202020"/>
-                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="#2B2B2B"/>
-                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="#18FFFFFF"/>
-                    <SolidColorBrush x:Key="PageArcAccentBrush" Color="#60CDFF"/>
+                    <LinearGradientBrush x:Key="PageArcCanvasBrush" StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#102A2E" Offset="0"/>
+                        <GradientStop Color="#0B2024" Offset="0.5"/>
+                        <GradientStop Color="#07171A" Offset="1"/>
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PageArcPaneBrush" StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#142F32" Offset="0"/>
+                        <GradientStop Color="#0B2023" Offset="1"/>
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PageArcToolbarBrush" StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#112B2F" Offset="0"/>
+                        <GradientStop Color="#091C20" Offset="1"/>
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="PageArcCardBrush" Color="#D91A3033"/>
+                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="#E61A3033"/>
+                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="#2A8FB8BC"/>
+                    <SolidColorBrush x:Key="PageArcAccentBrush" Color="#6EDBE5"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="{ThemeResource SystemColorWindowColor}"/>
