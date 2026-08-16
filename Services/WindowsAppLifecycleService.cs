@@ -11,26 +11,19 @@ public sealed class WindowsAppLifecycleService : IDisposable
     public const string MainInstanceKey = "PageArc.Main";
     private AppInstance? _currentInstance;
     private bool _subscribed;
+    private bool _registeredPrimary;
 
     public event EventHandler<AppActivationRequest>? ActivationReceived;
 
     public async Task<WindowsAppLifecycleRegistration> RegisterAsync()
     {
-        AppActivationArguments? activationArgs = null;
+        AppActivationArguments activationArgs;
+        AppInstance primary;
         try
         {
             _currentInstance = AppInstance.GetCurrent();
             activationArgs = _currentInstance.GetActivatedEventArgs();
-            var primary = AppInstance.FindOrRegisterForKey(MainInstanceKey);
-            if (!primary.IsCurrent)
-            {
-                await primary.RedirectActivationToAsync(activationArgs);
-                return new WindowsAppLifecycleRegistration(false, AppActivationRequest.Launch());
-            }
-
-            _currentInstance.Activated += CurrentInstance_Activated;
-            _subscribed = true;
-            return new WindowsAppLifecycleRegistration(true, Parse(activationArgs));
+            primary = AppInstance.FindOrRegisterForKey(MainInstanceKey);
         }
         catch (Exception ex)
         {
@@ -38,6 +31,24 @@ public sealed class WindowsAppLifecycleService : IDisposable
             var raw = string.Join(" ", Environment.GetCommandLineArgs().Skip(1).Select(QuoteIfNeeded));
             return new WindowsAppLifecycleRegistration(true, AppActivationRequestParser.FromLaunchArguments(raw));
         }
+
+        if (!primary.IsCurrent)
+        {
+            try
+            {
+                await primary.RedirectActivationToAsync(activationArgs);
+            }
+            catch (Exception ex)
+            {
+                StartupDiagnostics.Log("Activation redirection to the primary PageArc instance failed; secondary instance will still exit to preserve single-instance semantics.", ex);
+            }
+            return new WindowsAppLifecycleRegistration(false, AppActivationRequest.Launch());
+        }
+
+        _registeredPrimary = true;
+        _currentInstance.Activated += CurrentInstance_Activated;
+        _subscribed = true;
+        return new WindowsAppLifecycleRegistration(true, Parse(activationArgs));
     }
 
     private void CurrentInstance_Activated(object? sender, AppActivationArguments args)
@@ -73,6 +84,11 @@ public sealed class WindowsAppLifecycleService : IDisposable
         {
             _currentInstance.Activated -= CurrentInstance_Activated;
             _subscribed = false;
+        }
+        if (_registeredPrimary && _currentInstance is not null)
+        {
+            try { _currentInstance.UnregisterKey(); } catch { }
+            _registeredPrimary = false;
         }
     }
 
