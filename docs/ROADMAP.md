@@ -37,16 +37,17 @@
 
 ## v0.5.0 — Library completion
 
-- [ ] Figma-aligned library search, sort and filter behavior
-- [ ] Rich metadata and real cover extraction across supported formats
-- [ ] Batch file/folder import with progress, added/skipped/error summary and cancellation
-- [ ] Stable duplicate detection and incremental folder rescans
-- [ ] Book details panel and full book context menu
-- [ ] Collections/categories completion and favorites consistency
-- [ ] Missing-file detection and safe library removal semantics
-- [ ] Persistent library view/sort preferences
-- [ ] Large-library virtualization and import/query performance tests
-- [ ] Storage migration and compatibility coverage
+- [x] Figma-aligned library search, sort and filter behavior
+- [x] Rich metadata and real cover extraction across the five-format reading paths, with Kindle/LIT metadata persisted when their parser/normalization path runs
+- [x] Figma three-stage batch file/folder import with progress, added/skipped/error summary and cancellation
+- [x] Stable content-fingerprint duplicate detection and repeat-safe monitored-folder rescans
+- [x] Figma book details side panel and full book context menu
+- [x] Collections/categories assignment, counts and favorites consistency across library surfaces
+- [x] Missing-file detection and safe library removal semantics that never delete source ebooks
+- [x] Persistent library sort/filter/view preferences
+- [x] ItemsRepeater virtualization plus 2,000-record persistence/migration coverage
+- [x] Storage migration and compatibility coverage for legacy/missing records
+- [x] Persistent monitored-folder management with recursive supported-format scanning
 
 ## v0.6.0 — Windows deep integration
 

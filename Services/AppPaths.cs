@@ -9,10 +9,12 @@ public static class AppPaths
     public static string LibraryFile => Path.Combine(Root, "library.json");
     public static string CategoriesFile => Path.Combine(Root, "categories.json");
     public static string ReadingDataFile => Path.Combine(Root, "reading-data.json");
+    public static string ImportFoldersFile => Path.Combine(Root, "import-folders.json");
     public static string CacheRoot => Path.Combine(Root, "Cache");
     public static string BooksCacheRoot => Path.Combine(CacheRoot, "Books");
     public static string NormalizedBooksRoot => Path.Combine(CacheRoot, "NormalizedBooks");
     public static string KindleParserRoot => Path.Combine(CacheRoot, "KindleParser");
+    public static string CoversRoot => Path.Combine(CacheRoot, "Covers");
 
     public static void Ensure()
     {
@@ -21,5 +23,6 @@ public static class AppPaths
         Directory.CreateDirectory(BooksCacheRoot);
         Directory.CreateDirectory(NormalizedBooksRoot);
         Directory.CreateDirectory(KindleParserRoot);
+        Directory.CreateDirectory(CoversRoot);
     }
 }

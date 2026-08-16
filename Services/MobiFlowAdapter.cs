@@ -39,6 +39,13 @@ public sealed class MobiFlowAdapter : IFlowBookAdapter
         var parsed = await _runtime.OpenAsync(book, cancellationToken);
         if (parsed.Sections.Count == 0)
             throw new InvalidDataException("The Kindle ebook does not expose any readable sections.");
+
+        if (!string.IsNullOrWhiteSpace(parsed.Title)) book.Title = parsed.Title;
+        if (!string.IsNullOrWhiteSpace(parsed.Author)) book.Author = parsed.Author;
+        if (!string.IsNullOrWhiteSpace(parsed.Language)) book.Language = parsed.Language;
+        var coverPath = await CoverCacheService.SaveDataUrlAsync(book.Id, parsed.CoverHref, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(coverPath)) book.CoverPath = coverPath;
+
         return new Source(_runtime, parsed);
     }
 
