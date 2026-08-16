@@ -6,6 +6,12 @@ namespace PageArc.Services;
 
 public static class EpubParser
 {
+    private static readonly HashSet<string> SupportedFontObfuscationAlgorithms = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "http://www.idpf.org/2008/embedding",
+        "http://ns.adobe.com/pdf/enc#RC"
+    };
+
     public sealed record Metadata(string Title, string Author);
 
     public static async Task<Metadata> ReadMetadataAsync(string filePath, CancellationToken cancellationToken = default)
@@ -26,18 +32,21 @@ public static class EpubParser
             throw new NotSupportedException("PageArc v0.1.0 reader core currently opens EPUB files.");
 
         var extractionRoot = Path.Combine(AppPaths.BooksCacheRoot, book.Id);
+        if (Directory.Exists(extractionRoot)) Directory.Delete(extractionRoot, true);
         Directory.CreateDirectory(extractionRoot);
 
         using var archive = ZipFile.OpenRead(book.FilePath);
-        if (archive.GetEntry("META-INF/encryption.xml") is not null)
-            throw new InvalidDataException("Encrypted/DRM EPUB content is not supported.");
+        if (HasUnsupportedEncryption(archive))
+            throw new InvalidDataException("This EPUB contains encrypted/DRM content that PageArc cannot open.");
 
         foreach (var entry in archive.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(entry.Name)) continue;
 
-            var target = Path.GetFullPath(Path.Combine(extractionRoot, entry.FullName.Replace('/', Path.DirectorySeparatorChar)));
+            var logicalPath = EpubPath.Normalize(entry.FullName);
+            if (string.IsNullOrWhiteSpace(logicalPath)) continue;
+            var target = Path.GetFullPath(Path.Combine(extractionRoot, logicalPath.Replace('/', Path.DirectorySeparatorChar)));
             var safeRoot = Path.GetFullPath(extractionRoot) + Path.DirectorySeparatorChar;
             if (!target.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("EPUB contains an unsafe path.");
@@ -77,7 +86,7 @@ public static class EpubParser
             .Select(id =>
             {
                 var item = manifest[id!];
-                return new EpubSpineItem(id!, CombineUrlPath(packageDirectory, item.Href!), item.MediaType ?? "application/xhtml+xml");
+                return new EpubSpineItem(id!, EpubPath.Combine(packageDirectory, item.Href!), item.MediaType ?? "application/xhtml+xml");
             })
             .ToList();
 
@@ -90,7 +99,7 @@ public static class EpubParser
 
         if (navItem is not null)
         {
-            var navPath = CombineUrlPath(packageDirectory, navItem.Href!);
+            var navPath = EpubPath.Combine(packageDirectory, navItem.Href!);
             var navEntry = GetEntry(archive, navPath);
             await using var navStream = navEntry.Open();
             var nav = await XDocument.LoadAsync(navStream, LoadOptions.None, cancellationToken);
@@ -99,7 +108,7 @@ public static class EpubParser
                 var href = ((string?)link.Attribute("href"))?.Trim();
                 var text = string.Concat(link.DescendantNodes().OfType<XText>()).Trim();
                 if (!string.IsNullOrWhiteSpace(href) && !string.IsNullOrWhiteSpace(text))
-                    toc.Add(new(text, CombineUrlPath(Path.GetDirectoryName(navPath)?.Replace('\\', '/') ?? string.Empty, href)));
+                    toc.Add(new(text, EpubPath.Combine(Path.GetDirectoryName(navPath)?.Replace('\\', '/') ?? string.Empty, href)));
             }
         }
 
@@ -122,34 +131,43 @@ public static class EpubParser
         var path = document.Descendants().FirstOrDefault(x => x.Name.LocalName == "rootfile")?.Attribute("full-path")?.Value;
         return string.IsNullOrWhiteSpace(path)
             ? throw new InvalidDataException("EPUB package path is missing.")
-            : path.Replace('\\', '/');
+            : EpubPath.Normalize(path);
     }
 
-    private static ZipArchiveEntry GetEntry(ZipArchive archive, string path) =>
-        archive.Entries.FirstOrDefault(x =>
-            string.Equals(x.FullName.Replace('\\', '/'), path.Replace('\\', '/'), StringComparison.Ordinal))
-        ?? throw new InvalidDataException($"EPUB entry not found: {path}");
-
-    private static string CombineUrlPath(string directory, string href)
+    private static ZipArchiveEntry GetEntry(ZipArchive archive, string path)
     {
-        var hrefWithoutFragment = href.Split('#')[0].Replace('\\', '/');
-        if (string.IsNullOrWhiteSpace(directory)) return NormalizeUrlPath(hrefWithoutFragment);
-        return NormalizeUrlPath($"{directory.TrimEnd('/')}/{hrefWithoutFragment}");
+        var wanted = EpubPath.Normalize(path);
+        return archive.Entries.FirstOrDefault(x =>
+            string.Equals(EpubPath.Normalize(x.FullName), wanted, StringComparison.Ordinal))
+            ?? throw new InvalidDataException($"EPUB entry not found: {path}");
     }
 
-    private static string NormalizeUrlPath(string path)
+    private static bool HasUnsupportedEncryption(ZipArchive archive)
     {
-        var stack = new Stack<string>();
-        foreach (var segment in path.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        var encryptionEntry = archive.Entries.FirstOrDefault(x =>
+            string.Equals(EpubPath.Normalize(x.FullName), "META-INF/encryption.xml", StringComparison.OrdinalIgnoreCase));
+        if (encryptionEntry is null) return false;
+
+        try
         {
-            if (segment == ".") continue;
-            if (segment == "..")
+            using var stream = encryptionEntry.Open();
+            var document = XDocument.Load(stream);
+            var encryptedData = document.Descendants().Where(x => x.Name.LocalName == "EncryptedData").ToList();
+            if (encryptedData.Count == 0) return false;
+
+            foreach (var data in encryptedData)
             {
-                if (stack.Count > 0) stack.Pop();
-                continue;
+                var algorithm = data.Descendants()
+                    .FirstOrDefault(x => x.Name.LocalName == "EncryptionMethod")?
+                    .Attribute("Algorithm")?.Value;
+                if (string.IsNullOrWhiteSpace(algorithm) || !SupportedFontObfuscationAlgorithms.Contains(algorithm))
+                    return true;
             }
-            stack.Push(segment);
+            return false;
         }
-        return string.Join('/', stack.Reverse());
+        catch
+        {
+            return true;
+        }
     }
 }
