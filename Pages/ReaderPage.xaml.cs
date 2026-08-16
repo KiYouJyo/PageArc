@@ -17,7 +17,6 @@ public sealed partial class ReaderPage : Page
     private int _spineIndex;
     private bool _settingsReady;
     private bool _virtualHostReady;
-    private bool _usingStringFallback;
     private string? _currentRenderHtml;
 
     public ReaderPage()
@@ -58,20 +57,22 @@ public sealed partial class ReaderPage : Page
             StartupDiagnostics.Log($"EPUB parsed: {_document.Spine.Count} spine items, {_document.Toc.Count} TOC entries.");
             _spineIndex = Math.Clamp(_book.SpineIndex, 0, _document.Spine.Count - 1);
 
+            await BookWebView.EnsureCoreWebView2Async();
             try
             {
-                await BookWebView.EnsureCoreWebView2Async();
                 BookWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
                     "pagearc.local",
                     _document.ExtractionRoot,
                     CoreWebView2HostResourceAccessKind.Allow);
                 _virtualHostReady = true;
-                StartupDiagnostics.Log("EPUB WebView virtual host mapping ready.");
+                StartupDiagnostics.Log("EPUB WebView virtual host mapping ready for chapter resources.");
             }
             catch (Exception mappingException)
             {
+                // Chapter text is deliberately loaded with NavigateToString, so a mapping
+                // failure must not make the book unreadable. Only images/CSS may be absent.
                 _virtualHostReady = false;
-                StartupDiagnostics.Log("EPUB WebView virtual host mapping failed; using HTML string fallback", mappingException);
+                StartupDiagnostics.Log("EPUB resource mapping failed; continuing with text-only chapter rendering", mappingException);
             }
 
             TocList.ItemsSource = _document.Toc.Count > 0
@@ -103,14 +104,15 @@ public sealed partial class ReaderPage : Page
 
         var rendered = await EpubWebRenderer.PrepareAsync(_document, _spineIndex);
         _currentRenderHtml = rendered.Html;
-        _usingStringFallback = !_virtualHostReady;
-        var fragmentSuffix = NormalizeFragment(fragment);
+        var fragmentValue = NormalizeFragmentValue(fragment);
 
-        StartupDiagnostics.Log($"Navigating EPUB spine {_spineIndex}: {_document.Spine[_spineIndex].RelativePath} -> {rendered.WebPath}{fragmentSuffix}");
-        if (_virtualHostReady)
-            BookWebView.Source = new Uri($"https://pagearc.local/{rendered.WebPath}{fragmentSuffix}");
-        else
-            BookWebView.NavigateToString(rendered.Html);
+        // Do not navigate the top-level WebView to a virtual-host file. A number of valid
+        // EPUB2 books (including Calibre-generated books with .html spine items and NCX)
+        // can report a successful host navigation while Chromium renders an empty surface.
+        // Loading the normalized chapter document directly is deterministic; the virtual
+        // host remains available only as the base URL for CSS/images/fonts.
+        StartupDiagnostics.Log($"Rendering EPUB spine {_spineIndex} directly: {_document.Spine[_spineIndex].RelativePath}; resourceMapping={_virtualHostReady}.");
+        BookWebView.NavigateToString(rendered.Html);
 
         _book.SpineIndex = _spineIndex;
         _book.Progress = (_spineIndex + 1d) / _document.Spine.Count;
@@ -120,6 +122,25 @@ public sealed partial class ReaderPage : Page
         ChapterProgressText.Text = string.Format(App.Localization.GetString("Reader_ChapterN"), _spineIndex + 1);
         ReaderPercentText.Text = $"{Math.Round(_book.Progress * 100)}%";
         BookProgressText.Text = string.Format(App.Localization.GetString("Reader_ReadPercent"), Math.Round(_book.Progress * 100));
+
+        if (!string.IsNullOrWhiteSpace(fragmentValue))
+            await ScrollToFragmentAfterNavigationAsync(fragmentValue);
+    }
+
+    private async Task ScrollToFragmentAfterNavigationAsync(string fragment)
+    {
+        // NavigateToString has no URI fragment. Wait for NavigationCompleted to build the DOM;
+        // then move to the requested EPUB anchor without changing the top-level origin.
+        if (BookWebView.CoreWebView2 is null) return;
+        void Handler(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+        {
+            sender.NavigationCompleted -= Handler;
+            if (!args.IsSuccess || sender.CoreWebView2 is null) return;
+            var id = JsonSerializer.Serialize(fragment);
+            _ = sender.CoreWebView2.ExecuteScriptAsync($"document.getElementById({id})?.scrollIntoView({{block:'start'}});");
+        }
+        BookWebView.NavigationCompleted += Handler;
+        await Task.CompletedTask;
     }
 
     private async void BookWebView_NavigationStarting(WebView2 sender, CoreWebView2NavigationStartingEventArgs args)
@@ -128,8 +149,6 @@ public sealed partial class ReaderPage : Page
         if (!string.Equals(uri.Host, "pagearc.local", StringComparison.OrdinalIgnoreCase)) return;
 
         var path = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/'));
-        if (path.StartsWith("__pagearc/", StringComparison.OrdinalIgnoreCase)) return;
-
         var normalized = EpubPath.Normalize(path);
         var index = _document.Spine.ToList().FindIndex(item =>
             string.Equals(EpubPath.Normalize(item.RelativePath), normalized, StringComparison.OrdinalIgnoreCase));
@@ -145,19 +164,11 @@ public sealed partial class ReaderPage : Page
         {
             ReaderInfoBar.IsOpen = false;
             await ApplyReaderStyleAsync();
+            StartupDiagnostics.Log($"EPUB spine {_spineIndex} rendered successfully.");
             return;
         }
 
-        StartupDiagnostics.Log($"EPUB WebView navigation failed: {args.WebErrorStatus}.");
-        if (!_usingStringFallback && !string.IsNullOrWhiteSpace(_currentRenderHtml))
-        {
-            _usingStringFallback = true;
-            _virtualHostReady = false;
-            StartupDiagnostics.Log("Retrying EPUB chapter with NavigateToString fallback.");
-            BookWebView.NavigateToString(_currentRenderHtml);
-            return;
-        }
-
+        StartupDiagnostics.Log($"EPUB WebView direct chapter render failed: {args.WebErrorStatus}.");
         ReaderInfoBar.Severity = InfoBarSeverity.Error;
         ReaderInfoBar.Message = string.Format(App.Localization.GetString("Reader_ChapterLoadFailed"), args.WebErrorStatus);
         ReaderInfoBar.IsOpen = true;
@@ -169,9 +180,9 @@ public sealed partial class ReaderPage : Page
         var settings = App.Settings.Current;
         var colors = settings.ReadingTheme switch
         {
-            "dark" => (Background: "#0B2024", Foreground: "#F1F8F7"),
+            "dark" => (Background: "#232A2A", Foreground: "#F2F6F6"),
             "sepia" => (Background: "#F4EAD3", Foreground: "#443A2E"),
-            _ => (Background: "#F6FCFA", Foreground: "#172526")
+            _ => (Background: "#F7FBFB", Foreground: "#172526")
         };
         var maxWidth = settings.PageWidth switch { "narrow" => "34rem", "wide" => "52rem", _ => "42rem" };
         var fontCss = settings.DefaultFont == "book" ? "inherit" : $"'{settings.DefaultFont.Replace("'", string.Empty)}'";
@@ -191,7 +202,7 @@ public sealed partial class ReaderPage : Page
           if (!s) {
             s = document.createElement('style');
             s.id = 'pagearc-reader-style';
-            s.textContent = `html,body{transition:background-color 260ms cubic-bezier(.2,.8,.2,1),color 260ms cubic-bezier(.2,.8,.2,1)}html{background:var(--pa-bg)!important}body{background:var(--pa-bg)!important;color:var(--pa-fg)!important;max-width:var(--pa-width);margin:0 auto!important;padding:3.5rem 4.5rem 5rem!important;font-size:var(--pa-size)!important;line-height:var(--pa-line)!important;font-family:var(--pa-font)!important}img,svg{max-width:100%;height:auto}`;
+            s.textContent = `html,body{min-height:100%;transition:background-color 160ms ease-out,color 160ms ease-out}html{background:var(--pa-bg)!important}body{background:var(--pa-bg)!important;color:var(--pa-fg)!important;max-width:var(--pa-width);margin:0 auto!important;padding:3.5rem 4.5rem 5rem!important;font-size:var(--pa-size)!important;line-height:var(--pa-line)!important;font-family:var(--pa-font)!important;box-sizing:border-box}img,svg{max-width:100%!important;height:auto!important}svg image{max-width:100%}`;
             document.head.appendChild(s);
           }
           const root = document.documentElement;
@@ -206,12 +217,12 @@ public sealed partial class ReaderPage : Page
         await BookWebView.CoreWebView2.ExecuteScriptAsync(script);
     }
 
-    private static string NormalizeFragment(string? fragment)
+    private static string NormalizeFragmentValue(string? fragment)
     {
         if (string.IsNullOrWhiteSpace(fragment)) return string.Empty;
         var value = fragment.TrimStart('#');
         try { value = Uri.UnescapeDataString(value); } catch (UriFormatException) { }
-        return "#" + Uri.EscapeDataString(value);
+        return value;
     }
 
     private void Back_Click(object sender, RoutedEventArgs e) => App.MainWindow?.ExitReader();
