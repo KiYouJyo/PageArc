@@ -14,6 +14,7 @@ public static class AppPaths
     public static string BooksCacheRoot => Path.Combine(CacheRoot, "Books");
     public static string NormalizedBooksRoot => Path.Combine(CacheRoot, "NormalizedBooks");
     public static string KindleParserRoot => Path.Combine(CacheRoot, "KindleParser");
+    public static string CoversRoot => Path.Combine(CacheRoot, "Covers");
 
     public static void Ensure()
     {
@@ -22,5 +23,6 @@ public static class AppPaths
         Directory.CreateDirectory(BooksCacheRoot);
         Directory.CreateDirectory(NormalizedBooksRoot);
         Directory.CreateDirectory(KindleParserRoot);
+        Directory.CreateDirectory(CoversRoot);
     }
 }
