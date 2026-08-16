@@ -13,10 +13,14 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2"><PrivateAssets>all</PrivateAssets></PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../Models/BookEntry.cs" Link="Models/BookEntry.cs" />
     <Compile Include="../../Models/EpubDocument.cs" Link="Models/EpubDocument.cs" />
+    <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
+    <Compile Include="../../Services/EpubParser.cs" Link="Services/EpubParser.cs" />
     <Compile Include="../../Services/EpubPath.cs" Link="Services/EpubPath.cs" />
     <Compile Include="../../Services/EpubWebRenderer.cs" Link="Services/EpubWebRenderer.cs" />
     <Compile Include="../../Services/LanguagePreference.cs" Link="Services/LanguagePreference.cs" />
+    <Compile Include="../../Services/StartupDiagnostics.cs" Link="Services/StartupDiagnostics.cs" />
     <Compile Include="../../Services/VersionParser.cs" Link="Services/VersionParser.cs" />
   </ItemGroup>
   <ItemGroup>
