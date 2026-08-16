@@ -12,6 +12,7 @@ namespace PageArc;
 public sealed partial class MainWindow : Window
 {
     private bool _navigating;
+    private bool _isWindowActive = true;
     private SplitView? _navigationSplitView;
 
     public MainWindow()
@@ -32,9 +33,7 @@ public sealed partial class MainWindow : Window
                 ApplyLocalizedNavigation();
             };
             RootGrid.ActualThemeChanged += RootGrid_ActualThemeChanged;
-            AppNavigation.PaneOpening += (_, _) => ApplyNavigationPaneBackground(forceActive: true);
-            AppNavigation.PaneOpened += (_, _) => ApplyNavigationPaneBackground(forceActive: true);
-            AppNavigation.PaneClosed += (_, _) => ApplyNavigationPaneBackground(forceActive: false);
+            Activated += MainWindow_Activated;
             App.Localization.LanguageChanged += OnLanguageChanged;
             Closed += MainWindow_Closed;
 
@@ -51,8 +50,17 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        _isWindowActive = args.WindowActivationState != WindowActivationState.Deactivated;
+        ConfigureTitleBar();
+        ApplyNavigationPaneBackground();
+        StartupDiagnostics.Log($"Window activation changed: active={_isWindowActive}.");
+    }
+
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        Activated -= MainWindow_Activated;
         App.Localization.LanguageChanged -= OnLanguageChanged;
         Closed -= MainWindow_Closed;
     }
@@ -139,21 +147,20 @@ public sealed partial class MainWindow : Window
     }
 
     private void QueueNavigationPaneBackgroundUpdate() =>
-        DispatcherQueue.TryEnqueue(() => ApplyNavigationPaneBackground());
+        DispatcherQueue.TryEnqueue(ApplyNavigationPaneBackground);
 
-    private void ApplyNavigationPaneBackground(bool? forceActive = null)
+    private void ApplyNavigationPaneBackground()
     {
         _navigationSplitView ??= FindDescendant<SplitView>(AppNavigation);
         if (_navigationSplitView is null) return;
 
         var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
         var isDark = AppNavigation.ActualTheme == ElementTheme.Dark;
-        var isActive = forceActive ?? (AppNavigation.IsPaneOpen || AppNavigation.DisplayMode == NavigationViewDisplayMode.Expanded);
 
-        if (!highContrast && isActive)
+        if (!highContrast && _isWindowActive)
         {
-            // Match UrbanPlanToolbox interaction semantics: the compact/resting rail is neutral,
-            // while an opened/expanded navigation pane regains the cyan family.
+            // The cyan pane is an active-window affordance. Pane open/closed and compact/
+            // expanded states must not affect the color; only native window activation does.
             var activeColor = isDark
                 ? ColorHelper.FromArgb(255, 26, 35, 35)      // #1A2323 deep cyan
                 : ColorHelper.FromArgb(255, 229, 249, 249); // #E5F9F9 light cyan
@@ -163,7 +170,7 @@ public sealed partial class MainWindow : Window
 
         var themeKey = highContrast ? "HighContrast" : isDark ? "Dark" : "Light";
         var themeResources = Application.Current.Resources.ThemeDictionaries[themeKey] as ResourceDictionary;
-        if (themeResources?["PageArcNavigationPaneBrush"] is Brush restingBrush)
+        if (themeResources?["PageArcNavigationPaneRestBrush"] is Brush restingBrush)
             _navigationSplitView.PaneBackground = restingBrush;
     }
 
