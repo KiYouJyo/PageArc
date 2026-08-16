@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using PageArc.Models;
 using PageArc.Services;
@@ -139,11 +141,135 @@ public sealed partial class LibraryPage : Page
     private void Favorite_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: BookEntry book }) return;
+        ToggleFavorite(book);
+        e.Handled = true;
+    }
+
+    private void ToggleFavorite(BookEntry book)
+    {
         book.IsFavorite = !book.IsFavorite;
         App.Library.Save();
         Refresh();
-        e.Handled = true;
     }
+
+    private async void BookCard_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: BookEntry book } target) return;
+        e.Handled = true;
+
+        var flyout = new MenuFlyout();
+
+        var open = new MenuFlyoutItem { Text = LocalText("打开", "開く", "Open") };
+        open.Click += (_, _) => OpenBook(book);
+        flyout.Items.Add(open);
+
+        var continueReading = new MenuFlyoutItem { Text = LocalText("继续阅读", "続きを読む", "Continue reading"), IsEnabled = book.Progress > 0 };
+        continueReading.Click += (_, _) => OpenBook(book);
+        flyout.Items.Add(continueReading);
+
+        var favorite = new MenuFlyoutItem
+        {
+            Text = book.IsFavorite
+                ? LocalText("取消收藏", "お気に入りから削除", "Remove from favorites")
+                : LocalText("加入收藏", "お気に入りに追加", "Add to favorites")
+        };
+        favorite.Click += (_, _) => ToggleFavorite(book);
+        flyout.Items.Add(favorite);
+
+        var categories = new MenuFlyoutSubItem { Text = LocalText("加入分类", "カテゴリに追加", "Add to category") };
+        foreach (var category in App.Categories.Categories.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var item = new MenuFlyoutItem
+            {
+                Text = category.Name,
+                IsEnabled = !string.Equals(book.Collection, category.Name, StringComparison.CurrentCultureIgnoreCase)
+            };
+            item.Click += (_, _) =>
+            {
+                book.Collection = category.Name;
+                App.Library.Save();
+                Refresh();
+            };
+            categories.Items.Add(item);
+        }
+        if (categories.Items.Count == 0)
+            categories.Items.Add(new MenuFlyoutItem { Text = LocalText("暂无分类", "カテゴリなし", "No categories"), IsEnabled = false });
+        flyout.Items.Add(categories);
+
+        var details = new MenuFlyoutItem { Text = LocalText("查看详情", "詳細を表示", "View details") };
+        details.Click += async (_, _) => await ShowBookDetailsAsync(book);
+        flyout.Items.Add(details);
+        flyout.Items.Add(new MenuFlyoutSeparator());
+
+        var location = new MenuFlyoutItem { Text = LocalText("打开文件位置", "ファイルの場所を開く", "Show file location") };
+        location.Click += (_, _) => ShowFileLocation(book);
+        flyout.Items.Add(location);
+
+        var remove = new MenuFlyoutItem { Text = LocalText("从书库移除", "ライブラリから削除", "Remove from library") };
+        remove.Click += async (_, _) => await ConfirmRemoveAsync(book);
+        flyout.Items.Add(remove);
+
+        flyout.ShowAt(target, e.GetPosition(target));
+    }
+
+    private async Task ShowBookDetailsAsync(BookEntry book)
+    {
+        var panel = new StackPanel { Spacing = 8, MinWidth = 360 };
+        panel.Children.Add(new TextBlock { Text = book.DisplayAuthor, FontSize = 14 });
+        panel.Children.Add(new TextBlock { Text = $"{book.Format} · {book.FileSize / 1024d / 1024d:0.0} MB", FontSize = 13 });
+        panel.Children.Add(new TextBlock { Text = book.Collection ?? LocalText("未分类", "未分類", "Uncategorized"), FontSize = 13 });
+        panel.Children.Add(new TextBlock { Text = book.FilePath, FontSize = 12, TextWrapping = TextWrapping.Wrap, Opacity = 0.72 });
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = book.Title,
+            Content = panel,
+            CloseButtonText = LocalText("关闭", "閉じる", "Close")
+        };
+        await dialog.ShowAsync();
+    }
+
+    private async Task ConfirmRemoveAsync(BookEntry book)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = LocalText("从书库移除？", "ライブラリから削除しますか？", "Remove from library?"),
+            Content = LocalText("只会移除 PageArc 中的书库记录，不会删除原始电子书文件。", "PageArc の登録だけを削除し、元の電子書籍ファイルは削除しません。", "This only removes the PageArc library record. The original ebook file will not be deleted."),
+            PrimaryButtonText = LocalText("移除", "削除", "Remove"),
+            CloseButtonText = LocalText("取消", "キャンセル", "Cancel"),
+            DefaultButton = ContentDialogButton.Close
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        App.Library.Remove(book);
+        Refresh();
+    }
+
+    private static void ShowFileLocation(BookEntry book)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{book.FilePath}\"",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("Failed to open ebook file location", ex);
+        }
+    }
+
+    private static string LocalText(string zh, string ja, string en) =>
+        App.Settings.Current.Language switch
+        {
+            "zh-CN" => zh,
+            "ja-JP" => ja,
+            _ => en
+        };
 
     private async void ImportBook_Click(object sender, RoutedEventArgs e)
     {
@@ -171,8 +297,12 @@ public sealed partial class LibraryPage : Page
     private void BookCard_Click(object sender, RoutedEventArgs e)
     {
         ImportInfoBar.IsOpen = false;
-        if (sender is not FrameworkElement { DataContext: BookEntry book }) return;
+        if (sender is FrameworkElement { DataContext: BookEntry book }) OpenBook(book);
+    }
 
+    private void OpenBook(BookEntry book)
+    {
+        ImportInfoBar.IsOpen = false;
         if (!book.Format.Equals("EPUB", StringComparison.OrdinalIgnoreCase))
         {
             ImportInfoBar.Severity = InfoBarSeverity.Warning;
