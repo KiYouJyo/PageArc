@@ -9,6 +9,12 @@ public sealed class CategoryEntry
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
 
     [JsonIgnore]
+    public int BookCount { get; set; }
+
+    [JsonIgnore]
+    public string BookCountText => $"{BookCount}";
+
+    [JsonIgnore]
     public string Monogram
     {
         get
