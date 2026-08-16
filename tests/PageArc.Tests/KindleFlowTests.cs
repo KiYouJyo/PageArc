@@ -16,7 +16,7 @@ public sealed class KindleFlowTests
         var book = new BookEntry { FilePath = fileName, Format = format, Title = "Fallback" };
 
         Assert.True(adapter.CanOpen(book));
-        await using var source = await adapter.OpenAsync(book);
+        var source = await adapter.OpenAsync(book);
         Assert.Equal(format, source.Document.Format);
         Assert.Equal("Kindle fixture", source.Document.Title);
         Assert.Equal("Test Author", source.Document.Author);
@@ -28,6 +28,9 @@ public sealed class KindleFlowTests
         var section = await source.LoadSectionAsync(1);
         Assert.Contains("Section 2", section.Html, StringComparison.Ordinal);
         Assert.Equal("Section 2 plain text", section.PlainText);
+        Assert.False(runtime.CloseCalled);
+
+        await source.DisposeAsync();
         Assert.True(runtime.CloseCalled);
     }
 
