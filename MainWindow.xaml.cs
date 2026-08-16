@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using PageArc.Models;
 using PageArc.Pages;
 using PageArc.Services;
@@ -28,10 +29,13 @@ public sealed partial class MainWindow : Window
             {
                 ConfigureTitleBar();
                 ApplyNavigationPaneBackground();
+                ApplyLocalizedNavigation();
             };
             RootGrid.ActualThemeChanged += RootGrid_ActualThemeChanged;
             AppNavigation.PaneOpening += (_, _) => ApplyNavigationPaneBackground();
             AppNavigation.PaneOpened += (_, _) => ApplyNavigationPaneBackground();
+            App.Localization.LanguageChanged += OnLanguageChanged;
+            Closed += MainWindow_Closed;
 
             StartupDiagnostics.Log("Custom title bar configured.");
             ApplyAppTheme(App.Settings.Current.AppTheme);
@@ -44,6 +48,62 @@ public sealed partial class MainWindow : Window
             StartupDiagnostics.Log("MainWindow constructor failed", ex);
             throw;
         }
+    }
+
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        App.Localization.LanguageChanged -= OnLanguageChanged;
+        Closed -= MainWindow_Closed;
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        // Follow UrbanPlanToolbox's runtime localization model: keep the existing native
+        // Window and reload only localized shell/page content after replacing MRT resources.
+        DispatcherQueue.TryEnqueue(ReloadLocalizedShell);
+    }
+
+    private void ReloadLocalizedShell()
+    {
+        var navigationTag = App.PendingNavigationTag;
+        var wasPaneOpen = AppNavigation.IsPaneOpen;
+        var displayMode = AppNavigation.DisplayMode;
+
+        ApplyLocalizedNavigation();
+
+        if (ReaderFrame.Visibility == Visibility.Visible)
+        {
+            // Language changes are normally made from Settings, but do not tear down a reader
+            // if another caller changes language while a book is open.
+            AppNavigation.IsPaneOpen = wasPaneOpen && displayMode != NavigationViewDisplayMode.Minimal;
+            return;
+        }
+
+        NavigateTo(navigationTag, suppressTransition: true);
+        ContentFrame.BackStack.Clear();
+        AppNavigation.IsPaneOpen = wasPaneOpen && AppNavigation.DisplayMode != NavigationViewDisplayMode.Minimal;
+        ApplyNavigationPaneBackground();
+        StartupDiagnostics.Log($"Localized shell reloaded in place: {navigationTag}; window bounds unchanged.");
+    }
+
+    private void ApplyLocalizedNavigation()
+    {
+        ApplyNavigationLabel("library", "Nav_Library.Content");
+        ApplyNavigationLabel("categories", "Nav_Categories.Content");
+        ApplyNavigationLabel("conversion", "Nav_Conversion.Content");
+        ApplyNavigationLabel("import-folders", "Nav_ImportFolders.Content");
+        ApplyNavigationLabel("settings", "Nav_Settings.Content");
+        ApplyNavigationLabel("about", "Nav_About.Content");
+    }
+
+    private void ApplyNavigationLabel(string tag, string resourceKey)
+    {
+        var item = EnumerateNavigationItems()
+            .FirstOrDefault(candidate => string.Equals(candidate.Tag as string, tag, StringComparison.Ordinal));
+        if (item is null) return;
+        var label = App.Localization.GetString(resourceKey);
+        item.Content = label;
+        ToolTipService.SetToolTip(item, label);
     }
 
     private void RootGrid_ActualThemeChanged(FrameworkElement sender, object args)
@@ -75,9 +135,6 @@ public sealed partial class MainWindow : Window
 
     private void AppNavigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
     {
-        // Match UrbanPlanToolbox/standard NavigationView adaptive behavior:
-        // narrow windows enter Minimal mode, leaving only the hamburger button.
-        // Opening the pane then overlays the content instead of reserving a permanent rail.
         if (args.DisplayMode == NavigationViewDisplayMode.Minimal)
             sender.IsPaneOpen = false;
         ApplyNavigationPaneBackground();
@@ -118,9 +175,11 @@ public sealed partial class MainWindow : Window
         NavigateTo(tag);
     }
 
-    public void NavigateTo(string tag)
+    public void NavigateTo(string tag) => NavigateTo(tag, suppressTransition: false);
+
+    private void NavigateTo(string tag, bool suppressTransition)
     {
-        StartupDiagnostics.Log($"NavigateTo entered: {tag}");
+        StartupDiagnostics.Log($"NavigateTo entered: {tag}; suppressTransition={suppressTransition}.");
         _navigating = true;
         try
         {
@@ -137,15 +196,32 @@ public sealed partial class MainWindow : Window
                 .FirstOrDefault(item => string.Equals(item.Tag as string, tag, StringComparison.Ordinal));
             if (target is not null) AppNavigation.SelectedItem = target;
 
-            var navigated = tag switch
+            NavigationTransitionInfo? transition = suppressTransition ? new SuppressNavigationTransitionInfo() : null;
+            bool navigated;
+            if (suppressTransition)
             {
-                "settings" => ContentFrame.Navigate(typeof(SettingsPage)),
-                "about" => ContentFrame.Navigate(typeof(AboutPage)),
-                "import-folders" => ContentFrame.Navigate(typeof(ImportFoldersPage)),
-                "categories" => ContentFrame.Navigate(typeof(CategoriesPage)),
-                "conversion" => ContentFrame.Navigate(typeof(ConversionPage)),
-                _ => ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Library)
-            };
+                navigated = tag switch
+                {
+                    "settings" => ContentFrame.Navigate(typeof(SettingsPage), null, transition),
+                    "about" => ContentFrame.Navigate(typeof(AboutPage), null, transition),
+                    "import-folders" => ContentFrame.Navigate(typeof(ImportFoldersPage), null, transition),
+                    "categories" => ContentFrame.Navigate(typeof(CategoriesPage), null, transition),
+                    "conversion" => ContentFrame.Navigate(typeof(ConversionPage), null, transition),
+                    _ => ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Library, transition)
+                };
+            }
+            else
+            {
+                navigated = tag switch
+                {
+                    "settings" => ContentFrame.Navigate(typeof(SettingsPage)),
+                    "about" => ContentFrame.Navigate(typeof(AboutPage)),
+                    "import-folders" => ContentFrame.Navigate(typeof(ImportFoldersPage)),
+                    "categories" => ContentFrame.Navigate(typeof(CategoriesPage)),
+                    "conversion" => ContentFrame.Navigate(typeof(ConversionPage)),
+                    _ => ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Library)
+                };
+            }
             StartupDiagnostics.Log($"Frame.Navigate returned {navigated} for {tag}.");
         }
         catch (Exception ex)
@@ -183,21 +259,35 @@ public sealed partial class MainWindow : Window
 
     public bool OpenBook(BookEntry book)
     {
-        AppNavigation.Visibility = Visibility.Collapsed;
-        ReaderFrame.Visibility = Visibility.Visible;
-        var navigated = ReaderFrame.Navigate(typeof(ReaderPage), book);
-        if (!navigated)
+        StartupDiagnostics.Log($"MainWindow.OpenBook entered: {book.FilePath}.");
+        try
         {
+            AppNavigation.Visibility = Visibility.Collapsed;
+            ReaderFrame.Visibility = Visibility.Visible;
+            ReaderFrame.BackStack.Clear();
+            var navigated = ReaderFrame.Navigate(typeof(ReaderPage), book, new SuppressNavigationTransitionInfo());
+            StartupDiagnostics.Log($"ReaderFrame.Navigate returned {navigated}.");
+            if (!navigated)
+            {
+                ReaderFrame.Visibility = Visibility.Collapsed;
+                AppNavigation.Visibility = Visibility.Visible;
+            }
+            return navigated;
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("MainWindow.OpenBook failed", ex);
             ReaderFrame.Visibility = Visibility.Collapsed;
             AppNavigation.Visibility = Visibility.Visible;
+            throw;
         }
-        return navigated;
     }
 
     public void ExitReader()
     {
         ReaderFrame.Visibility = Visibility.Collapsed;
         AppNavigation.Visibility = Visibility.Visible;
+        ReaderFrame.BackStack.Clear();
         NavigateTo("library");
     }
 }
