@@ -16,25 +16,41 @@
 - [x] Format Conversion UI / task-flow shell
 - [x] Signed x64 MSIX acceptance pipeline
 
-## v0.2.0 — Reading model + library depth
+## v0.2.0 — Unified flow engine + FB2
 
-- FB2 adapter
-- Full-text search
-- Durable bookmarks / highlights / notes
-- Cover extraction and richer metadata
-- EPUB compatibility fixture expansion
-- Stable content-locator abstraction
-- Better paginated mode and touch / keyboard navigation
-- First working format-conversion providers
+- [x] Unified ebook format registry for EPUB / FB2 / MOBI / AZW3 / LIT
+- [x] Format-neutral flow document / section / TOC contract
+- [x] Stable content-locator abstraction
+- [x] EPUB adapter onto the unified reader contract
+- [x] FB2 reflow adapter with metadata / TOC / semantic HTML sections
+- [x] Conversion-provider abstraction and first calibre `ebook-convert` bridge
+- [x] Wire the Figma-approved Reader UI to the unified flow engine
+- [x] Add WebView2 reflow host with continuous and paginated section navigation
+- [x] Persist section-relative reading position across renderer/layout changes
+- [x] Wire the Figma-approved Conversion UI to real queue execution
+- [x] Harden EPUB WebView content against active ebook scripts and external requests
+- [x] Full-text search service and Figma-aligned search pane
+- [x] Durable bookmark and annotation data store
+- [x] Figma-aligned bookmark and notes panes
+- [ ] Text-selection highlight / note creation interaction
+- [ ] Cover extraction and richer metadata
+- [ ] EPUB + FB2 compatibility fixture expansion
+- [ ] Touch / keyboard navigation refinement
 
-## v0.3.0 — Kindle formats
+## v0.3.0 — MOBI + AZW3 / KF8
 
-- MOBI / AZW3 parser integration
-- DRM detection and clear unsupported messaging
-- Kindle metadata / cover / TOC
-- Additional conversion paths
+- [x] Pin and license-review the MOBI/KF8 parser candidate (`foliate-js` @ `78914aef4466eb960965702401634c2cb348e9b1`, MIT)
+- [ ] MOBI / AZW3 parser integration behind the flow adapter contract
+- [ ] Lazy section / resource loading for Kindle content
+- [ ] DRM detection and clear unsupported messaging
+- [ ] Kindle metadata / cover / TOC
+- [ ] Cross-format conversion paths for EPUB / FB2 / MOBI / AZW3
+- [ ] MOBI6 / KF8 compatibility fixtures
 
-## v0.4.0 — Legacy formats
+## v0.4.0 — LIT + complete conversion matrix
 
-- LIT adapter
-- Compatibility hardening
+- [ ] LIT adapter / normalization path behind the flow contract
+- [ ] Complete DRM-free mutual conversion among EPUB / FB2 / MOBI / AZW3 / LIT
+- [ ] Conversion runtime packaging / licensing decision
+- [ ] Compatibility hardening and migration tests
+- [ ] Final five-format reader and conversion acceptance pass

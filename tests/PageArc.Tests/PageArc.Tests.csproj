@@ -14,11 +14,26 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../../Models/BookEntry.cs" Link="Models/BookEntry.cs" />
+    <Compile Include="../../Models/EbookFormatDescriptor.cs" Link="Models/EbookFormatDescriptor.cs" />
+    <Compile Include="../../Models/EbookConversion.cs" Link="Models/EbookConversion.cs" />
     <Compile Include="../../Models/EpubDocument.cs" Link="Models/EpubDocument.cs" />
+    <Compile Include="../../Models/FlowDocument.cs" Link="Models/FlowDocument.cs" />
+    <Compile Include="../../Models/ReadingData.cs" Link="Models/ReadingData.cs" />
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
+    <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
+    <Compile Include="../../Services/IFlowBookAdapter.cs" Link="Services/IFlowBookAdapter.cs" />
+    <Compile Include="../../Services/FlowReaderEngine.cs" Link="Services/FlowReaderEngine.cs" />
+    <Compile Include="../../Services/FlowSearchService.cs" Link="Services/FlowSearchService.cs" />
+    <Compile Include="../../Services/ReadingDataService.cs" Link="Services/ReadingDataService.cs" />
+    <Compile Include="../../Services/EpubFlowAdapter.cs" Link="Services/EpubFlowAdapter.cs" />
+    <Compile Include="../../Services/Fb2FlowAdapter.cs" Link="Services/Fb2FlowAdapter.cs" />
+    <Compile Include="../../Services/CalibreNormalizedFlowAdapter.cs" Link="Services/CalibreNormalizedFlowAdapter.cs" />
     <Compile Include="../../Services/EpubParser.cs" Link="Services/EpubParser.cs" />
     <Compile Include="../../Services/EpubPath.cs" Link="Services/EpubPath.cs" />
     <Compile Include="../../Services/EpubWebRenderer.cs" Link="Services/EpubWebRenderer.cs" />
+    <Compile Include="../../Services/Conversion/IEbookConversionProvider.cs" Link="Services/Conversion/IEbookConversionProvider.cs" />
+    <Compile Include="../../Services/Conversion/EbookConversionService.cs" Link="Services/Conversion/EbookConversionService.cs" />
+    <Compile Include="../../Services/Conversion/CalibreConversionProvider.cs" Link="Services/Conversion/CalibreConversionProvider.cs" />
     <Compile Include="../../Services/LanguagePreference.cs" Link="Services/LanguagePreference.cs" />
     <Compile Include="../../Services/StartupDiagnostics.cs" Link="Services/StartupDiagnostics.cs" />
     <Compile Include="../../Services/VersionParser.cs" Link="Services/VersionParser.cs" />

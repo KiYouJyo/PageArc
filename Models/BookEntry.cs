@@ -15,6 +15,7 @@ public sealed class BookEntry
     public bool IsFavorite { get; set; }
     public double Progress { get; set; }
     public int SpineIndex { get; set; }
+    public double SectionFraction { get; set; }
     public string? Collection { get; set; }
 
     [JsonIgnore]

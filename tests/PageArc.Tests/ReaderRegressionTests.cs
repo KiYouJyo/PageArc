@@ -5,18 +5,21 @@ namespace PageArc.Tests;
 public sealed class ReaderRegressionTests
 {
     [Fact]
-    public void ReaderUsesNativeWinUiTextPathWithoutWebViewConstruction()
+    public void ReaderUsesUnifiedFlowWebViewHostWithSafetyGuards()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
         var code = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml.cs"));
 
-        Assert.DoesNotContain("WebView2", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("CoreWebView2", code, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("NavigateToString", code, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("NativeReaderText", xaml, StringComparison.Ordinal);
-        Assert.Contains("NativeReaderText.Text = chapter.PlainText", code, StringComparison.Ordinal);
-        Assert.Contains("FindReadableChapterAsync", code, StringComparison.Ordinal);
+        Assert.Contains("<WebView2 x:Name=\"ReaderWebView\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("FlowReaderEngine", code, StringComparison.Ordinal);
+        Assert.Contains("EnsureCoreWebView2Async", code, StringComparison.Ordinal);
+        Assert.Contains("WebResourceRequested", code, StringComparison.Ordinal);
+        Assert.Contains("NewWindowRequested", code, StringComparison.Ordinal);
+        Assert.Contains("pagearc.local", code, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("window.__pagearc", code, StringComparison.Ordinal);
+        Assert.Contains("SectionFraction", code, StringComparison.Ordinal);
+        Assert.Contains("TextTrimming=\"CharacterEllipsis\"", xaml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -28,6 +31,8 @@ public sealed class ReaderRegressionTests
         Assert.Contains("href=", code, StringComparison.Ordinal);
         Assert.Contains("ExtractReadableText", code, StringComparison.Ordinal);
         Assert.Contains("ResolveInitialSpineIndex", code, StringComparison.Ordinal);
+        Assert.Contains("<script", code, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("javascript:", code, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

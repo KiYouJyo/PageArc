@@ -53,7 +53,11 @@
                     <Grid Grid.Row="1">
                         <TextBlock x:Uid="Conversion_OutputFormat" VerticalAlignment="Center"/>
                         <ComboBox x:Name="OutputFormatCombo" Width="260" HorizontalAlignment="Right" SelectedIndex="0">
-                            <ComboBoxItem Content="EPUB"/><ComboBoxItem Content="FB2"/><ComboBoxItem Content="MOBI"/><ComboBoxItem Content="AZW3"/>
+                            <ComboBoxItem Content="EPUB"/>
+                            <ComboBoxItem Content="FB2"/>
+                            <ComboBoxItem Content="MOBI"/>
+                            <ComboBoxItem Content="AZW3"/>
+                            <ComboBoxItem Content="LIT"/>
                         </ComboBox>
                     </Grid>
                     <TextBlock Grid.Row="2" x:Uid="Conversion_ContentOptions" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -90,9 +94,9 @@
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="models:ConversionQueueItem">
                             <Grid Padding="4,5">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="220"/></Grid.ColumnDefinitions>
                                 <StackPanel><TextBlock Text="{x:Bind FileName}" FontWeight="SemiBold"/><TextBlock Text="{x:Bind Format}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
-                                <TextBlock Grid.Column="1" Text="{x:Bind Status}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Grid.Column="1" Text="{x:Bind Status, Mode=OneWay}" HorizontalAlignment="Right" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>

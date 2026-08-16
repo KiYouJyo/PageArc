@@ -295,17 +295,19 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void Reader_UsesNativeWinUiPathSoWebViewCannotBlockOpening()
+    public void Reader_UsesUnifiedFlowHostAndKeepsFigmaShellContract()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
         var code = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml.cs"));
-        Assert.Contains("NativeReaderScroll", xaml, StringComparison.Ordinal);
-        Assert.Contains("NativeReaderText", xaml, StringComparison.Ordinal);
-        Assert.DoesNotContain("WebView2", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("CoreWebView2", code, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("NativeReaderText.Text = chapter.PlainText", code, StringComparison.Ordinal);
-        Assert.Contains("ResolveInitialSpineIndex", code, StringComparison.Ordinal);
+        Assert.Contains("<WebView2 x:Name=\"ReaderWebView\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("FlowReaderEngine", code, StringComparison.Ordinal);
+        Assert.Contains("IFlowBookSource", code, StringComparison.Ordinal);
+        Assert.Contains("SetVirtualHostNameToFolderMapping", code, StringComparison.Ordinal);
+        Assert.Contains("WebResourceRequested", code, StringComparison.Ordinal);
+        Assert.Contains("SectionFraction", code, StringComparison.Ordinal);
+        Assert.Contains("ColumnDefinition x:Name=\"ContentsColumn\" Width=\"260\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth=\"760\"", xaml, StringComparison.Ordinal);
         Assert.Contains("TextTrimming=\"CharacterEllipsis\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("This page contains no text", code, StringComparison.OrdinalIgnoreCase);
     }

@@ -19,7 +19,15 @@ public sealed class LibraryService
             if (!File.Exists(AppPaths.LibraryFile)) return;
             var items = JsonSerializer.Deserialize<List<BookEntry>>(File.ReadAllText(AppPaths.LibraryFile)) ?? [];
             Books.Clear();
-            foreach (var item in items.Where(x => File.Exists(x.FilePath))) Books.Add(item);
+            foreach (var item in items.Where(x => File.Exists(x.FilePath)))
+            {
+                var normalized = BookFormatRegistry.Normalize(item.Format);
+                if (string.IsNullOrWhiteSpace(normalized)) normalized = BookFormatRegistry.FormatFromPath(item.FilePath);
+                if (!string.IsNullOrWhiteSpace(normalized)) item.Format = normalized;
+                item.SectionFraction = Math.Clamp(item.SectionFraction, 0, 1);
+                item.Progress = Math.Clamp(item.Progress, 0, 1);
+                Books.Add(item);
+            }
         }
         catch
         {
@@ -40,11 +48,14 @@ public sealed class LibraryService
         }
 
         var info = new FileInfo(fullPath);
-        var extension = info.Extension.TrimStart('.').ToUpperInvariant();
+        var format = BookFormatRegistry.FormatFromPath(fullPath);
+        if (string.IsNullOrWhiteSpace(format))
+            throw new NotSupportedException($"Unsupported ebook format: {info.Extension}");
+
         var title = Path.GetFileNameWithoutExtension(fullPath);
         var author = string.Empty;
 
-        if (extension == "EPUB")
+        if (format == "EPUB")
         {
             try
             {
@@ -57,11 +68,32 @@ public sealed class LibraryService
                 // Keep filename metadata. Opening the book will surface the parsing error.
             }
         }
+        else if (format == "FB2")
+        {
+            try
+            {
+                var probe = new BookEntry
+                {
+                    FilePath = fullPath,
+                    Format = format,
+                    Title = title,
+                    Author = author,
+                    FileSize = info.Length
+                };
+                await using var source = await new Fb2FlowAdapter().OpenAsync(probe, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(source.Document.Title)) title = source.Document.Title;
+                author = source.Document.Author;
+            }
+            catch
+            {
+                // Keep filename metadata. Opening the book will surface the parsing error.
+            }
+        }
 
         var entry = new BookEntry
         {
             FilePath = fullPath,
-            Format = extension,
+            Format = format,
             Title = title,
             Author = author,
             FileSize = info.Length

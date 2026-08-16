@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PageArc.Models;
@@ -9,7 +10,13 @@ public sealed partial class AboutPage : Page
 {
     private Uri? _releaseUri;
 
-    public AboutPage() { InitializeComponent(); }
+    public AboutPage()
+    {
+        InitializeComponent();
+        var version = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        var localizedTemplate = App.Localization.GetString("About_Version.Text");
+        AboutVersionText.Text = Regex.Replace(localizedTemplate, @"\d+\.\d+\.\d+", version, RegexOptions.CultureInvariant);
+    }
 
     private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
     {
