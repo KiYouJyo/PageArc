@@ -44,6 +44,18 @@ public sealed class FoundationTests
     }
 
     [Fact]
+    public void EpubWebRenderer_NormalizesXhtmlForWebView()
+    {
+        const string source = "<?xml version=\"1.0\" encoding=\"utf-8\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>X</title></head><body><img src=\"images/a.png\"/></body></html>";
+        var html = EpubWebRenderer.NormalizeForWebView(source, "https://pagearc.local/OEBPS/Text/");
+
+        Assert.DoesNotContain("<?xml", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<meta charset=\"utf-8\">", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/\">", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("images/a.png", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ResourceFiles_HaveIdenticalKeys()
     {
         var root = FindRepoRoot();
@@ -70,7 +82,7 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void ShellThemeResources_AreDynamicForLightAndDarkModes()
+    public void ShellThemeResources_AreDynamicGradientsForLightAndDarkModes()
     {
         var root = FindRepoRoot();
         var appXaml = File.ReadAllText(Path.Combine(root, "App.xaml"));
@@ -80,6 +92,9 @@ public sealed class FoundationTests
         Assert.Contains("ResourceDictionary.ThemeDictionaries", appXaml, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"Light\"", appXaml, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"Dark\"", appXaml, StringComparison.Ordinal);
+        Assert.Contains("LinearGradientBrush x:Key=\"PageArcCanvasBrush\"", appXaml, StringComparison.Ordinal);
+        Assert.Contains("#102A2E", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#F8FCFB", appXaml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("{ThemeResource PageArcCardBrush}", appXaml, StringComparison.Ordinal);
         Assert.Contains("{ThemeResource PageArcCanvasBrush}", mainWindowXaml, StringComparison.Ordinal);
         Assert.DoesNotContain("Background=\"#F6F6F6\"", mainWindowXaml, StringComparison.OrdinalIgnoreCase);
@@ -88,21 +103,29 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void NavigationShell_HidesItsImplicitBackButton()
+    public void NavigationShell_HidesItsImplicitBackButtonAndUsesFigmaInformationArchitecture()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
         Assert.Contains("IsBackButtonVisible=\"Collapsed\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Uid=\"Nav_Categories\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Uid=\"Nav_Conversion\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Uid=\"Nav_Recent\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Uid=\"Nav_Favorites\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Uid=\"Nav_Collections\"", xaml, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ThemeSwitch_UsesLiveWindowApplication()
+    public void ThemeSwitch_UsesLiveWindowApplicationWithCrossfade()
     {
         var root = FindRepoRoot();
         var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
         var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
+        var windowXaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
         Assert.Contains("App.MainWindow?.ApplyAppTheme(tag);", settingsCode, StringComparison.Ordinal);
         Assert.Contains("public void ApplyAppTheme(string theme)", windowCode, StringComparison.Ordinal);
+        Assert.Contains("BeginThemeTransition", windowCode, StringComparison.Ordinal);
+        Assert.Contains("ThemeTransitionOverlay", windowXaml, StringComparison.Ordinal);
     }
 
     private static SortedSet<string> ReadKeys(string path) =>
