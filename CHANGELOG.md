@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.6.0] - 2026-08-16
+
+### Added
+- Windows App SDK single-instance lifecycle coordinator using a stable PageArc instance key and redirected activation handling.
+- File activation for EPUB / FB2 / MOBI / AZW / AZW3 / LIT routed into the existing library/import and reader pipeline.
+- `pagearc:` protocol activation for stable book IDs and explicit local ebook paths.
+- Windows Jump List recent-book integration backed by `pagearc://book/<id>` deep links.
+- Packaged manifest template declaring all six ebook file associations and the `pagearc` protocol.
+- Pure activation parsing tests for quoted Windows paths, all associated extensions, protocol round-tripping and manifest declarations.
+- Signed Windows-integration acceptance covering package signing/install, registered shell associations, protocol launch, import routing and same-PID single-instance redirection.
+
+### Changed
+- Application startup now registers Windows lifecycle routing before loading PageArc state, queues early redirected activations safely and serializes activation handling.
+- Secondary instances fail closed: they exit after attempting redirection rather than creating a second PageArc window if redirect delivery fails.
+- Successful book opens update both PageArc recents and the Windows Jump List.
+- The packaged application version is now 0.6.0.
+
+### Notes
+- v0.6 adds no new visible in-app surface; Windows shell activations reuse the existing Figma-approved library and reader UI.
+- Unpackaged development builds retain graceful command-line/local-launch fallback when packaged Windows lifecycle features are unavailable.
+
 ## [0.5.0] - 2026-08-16
 
 ### Added
