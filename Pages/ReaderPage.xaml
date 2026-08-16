@@ -13,18 +13,29 @@
               Background="{ThemeResource PageArcToolbarBrush}"
               BorderBrush="{ThemeResource PageArcCardStrokeBrush}"
               BorderThickness="0,0,0,1"
-              Padding="12,8">
-            <StackPanel Orientation="Horizontal" Spacing="16">
-                <Button x:Uid="Reader_Back" Click="Back_Click">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <SymbolIcon Symbol="Back"/>
-                        <TextBlock x:Uid="Reader_BackText"/>
-                    </StackPanel>
-                </Button>
-                <TextBlock x:Name="BookTitleText" VerticalAlignment="Center" FontWeight="SemiBold"/>
-            </StackPanel>
+              Padding="12,8"
+              ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+            <Button Grid.Column="0" x:Uid="Reader_Back" Click="Back_Click">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <SymbolIcon Symbol="Back"/>
+                    <TextBlock x:Uid="Reader_BackText"/>
+                </StackPanel>
+            </Button>
+
+            <TextBlock x:Name="BookTitleText"
+                       Grid.Column="1"
+                       VerticalAlignment="Center"
+                       FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis"
+                       MaxLines="1"/>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
                 <Button x:Name="ContentsButton" x:Uid="Reader_Contents" Click="Contents_Click">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <SymbolIcon Symbol="Bullets"/>
