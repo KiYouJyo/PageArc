@@ -2,19 +2,16 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using PageArc.Models;
 using PageArc.Pages;
 using PageArc.Services;
-using Windows.Foundation;
 
 namespace PageArc;
 
 public sealed partial class MainWindow : Window
 {
     private bool _navigating;
-    private bool _themeReady;
-    private ElementTheme _lastActualTheme = ElementTheme.Default;
+    private SplitView? _navigationSplitView;
 
     public MainWindow()
     {
@@ -26,13 +23,15 @@ public sealed partial class MainWindow : Window
             Title = "PageArc";
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
+
             RootGrid.Loaded += (_, _) =>
             {
-                _lastActualTheme = RootGrid.ActualTheme;
-                _themeReady = true;
                 ConfigureTitleBar();
+                QueueNavigationPaneBackgroundUpdate();
             };
             RootGrid.ActualThemeChanged += RootGrid_ActualThemeChanged;
+            AppNavigation.PaneOpening += (_, _) => QueueNavigationPaneBackgroundUpdate();
+
             StartupDiagnostics.Log("Custom title bar configured.");
             ApplyAppTheme(App.Settings.Current.AppTheme);
             StartupDiagnostics.Log("MainWindow theme applied; navigating to initial page.");
@@ -48,11 +47,8 @@ public sealed partial class MainWindow : Window
 
     private void RootGrid_ActualThemeChanged(FrameworkElement sender, object args)
     {
-        var current = RootGrid.ActualTheme;
-        if (_themeReady && _lastActualTheme != ElementTheme.Default && _lastActualTheme != current)
-            BeginThemeTransition(_lastActualTheme);
-        _lastActualTheme = current;
         ConfigureTitleBar();
+        QueueNavigationPaneBackgroundUpdate();
     }
 
     private void ConfigureTitleBar()
@@ -66,6 +62,9 @@ public sealed partial class MainWindow : Window
 
     public void ApplyAppTheme(string theme)
     {
+        // UrbanPlanToolbox deliberately applies RequestedTheme directly and lets
+        // WinUI + Mica transition as a single compositor-backed surface. A full-window
+        // cross-fade overlay creates the visible flash/jump PageArc previously had.
         RootGrid.RequestedTheme = theme switch
         {
             "light" => ElementTheme.Light,
@@ -73,55 +72,36 @@ public sealed partial class MainWindow : Window
             _ => ElementTheme.Default
         };
         ConfigureTitleBar();
+        QueueNavigationPaneBackgroundUpdate();
     }
 
-    private void BeginThemeTransition(ElementTheme previousTheme)
+    private void QueueNavigationPaneBackgroundUpdate() =>
+        DispatcherQueue.TryEnqueue(ApplyNavigationPaneBackground);
+
+    private void ApplyNavigationPaneBackground()
     {
-        ThemeTransitionOverlay.Background = CreateTransitionBrush(previousTheme);
-        ThemeTransitionOverlay.Opacity = 1;
-        ThemeTransitionOverlay.Visibility = Visibility.Visible;
+        _navigationSplitView ??= FindDescendant<SplitView>(AppNavigation);
+        if (_navigationSplitView is null) return;
 
-        var animation = new DoubleAnimation
-        {
-            From = 1,
-            To = 0,
-            Duration = TimeSpan.FromMilliseconds(280),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-        Storyboard.SetTarget(animation, ThemeTransitionOverlay);
-        Storyboard.SetTargetProperty(animation, "Opacity");
-
-        var storyboard = new Storyboard();
-        storyboard.Children.Add(animation);
-        storyboard.Completed += (_, _) =>
-        {
-            ThemeTransitionOverlay.Opacity = 0;
-            ThemeTransitionOverlay.Visibility = Visibility.Collapsed;
-        };
-        storyboard.Begin();
+        var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
+        var themeKey = highContrast
+            ? "HighContrast"
+            : AppNavigation.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+        var themeResources = Application.Current.Resources.ThemeDictionaries[themeKey] as ResourceDictionary;
+        if (themeResources?["PageArcNavigationPaneBrush"] is Brush brush)
+            _navigationSplitView.PaneBackground = brush;
     }
 
-    private static LinearGradientBrush CreateTransitionBrush(ElementTheme theme)
+    private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
     {
-        var dark = theme == ElementTheme.Dark;
-        var brush = new LinearGradientBrush
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
         {
-            StartPoint = new Point(0, 0),
-            EndPoint = new Point(1, 1)
-        };
-        if (dark)
-        {
-            brush.GradientStops.Add(new GradientStop { Color = ColorHelper.FromArgb(255, 16, 42, 46), Offset = 0 });
-            brush.GradientStops.Add(new GradientStop { Color = ColorHelper.FromArgb(255, 11, 32, 36), Offset = 0.5 });
-            brush.GradientStops.Add(new GradientStop { Color = ColorHelper.FromArgb(255, 7, 23, 26), Offset = 1 });
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is T match) return match;
+            var descendant = FindDescendant<T>(child);
+            if (descendant is not null) return descendant;
         }
-        else
-        {
-            brush.GradientStops.Add(new GradientStop { Color = ColorHelper.FromArgb(255, 248, 252, 251), Offset = 0 });
-            brush.GradientStops.Add(new GradientStop { Color = ColorHelper.FromArgb(255, 238, 248, 247), Offset = 0.48 });
-            brush.GradientStops.Add(new GradientStop { Color = ColorHelper.FromArgb(255, 229, 242, 243), Offset = 1 });
-        }
-        return brush;
+        return null;
     }
 
     private void AppNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
