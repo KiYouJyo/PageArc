@@ -22,6 +22,7 @@
     <Compile Include="../../Models/ReadingData.cs" Link="Models/ReadingData.cs" />
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
     <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
+    <Compile Include="../../Services/EbookOpenExceptions.cs" Link="Services/EbookOpenExceptions.cs" />
     <Compile Include="../../Services/IFlowBookAdapter.cs" Link="Services/IFlowBookAdapter.cs" />
     <Compile Include="../../Services/IKindleParserRuntime.cs" Link="Services/IKindleParserRuntime.cs" />
     <Compile Include="../../Services/KindleFileProbe.cs" Link="Services/KindleFileProbe.cs" />
