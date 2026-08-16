@@ -3,7 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:models="using:PageArc.Models"
-    Background="{StaticResource PageArcCanvasBrush}">
+    Background="{ThemeResource PageArcCanvasBrush}">
 
     <Grid Padding="24">
         <Grid.RowDefinitions>
