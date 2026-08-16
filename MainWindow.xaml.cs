@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PageArc.Models;
 using PageArc.Pages;
+using PageArc.Services;
 
 namespace PageArc;
 
@@ -12,13 +13,26 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        InitializeComponent();
-        Title = "PageArc";
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
-        ConfigureTitleBar();
-        ApplyTheme();
-        NavigateTo(App.PendingNavigationTag);
+        StartupDiagnostics.Log("MainWindow constructor entered.");
+        try
+        {
+            InitializeComponent();
+            StartupDiagnostics.Log("MainWindow.InitializeComponent completed.");
+            Title = "PageArc";
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
+            StartupDiagnostics.Log("Custom title bar configured.");
+            ConfigureTitleBar();
+            ApplyTheme();
+            StartupDiagnostics.Log("MainWindow theme applied; navigating to initial page.");
+            NavigateTo(App.PendingNavigationTag);
+            StartupDiagnostics.Log("MainWindow initial navigation completed.");
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("MainWindow constructor failed", ex);
+            throw;
+        }
     }
 
     private void ConfigureTitleBar()
@@ -46,6 +60,7 @@ public sealed partial class MainWindow : Window
 
     public void NavigateTo(string tag)
     {
+        StartupDiagnostics.Log($"NavigateTo entered: {tag}");
         _navigating = true;
         try
         {
@@ -57,16 +72,22 @@ public sealed partial class MainWindow : Window
                 .FirstOrDefault(item => string.Equals(item.Tag as string, tag, StringComparison.Ordinal));
             if (target is not null) AppNavigation.SelectedItem = target;
 
-            switch (tag)
+            var navigated = tag switch
             {
-                case "settings": ContentFrame.Navigate(typeof(SettingsPage)); break;
-                case "about": ContentFrame.Navigate(typeof(AboutPage)); break;
-                case "import-folders": ContentFrame.Navigate(typeof(ImportFoldersPage)); break;
-                case "collections": ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Collections); break;
-                case "recent": ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Recent); break;
-                case "favorites": ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Favorites); break;
-                default: ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Library); break;
-            }
+                "settings" => ContentFrame.Navigate(typeof(SettingsPage)),
+                "about" => ContentFrame.Navigate(typeof(AboutPage)),
+                "import-folders" => ContentFrame.Navigate(typeof(ImportFoldersPage)),
+                "collections" => ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Collections),
+                "recent" => ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Recent),
+                "favorites" => ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Favorites),
+                _ => ContentFrame.Navigate(typeof(LibraryPage), LibraryMode.Library)
+            };
+            StartupDiagnostics.Log($"Frame.Navigate returned {navigated} for {tag}.");
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log($"NavigateTo failed: {tag}", ex);
+            throw;
         }
         finally
         {
