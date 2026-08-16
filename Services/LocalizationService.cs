@@ -9,6 +9,7 @@ namespace PageArc.Services;
 public sealed class LocalizationService
 {
     private readonly SettingsService _settings;
+    private readonly object _gate = new();
     private ResourceLoader? _loader;
 
     public LocalizationService(SettingsService settings)
@@ -18,6 +19,8 @@ public sealed class LocalizationService
 
     public string CurrentLanguage { get; private set; } = "en-US";
 
+    public event EventHandler? LanguageChanged;
+
     public void ApplyPersistedLanguage(AppSettings settings)
     {
         var effective = LanguagePreference.ResolveEffectiveLanguage(settings.Language, GlobalizationPreferences.Languages);
@@ -25,8 +28,11 @@ public sealed class LocalizationService
         var culture = CultureInfo.GetCultureInfo(effective);
         CultureInfo.CurrentUICulture = culture;
         CultureInfo.CurrentCulture = culture;
-        _loader = new ResourceLoader();
-        CurrentLanguage = effective;
+        lock (_gate)
+        {
+            _loader = new ResourceLoader();
+            CurrentLanguage = effective;
+        }
     }
 
     public string GetString(string key)
@@ -34,8 +40,13 @@ public sealed class LocalizationService
         if (string.IsNullOrWhiteSpace(key)) return string.Empty;
         try
         {
-            _loader ??= new ResourceLoader();
-            var value = _loader.GetString(key.Replace('.', '/'));
+            ResourceLoader loader;
+            lock (_gate)
+            {
+                _loader ??= new ResourceLoader();
+                loader = _loader;
+            }
+            var value = loader.GetString(key.Replace('.', '/'));
             return string.IsNullOrWhiteSpace(value) ? $"!{key}!" : value;
         }
         catch
@@ -48,13 +59,39 @@ public sealed class LocalizationService
     {
         var normalized = LanguagePreference.Normalize(requestedLanguage);
         var effective = LanguagePreference.ResolveEffectiveLanguage(normalized, GlobalizationPreferences.Languages);
-        _settings.Update(x => x.Language = normalized);
-        ApplicationLanguages.PrimaryLanguageOverride = effective;
-        var culture = CultureInfo.GetCultureInfo(effective);
-        CultureInfo.CurrentUICulture = culture;
-        CultureInfo.CurrentCulture = culture;
-        _loader = new ResourceLoader();
-        CurrentLanguage = effective;
-        return true;
+        if (string.Equals(effective, CurrentLanguage, StringComparison.OrdinalIgnoreCase))
+        {
+            _settings.Update(x => x.Language = normalized);
+            return true;
+        }
+
+        var previousOverride = ApplicationLanguages.PrimaryLanguageOverride;
+        var previousCulture = CultureInfo.CurrentCulture;
+        var previousUiCulture = CultureInfo.CurrentUICulture;
+        var previousLanguage = CurrentLanguage;
+        try
+        {
+            ApplicationLanguages.PrimaryLanguageOverride = effective;
+            var culture = CultureInfo.GetCultureInfo(effective);
+            CultureInfo.CurrentUICulture = culture;
+            CultureInfo.CurrentCulture = culture;
+            var replacementLoader = new ResourceLoader();
+            _settings.Update(x => x.Language = normalized);
+            lock (_gate)
+            {
+                _loader = replacementLoader;
+                CurrentLanguage = effective;
+            }
+            LanguageChanged?.Invoke(this, EventArgs.Empty);
+            return true;
+        }
+        catch
+        {
+            ApplicationLanguages.PrimaryLanguageOverride = previousOverride;
+            CultureInfo.CurrentCulture = previousCulture;
+            CultureInfo.CurrentUICulture = previousUiCulture;
+            CurrentLanguage = previousLanguage;
+            return false;
+        }
     }
 }
