@@ -9,6 +9,7 @@ public partial class App : Application
     public static SettingsService Settings { get; } = new();
     public static LocalizationService Localization { get; } = new(Settings);
     public static LibraryService Library { get; } = new();
+    public static ImportFolderService ImportFolders { get; } = new(Library);
     public static CategoryService Categories { get; } = new();
     public static ReadingDataService ReadingData { get; } = new();
     public static GitHubUpdateService Updates { get; } = new();
@@ -44,6 +45,8 @@ public partial class App : Application
             Library.DuplicateDetectionEnabled = Settings.Current.DuplicateDetection;
             Library.Load();
             StartupDiagnostics.Log("Library.Load completed.");
+            ImportFolders.Load();
+            StartupDiagnostics.Log("ImportFolders.Load completed.");
             Categories.Load(Library.Books);
             StartupDiagnostics.Log("Categories.Load completed.");
             ReadingData.Load();
