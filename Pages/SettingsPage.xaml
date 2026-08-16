@@ -2,7 +2,7 @@
     x:Class="PageArc.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Background="{StaticResource PageArcCanvasBrush}">
+    Background="{ThemeResource PageArcCanvasBrush}">
     <ScrollViewer>
         <Grid Padding="24">
             <Grid.RowDefinitions><RowDefinition Height="88"/><RowDefinition Height="*"/></Grid.RowDefinitions>
