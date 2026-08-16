@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -164,7 +163,7 @@ public sealed partial class LibraryPage
         _importCts?.Dispose();
         _importCts = new CancellationTokenSource();
         _importRunning = true;
-        var rows = paths.Select(path => new ImportVisualRow(path, Path.GetFileName(path))).ToArray();
+        var rows = paths.Select(path => new ImportVisualRow(path, System.IO.Path.GetFileName(path))).ToArray();
         BuildImportProgress(rows, 0, paths.Length);
         var results = new List<LibraryImportItemResult>(paths.Length);
 
@@ -330,8 +329,10 @@ public sealed partial class LibraryPage
     private void UpdateImportProgressHeader(int completed, int total)
     {
         if (ImportDialogContentHost.Children.FirstOrDefault() is not Grid root) return;
-        if (root.FindName("ImportCounter") is TextBlock counter) counter.Text = $"{completed} / {total}";
-        if (root.FindName("ImportOverallProgress") is ProgressBar progress) progress.Value = completed;
+        var counter = root.Children.OfType<TextBlock>().FirstOrDefault(x => string.Equals(x.Name, "ImportCounter", StringComparison.Ordinal));
+        if (counter is not null) counter.Text = $"{completed} / {total}";
+        var progress = root.Children.OfType<ProgressBar>().FirstOrDefault(x => string.Equals(x.Name, "ImportOverallProgress", StringComparison.Ordinal));
+        if (progress is not null) progress.Value = completed;
     }
 
     private void ShowImportCompletion(LibraryImportSummary summary)
