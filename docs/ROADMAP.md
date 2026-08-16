@@ -29,14 +29,17 @@
 - [x] Persist section-relative reading position across renderer/layout changes
 - [x] Wire the Figma-approved Conversion UI to real queue execution
 - [x] Harden EPUB WebView content against active ebook scripts and external requests
-- [ ] Full-text search
-- [ ] Durable bookmarks / highlights / notes
+- [x] Full-text search service and Figma-aligned search pane
+- [x] Durable bookmark and annotation data store
+- [x] Figma-aligned bookmark and notes panes
+- [ ] Text-selection highlight / note creation interaction
 - [ ] Cover extraction and richer metadata
 - [ ] EPUB + FB2 compatibility fixture expansion
 - [ ] Touch / keyboard navigation refinement
 
 ## v0.3.0 — MOBI + AZW3 / KF8
 
+- [x] Pin and license-review the MOBI/KF8 parser candidate (`foliate-js` @ `78914aef4466eb960965702401634c2cb348e9b1`, MIT)
 - [ ] MOBI / AZW3 parser integration behind the flow adapter contract
 - [ ] Lazy section / resource loading for Kindle content
 - [ ] DRM detection and clear unsupported messaging
