@@ -68,23 +68,28 @@
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:BookEntry">
                             <Button Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
-                                <Border Style="{StaticResource PageArcCardStyle}" Height="300">
+                                <Border Style="{StaticResource PageArcCardStyle}" Padding="12" Height="300">
                                     <Grid>
-                                        <Grid.RowDefinitions><RowDefinition Height="196"/><RowDefinition Height="36"/><RowDefinition Height="24"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="196"/>
+                                            <RowDefinition Height="36"/>
+                                            <RowDefinition Height="24"/>
+                                            <RowDefinition Height="20"/>
+                                        </Grid.RowDefinitions>
                                         <Border Background="#245A99" CornerRadius="5">
                                             <Grid>
                                                 <Border Width="7" HorizontalAlignment="Left" Background="#30FFFFFF"/>
                                                 <StackPanel Margin="18">
-                                                    <TextBlock Text="{x:Bind CoverMonogram}" FontSize="28" FontWeight="SemiBold" Foreground="White"/>
+                                                    <TextBlock Text="{x:Bind CoverMonogram}" FontSize="28" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1"/>
                                                     <Rectangle Height="2" Width="112" Margin="0,8,0,0" HorizontalAlignment="Left" Fill="#70FFFFFF"/>
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
-                                        <TextBlock Grid.Row="1" Text="{x:Bind Title}" Margin="0,8,0,0" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Row="2" Text="{x:Bind DisplayAuthor}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                        <Grid Grid.Row="3" Margin="0,2,0,0">
+                                        <TextBlock Grid.Row="1" Text="{x:Bind Title}" Margin="0,8,0,0" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Top"/>
+                                        <TextBlock Grid.Row="2" Text="{x:Bind DisplayAuthor}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"/>
+                                        <Grid Grid.Row="3">
                                             <ProgressBar Value="{x:Bind Progress}" Maximum="1" Height="3" Margin="0,0,42,0" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{x:Bind ProgressText}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="{x:Bind ProgressText}" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         </Grid>
                                     </Grid>
                                 </Border>
