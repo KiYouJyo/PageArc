@@ -191,7 +191,7 @@ public sealed class WebViewKindleParserRuntime : IKindleParserRuntime
         {
             var message = envelope.Error ?? "Kindle parser failed.";
             if (message.Contains("PAGEARC_DRM", StringComparison.Ordinal))
-                throw new InvalidDataException("This Kindle ebook is encrypted or DRM-protected and cannot be opened by PageArc.");
+                throw new DrmProtectedEbookException("This Kindle ebook is encrypted or DRM-protected and cannot be opened by PageArc.");
             throw new InvalidDataException(message);
         }
         if (typeof(T) == typeof(JsonElement) && envelope.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
