@@ -142,7 +142,6 @@ public sealed partial class LibraryPage : Page
     {
         if (sender is not FrameworkElement { DataContext: BookEntry book }) return;
         ToggleFavorite(book);
-        e.Handled = true;
     }
 
     private void ToggleFavorite(BookEntry book)
@@ -158,7 +157,6 @@ public sealed partial class LibraryPage : Page
         e.Handled = true;
 
         var flyout = new MenuFlyout();
-
         var open = new MenuFlyoutItem { Text = LocalText("打开", "開く", "Open") };
         open.Click += (_, _) => OpenBook(book);
         flyout.Items.Add(open);
