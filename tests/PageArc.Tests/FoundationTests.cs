@@ -42,6 +42,35 @@ public sealed class FoundationTests
         Assert.True(sets[0].SetEquals(sets[2]), "ja-JP resource keys differ from en-US.");
     }
 
+    [Fact]
+    public void AppManifest_DeclaresPerMonitorV2DpiAwareness()
+    {
+        var root = FindRepoRoot();
+        var manifest = XDocument.Load(Path.Combine(root, "app.manifest"));
+        XNamespace dpi = "http://schemas.microsoft.com/SMI/2016/WindowsSettings";
+        var awareness = manifest.Descendants(dpi + "dpiAwareness").SingleOrDefault();
+        Assert.NotNull(awareness);
+        Assert.Contains("PerMonitorV2", awareness!.Value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ShellThemeResources_AreDynamicForLightAndDarkModes()
+    {
+        var root = FindRepoRoot();
+        var appXaml = File.ReadAllText(Path.Combine(root, "App.xaml"));
+        var mainWindowXaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
+        var readerXaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
+
+        Assert.Contains("ResourceDictionary.ThemeDictionaries", appXaml, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"Light\"", appXaml, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"Dark\"", appXaml, StringComparison.Ordinal);
+        Assert.Contains("{ThemeResource PageArcCardBrush}", appXaml, StringComparison.Ordinal);
+        Assert.Contains("{ThemeResource PageArcCanvasBrush}", mainWindowXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Background=\"#F6F6F6\"", mainWindowXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Background=\"#F9F9F9\"", readerXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("{ThemeResource PageArcToolbarBrush}", readerXaml, StringComparison.Ordinal);
+    }
+
     private static SortedSet<string> ReadKeys(string path) =>
         new(XDocument.Load(path).Root!
             .Elements("data")
