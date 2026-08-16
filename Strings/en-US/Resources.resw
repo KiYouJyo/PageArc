@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="Nav_Library.Content" xml:space="preserve"><value>Library</value></data>
+  <data name="Nav_Recent.Content" xml:space="preserve"><value>Recent</value></data>
+  <data name="Nav_Favorites.Content" xml:space="preserve"><value>Favorites</value></data>
+  <data name="Nav_Collections.Content" xml:space="preserve"><value>Collections</value></data>
+  <data name="Nav_ImportFolders.Content" xml:space="preserve"><value>Import folders</value></data>
+  <data name="Nav_Settings.Content" xml:space="preserve"><value>Settings</value></data>
+  <data name="Nav_About.Content" xml:space="preserve"><value>About PageArc</value></data>
+  <data name="Library_Title" xml:space="preserve"><value>Library</value></data>
+  <data name="Library_Subtitle" xml:space="preserve"><value>Your local ebook collection</value></data>
+  <data name="Recent_Title" xml:space="preserve"><value>Recent</value></data>
+  <data name="Recent_Subtitle" xml:space="preserve"><value>Books you opened recently</value></data>
+  <data name="Favorites_Title" xml:space="preserve"><value>Favorites</value></data>
+  <data name="Favorites_Subtitle" xml:space="preserve"><value>Books you marked as favorites</value></data>
+  <data name="Collections_Title" xml:space="preserve"><value>Collections</value></data>
+  <data name="Collections_Subtitle" xml:space="preserve"><value>Organize books into your own groups</value></data>
+  <data name="Library_Search.PlaceholderText" xml:space="preserve"><value>Search your library</value></data>
+  <data name="Library_ImportBook.AutomationProperties.Name" xml:space="preserve"><value>Import book</value></data>
+  <data name="Library_ImportBookText.Text" xml:space="preserve"><value>Import book</value></data>
+  <data name="Filter_All.Content" xml:space="preserve"><value>All books</value></data>
+  <data name="Filter_RecentlyAdded.Content" xml:space="preserve"><value>Recently added</value></data>
+  <data name="Filter_InProgress.Content" xml:space="preserve"><value>In progress</value></data>
+  <data name="Filter_Finished.Content" xml:space="preserve"><value>Finished</value></data>
+  <data name="Sort_Recent.Content" xml:space="preserve"><value>Sort: Recent</value></data>
+  <data name="Sort_Title.Content" xml:space="preserve"><value>Sort: Title</value></data>
+  <data name="View_Grid.AutomationProperties.Name" xml:space="preserve"><value>Grid</value></data>
+  <data name="View_GridText.Text" xml:space="preserve"><value>Grid</value></data>
+  <data name="Library_EmptyTitle.Text" xml:space="preserve"><value>No books in your library yet</value></data>
+  <data name="Library_EmptyBody.Text" xml:space="preserve"><value>Import EPUB, MOBI, AZW3, FB2, or LIT files to get started.</value></data>
+  <data name="Library_EmptyImport.Content" xml:space="preserve"><value>Import books</value></data>
+  <data name="Library_EmptyFolder.Content" xml:space="preserve"><value>Import folder</value></data>
+  <data name="Settings_Title.Text" xml:space="preserve"><value>Settings</value></data>
+  <data name="Settings_Subtitle.Text" xml:space="preserve"><value>Customize PageArc for your reading workflow</value></data>
+  <data name="Settings_Appearance.Text" xml:space="preserve"><value>Appearance</value></data>
+  <data name="Settings_AppTheme.Text" xml:space="preserve"><value>App theme</value></data>
+  <data name="Settings_AppThemeHint.Text" xml:space="preserve"><value>Follow Windows light/dark preference</value></data>
+  <data name="Settings_Language.Text" xml:space="preserve"><value>Language</value></data>
+  <data name="Settings_LanguageHint.Text" xml:space="preserve"><value>Switch the PageArc interface language</value></data>
+  <data name="Language_System.Content" xml:space="preserve"><value>Follow system</value></data>
+  <data name="Theme_System.Content" xml:space="preserve"><value>System</value></data>
+  <data name="Theme_Light.Content" xml:space="preserve"><value>Light</value></data>
+  <data name="Theme_Dark.Content" xml:space="preserve"><value>Dark</value></data>
+  <data name="Settings_ReadingTheme.Text" xml:space="preserve"><value>Default reading theme</value></data>
+  <data name="Settings_ReadingThemeHint.Text" xml:space="preserve"><value>Applied when a book has no saved preference</value></data>
+  <data name="ReadingTheme_Light.Content" xml:space="preserve"><value>Light</value></data>
+  <data name="ReadingTheme_Sepia.Content" xml:space="preserve"><value>Sepia</value></data>
+  <data name="ReadingTheme_Dark.Content" xml:space="preserve"><value>Dark</value></data>
+  <data name="Settings_Library.Text" xml:space="preserve"><value>Library</value></data>
+  <data name="Settings_ShowRecent.Text" xml:space="preserve"><value>Show recent books</value></data>
+  <data name="Settings_ShowRecentHint.Text" xml:space="preserve"><value>Keep recently opened books easy to reach</value></data>
+  <data name="Settings_ImportFolders.Text" xml:space="preserve"><value>Import folders</value></data>
+  <data name="Settings_ImportFoldersHint.Text" xml:space="preserve"><value>Manage watched local ebook folders</value></data>
+  <data name="Settings_ManageFolders.Content" xml:space="preserve"><value>Manage</value></data>
+  <data name="Settings_Duplicates.Text" xml:space="preserve"><value>Duplicate detection</value></data>
+  <data name="Settings_DuplicatesHint.Text" xml:space="preserve"><value>Skip identical files during import</value></data>
+  <data name="Settings_Reading.Text" xml:space="preserve"><value>Reading</value></data>
+  <data name="Settings_Font.Text" xml:space="preserve"><value>Default font</value></data>
+  <data name="Font_BookDefault.Content" xml:space="preserve"><value>Book default</value></data>
+  <data name="Settings_FontSize.Text" xml:space="preserve"><value>Font size</value></data>
+  <data name="Settings_LineSpacing.Text" xml:space="preserve"><value>Line spacing</value></data>
+  <data name="Settings_Continuous.Text" xml:space="preserve"><value>Continuous scrolling</value></data>
+  <data name="Settings_DataStorage.Text" xml:space="preserve"><value>Data &amp; storage</value></data>
+  <data name="Settings_Backup.Text" xml:space="preserve"><value>Back up reading data</value></data>
+  <data name="Settings_BackupHint.Text" xml:space="preserve"><value>Export bookmarks, highlights, notes and progress</value></data>
+  <data name="Settings_BackupButton.Content" xml:space="preserve"><value>Back up</value></data>
+  <data name="Settings_ClearCache.Text" xml:space="preserve"><value>Clear cache</value></data>
+  <data name="Settings_ClearCacheHint.Text" xml:space="preserve"><value>Removes generated covers and parsing cache only</value></data>
+  <data name="Settings_ClearCacheButton.Content" xml:space="preserve"><value>Clear cache</value></data>
+  <data name="About_Title.Text" xml:space="preserve"><value>About PageArc</value></data>
+  <data name="About_Subtitle.Text" xml:space="preserve"><value>A focused Windows ebook reader for reflowable formats</value></data>
+  <data name="About_Version.Text" xml:space="preserve"><value>Version 0.1.0 · Preview</value></data>
+  <data name="About_Description.Text" xml:space="preserve"><value>Read EPUB, MOBI, AZW3, FB2 and LIT in one calm, native Windows experience.</value></data>
+  <data name="About_Formats.Text" xml:space="preserve"><value>Supported formats</value></data>
+  <data name="About_Storage.Text" xml:space="preserve"><value>Storage model</value></data>
+  <data name="About_StorageBody.Text" xml:space="preserve"><value>Local-first. Original ebook files are never modified.</value></data>
+  <data name="About_Privacy.Text" xml:space="preserve"><value>Privacy</value></data>
+  <data name="About_PrivacyBody.Text" xml:space="preserve"><value>No account required. Reading data remains on this device.</value></data>
+  <data name="About_Licenses.Text" xml:space="preserve"><value>Open source &amp; licenses</value></data>
+  <data name="About_LicensesBody.Text" xml:space="preserve"><value>Third-party components and licenses will be listed here.</value></data>
+  <data name="About_Updates.Text" xml:space="preserve"><value>Updates</value></data>
+  <data name="About_UpdatesBody.Text" xml:space="preserve"><value>Check whether a newer version of PageArc is available.</value></data>
+  <data name="About_CheckUpdates.AutomationProperties.Name" xml:space="preserve"><value>Check for updates</value></data>
+  <data name="About_CheckUpdatesText.Text" xml:space="preserve"><value>Check for updates</value></data>
+  <data name="Update_Checking" xml:space="preserve"><value>Checking for updates…</value></data>
+  <data name="Update_Available" xml:space="preserve"><value>PageArc {0} is available.</value></data>
+  <data name="Update_AvailableTitle" xml:space="preserve"><value>Update available</value></data>
+  <data name="Update_UpToDate" xml:space="preserve"><value>PageArc is up to date.</value></data>
+  <data name="Update_NoRelease" xml:space="preserve"><value>No GitHub release is published yet.</value></data>
+  <data name="Update_RateLimited" xml:space="preserve"><value>GitHub rate limit reached. Try again later.</value></data>
+  <data name="Update_Failed" xml:space="preserve"><value>Unable to check for updates.</value></data>
+  <data name="Update_OpenRelease" xml:space="preserve"><value>Open release</value></data>
+  <data name="Folders_Title.Text" xml:space="preserve"><value>Import folders</value></data>
+  <data name="Folders_Subtitle.Text" xml:space="preserve"><value>Watch local folders and add supported ebooks automatically</value></data>
+  <data name="Folders_Add.AutomationProperties.Name" xml:space="preserve"><value>Add folder</value></data>
+  <data name="Folders_AddText.Text" xml:space="preserve"><value>Add folder</value></data>
+  <data name="Folders_Info.Message" xml:space="preserve"><value>PageArc watches selected folders locally. Original files are never moved or changed.</value></data>
+  <data name="Folders_EmptyTitle.Text" xml:space="preserve"><value>No watched folders yet</value></data>
+  <data name="Folders_EmptyBody.Text" xml:space="preserve"><value>Add a folder to make it easy to scan your ebook library.</value></data>
+  <data name="Reader_Back.AutomationProperties.Name" xml:space="preserve"><value>Back to Library</value></data>
+  <data name="Reader_BackText.Text" xml:space="preserve"><value>Library</value></data>
+  <data name="Reader_Contents.AutomationProperties.Name" xml:space="preserve"><value>Contents</value></data>
+  <data name="Reader_ContentsText.Text" xml:space="preserve"><value>Contents</value></data>
+  <data name="Reader_Search.AutomationProperties.Name" xml:space="preserve"><value>Search</value></data>
+  <data name="Reader_SearchText.Text" xml:space="preserve"><value>Search</value></data>
+  <data name="Reader_Appearance.AutomationProperties.Name" xml:space="preserve"><value>Reading settings</value></data>
+  <data name="Reader_Bookmark.AutomationProperties.Name" xml:space="preserve"><value>Bookmark</value></data>
+  <data name="Reader_More.AutomationProperties.Name" xml:space="preserve"><value>More</value></data>
+  <data name="Reader_ContentsHeading.Text" xml:space="preserve"><value>Contents</value></data>
+  <data name="ReaderSettings_Title.Text" xml:space="preserve"><value>Reading settings</value></data>
+  <data name="ReaderSettings_ThemeLabel.Text" xml:space="preserve"><value>Theme</value></data>
+  <data name="ReaderSettings_FontSizeLabel.Text" xml:space="preserve"><value>Font size</value></data>
+  <data name="ReaderSettings_LineSpacingLabel.Text" xml:space="preserve"><value>Line spacing</value></data>
+  <data name="ReaderSettings_Continuous.Header" xml:space="preserve"><value>Continuous scrolling</value></data>
+  <data name="Reader_UnsupportedV01" xml:space="preserve"><value>PageArc v0.1.0 reader core currently opens EPUB files. Other format adapters are scaffolded for later milestones.</value></data>
+  <data name="Reader_ChapterN" xml:space="preserve"><value>Chapter {0}</value></data>
+  <data name="Reader_ReadPercent" xml:space="preserve"><value>{0}% read</value></data>
+  <data name="Reader_BookmarkSaved" xml:space="preserve"><value>Bookmark saved for the current chapter.</value></data>
+</root>
