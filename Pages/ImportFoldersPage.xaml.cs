@@ -1,7 +1,7 @@
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PageArc.Services;
-using Windows.UI.Text;
 
 namespace PageArc.Pages;
 
