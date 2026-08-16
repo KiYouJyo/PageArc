@@ -85,6 +85,7 @@
                                                         <TextBlock Text="{x:Bind CoverMonogram}" FontSize="28" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1"/>
                                                         <Rectangle Height="2" Width="112" Margin="0,8,0,0" HorizontalAlignment="Left" Fill="#70FFFFFF"/>
                                                     </StackPanel>
+                                                    <Image Tag="{x:Bind Id}" Loaded="CoverImage_Loaded" Stretch="UniformToFill" Opacity="0"/>
                                                 </Grid>
                                             </Border>
                                             <TextBlock Grid.Row="1" Text="{x:Bind Title}" Margin="0,8,0,0" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Top"/>
@@ -128,10 +129,13 @@
                     <Grid Margin="0,16,0,0" Height="188">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Border Background="#245A99" CornerRadius="6">
-                            <StackPanel Margin="18,20,0,0">
-                                <TextBlock x:Name="DetailsCoverMonogram" FontSize="34" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1"/>
-                                <Rectangle Height="2" Width="86" Margin="0,8,0,0" HorizontalAlignment="Left" Fill="#70FFFFFF"/>
-                            </StackPanel>
+                            <Grid>
+                                <StackPanel Margin="18,20,0,0">
+                                    <TextBlock x:Name="DetailsCoverMonogram" FontSize="34" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                                    <Rectangle Height="2" Width="86" Margin="0,8,0,0" HorizontalAlignment="Left" Fill="#70FFFFFF"/>
+                                </StackPanel>
+                                <Image x:Name="DetailsCoverImage" Stretch="UniformToFill" Opacity="0"/>
+                            </Grid>
                         </Border>
                         <StackPanel Grid.Column="2" Margin="0,8,0,0" Spacing="6">
                             <TextBlock x:Name="DetailsBookTitle" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2"/>
