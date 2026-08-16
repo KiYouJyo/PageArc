@@ -24,6 +24,7 @@
     <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
     <Compile Include="../../Services/IFlowBookAdapter.cs" Link="Services/IFlowBookAdapter.cs" />
     <Compile Include="../../Services/IKindleParserRuntime.cs" Link="Services/IKindleParserRuntime.cs" />
+    <Compile Include="../../Services/KindleFileProbe.cs" Link="Services/KindleFileProbe.cs" />
     <Compile Include="../../Services/FlowReaderEngine.cs" Link="Services/FlowReaderEngine.cs" />
     <Compile Include="../../Services/FlowSearchService.cs" Link="Services/FlowSearchService.cs" />
     <Compile Include="../../Services/ReadingDataService.cs" Link="Services/ReadingDataService.cs" />
