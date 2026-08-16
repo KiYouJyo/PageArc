@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0] - 2026-08-16
+
+### Added
+- Dedicated LIT flow adapter behind the common `FlowReaderEngine` contract.
+- Read-only LIT-to-EPUB normalization cache through an available local conversion provider, with source size/mtime invalidation.
+- Explicit conversion capability model covering all 20 ordered cross-format pairs among EPUB / FB2 / MOBI / AZW3 / LIT.
+- Capability reporting that reflects providers actually available on the machine.
+- Regression coverage for LIT normalization, DRM stop behavior, conversion matrix completeness, and five-format flow compatibility.
+- Signed x64 acceptance pipeline covering Release tests, Debug/Release builds, MSIX signing, install and launch smoke testing.
+
+### Changed
+- LIT is no longer treated as an incidental Kindle compatibility case; it has its own adapter boundary.
+- Confirmed DRM signals from the LIT provider stop the open path and are never routed into bypass attempts.
+- The packaged application version is now 0.4.0.
+
+### Notes
+- EPUB, FB2, MOBI and AZW3 have built-in reading adapters.
+- LIT reading uses a dedicated PageArc adapter and a local conversion-provider boundary; calibre remains optional and is not bundled.
+- Original ebook files are never modified.
+
 ## [0.3.0] - 2026-08-16
 
 ### Added
@@ -19,7 +39,6 @@
 ### Notes
 - EPUB, FB2, MOBI and AZW3 now have built-in reading adapters.
 - The calibre bridge remains optional for format conversion and compatibility fallback; it is not bundled with PageArc.
-- LIT continues to use the optional normalization fallback in this release and is the main built-in format target for v0.4.0.
 
 ## [0.2.0] - 2026-08-16
 
@@ -32,18 +51,11 @@
 - Persistent bookmarks and annotation storage plus Figma-aligned Search, Bookmarks and Notes side panes.
 - Real conversion queue backed by pluggable conversion providers.
 - calibre `ebook-convert` provider for DRM-free conversion across EPUB, FB2, MOBI, AZW3 and LIT when calibre is installed or configured.
-- Normalized flow fallback that can open MOBI, AZW3 and LIT by converting a cached copy to EPUB when the calibre provider is available.
 - Dedicated normalized-book cache; original ebook files are never modified.
 
 ### Changed
 - Reading progress now stores both the flow section and the within-section fraction so font/line-spacing/page-width changes preserve the reading location more accurately.
-- EPUB rendering now strips active script content and blocks external WebView resource requests and pop-up navigation.
-- The About page reads the application version at runtime instead of embedding a stale version number in each localization resource.
-
-### Notes
-- EPUB and FB2 have built-in reading adapters in v0.2.0.
-- MOBI, AZW3 and LIT have a working optional normalization path when calibre is installed; v0.3/v0.4 will progressively replace reading-time normalization with built-in format adapters.
-- DRM removal is intentionally out of scope.
+- EPUB rendering strips active script content and blocks external WebView resource requests and pop-up navigation.
 
 ## [0.1.0] - 2026-08-16
 
@@ -57,8 +69,3 @@
 - Native WinUI EPUB text reading with TOC, chapter navigation, progress, font-size, line-spacing and reading-theme controls.
 - User-invoked GitHub Release update checking.
 - CI, regression tests, signed x64 MSIX validation, privacy policy, contribution guide, architecture and roadmap documents.
-
-### Notes
-- EPUB is the supported reading format in v0.1.0.
-- FB2 / MOBI / AZW3 / LIT can be cataloged but do not yet have stable reading adapters.
-- The Format Conversion page is present, but conversion engines are planned for later versions.
