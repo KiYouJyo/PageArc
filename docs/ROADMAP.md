@@ -51,11 +51,12 @@
 
 ## v0.6.0 — Windows deep integration
 
-- [ ] Native file associations for EPUB / FB2 / MOBI / AZW / AZW3 / LIT
-- [ ] File activation and command-line open routed into the existing PageArc instance
-- [ ] Single-instance redirection and activation queue safety
-- [ ] Explorer “show file location” and native shell open workflows
-- [ ] Windows jump list / recent-book integration
-- [ ] Protocol deep links for library/book/reader navigation where appropriate
-- [ ] Packaged activation manifest and signed-install acceptance coverage
-- [ ] Windows integration regression tests and fallback behavior for unpackaged development builds
+- [x] Native file associations for EPUB / FB2 / MOBI / AZW / AZW3 / LIT in the packaged manifest
+- [x] File / launch-argument activation routed through the existing PageArc library and reader path
+- [x] Windows App SDK single-instance registration, redirection, queued startup activation and serialized activation handling
+- [x] Explorer “show file location” plus native Open/Open with workflows through registered ebook associations
+- [x] Windows Jump List recent-book integration using stable `pagearc://book/<id>` arguments
+- [x] `pagearc:` protocol deep links for stable book IDs and explicit local ebook paths
+- [x] Packaged file-association/protocol manifest plus signed-install registration validation
+- [x] Signed runtime acceptance covering packaged launch, protocol activation, import routing and same-PID single-instance redirection
+- [x] Pure activation/parser/manifest regression tests with graceful unpackaged-development fallbacks

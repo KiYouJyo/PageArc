@@ -159,11 +159,9 @@ public sealed partial class MainWindow : Window
 
         if (!highContrast && _isWindowActive)
         {
-            // The cyan pane is an active-window affordance. Pane open/closed and compact/
-            // expanded states must not affect the color; only native window activation does.
             var activeColor = isDark
-                ? ColorHelper.FromArgb(255, 26, 35, 35)      // #1A2323 deep cyan
-                : ColorHelper.FromArgb(255, 229, 249, 249); // #E5F9F9 light cyan
+                ? ColorHelper.FromArgb(255, 26, 35, 35)
+                : ColorHelper.FromArgb(255, 229, 249, 249);
             _navigationSplitView.PaneBackground = new SolidColorBrush(activeColor);
             return;
         }
@@ -288,8 +286,12 @@ public sealed partial class MainWindow : Window
             {
                 ReaderFrame.Visibility = Visibility.Collapsed;
                 AppNavigation.Visibility = Visibility.Visible;
+                return false;
             }
-            return navigated;
+
+            App.Library.MarkOpened(book);
+            _ = App.JumpLists.RecordRecentBookAsync(book);
+            return true;
         }
         catch (Exception ex)
         {
