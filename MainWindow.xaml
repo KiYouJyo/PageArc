@@ -2,13 +2,17 @@
     x:Class="PageArc.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid x:Name="RootGrid" Background="{ThemeResource PageArcCanvasBrush}">
+    <Window.SystemBackdrop>
+        <MicaBackdrop/>
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid" Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="{ThemeResource PageArcToolbarBrush}">
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="Transparent">
             <TextBlock Text="PageArc" Margin="16,0,0,0" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"/>
         </Grid>
 
@@ -22,7 +26,7 @@
                 IsPaneOpen="True"
                 PaneDisplayMode="Left"
                 OpenPaneLength="240"
-                CompactPaneLength="64"
+                CompactPaneLength="48"
                 SelectionChanged="AppNavigation_SelectionChanged">
                 <NavigationView.MenuItems>
                     <NavigationViewItem x:Uid="Nav_Library" Tag="library">
@@ -51,12 +55,5 @@
 
             <Frame x:Name="ReaderFrame" Visibility="Collapsed"/>
         </Grid>
-
-        <Border
-            x:Name="ThemeTransitionOverlay"
-            Grid.RowSpan="2"
-            Opacity="0"
-            Visibility="Collapsed"
-            IsHitTestVisible="False"/>
     </Grid>
 </Window>
