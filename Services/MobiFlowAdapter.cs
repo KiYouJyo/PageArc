@@ -33,7 +33,7 @@ public sealed class MobiFlowAdapter : IFlowBookAdapter
             if (!probe.IsMobi)
                 throw new InvalidDataException("The file extension indicates MOBI/AZW3, but the file does not contain a valid MOBI header.");
             if (probe.IsEncrypted)
-                throw new InvalidDataException("This Kindle ebook is encrypted or DRM-protected and cannot be opened by PageArc.");
+                throw new DrmProtectedEbookException("This Kindle ebook is encrypted or DRM-protected and cannot be opened by PageArc.");
         }
 
         var parsed = await _runtime.OpenAsync(book, cancellationToken);
