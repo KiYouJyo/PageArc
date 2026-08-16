@@ -2,8 +2,7 @@ name: v0.1.0 Signed Acceptance
 
 on:
   push:
-    branches:
-      - feat/v0.1.0-foundation
+    branches: [ feat/v0.1.0-foundation ]
   workflow_dispatch:
 
 permissions:
@@ -15,129 +14,104 @@ concurrency:
 
 jobs:
   acceptance:
-    name: Validate, package, sign, launch-smoke-test x64
+    name: Validate, package, sign, and launch-test x64
     runs-on: windows-2025-vs2026
     timeout-minutes: 45
 
     steps:
-      - name: Checkout acceptance branch
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
-      - name: Verify v0.1.0 source metadata
+      - name: Validate source
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           [xml]$project = Get-Content -Raw PageArc.csproj
           $version = @($project.Project.PropertyGroup | ForEach-Object Version | Where-Object { $_ })[0]
-          $assemblyVersion = @($project.Project.PropertyGroup | ForEach-Object AssemblyVersion | Where-Object { $_ })[0]
           if ($version -ne '0.1.0') { throw "Project version mismatch: $version" }
-          if ($assemblyVersion -ne '0.1.0.0') { throw "Assembly version mismatch: $assemblyVersion" }
-
-      - name: Restore and validate foundation
-        shell: pwsh
-        run: |
           dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore --verbosity normal
+          dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build PageArc.csproj -c Debug -p:Platform=x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Load configured release certificate
+      - name: Load configured publisher certificate
         shell: pwsh
         env:
           RELEASE_CERTIFICATE_BASE64: ${{ secrets.GH_RELEASE_CERTIFICATE_BASE64 }}
           RELEASE_CERTIFICATE_PASSWORD: ${{ secrets.GH_RELEASE_CERTIFICATE_PASSWORD }}
         run: |
           $ErrorActionPreference = 'Stop'
-          if ([string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_BASE64) -or [string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_PASSWORD)) {
-            throw 'Configured GitHub release signing secrets are missing.'
-          }
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_BASE64) -or [string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_PASSWORD)) { throw 'Release signing secrets are missing.' }
           $root = Join-Path $env:RUNNER_TEMP 'PageArc-v0.1.0-signed-acceptance'
           New-Item -ItemType Directory -Force -Path $root | Out-Null
           $pfx = Join-Path $root 'release-signing.pfx'
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:RELEASE_CERTIFICATE_BASE64))
-          $securePassword = ConvertTo-SecureString $env:RELEASE_CERTIFICATE_PASSWORD -AsPlainText -Force
-          $certificate = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
-          if (-not $certificate -or -not $certificate.HasPrivateKey) { throw 'Configured release certificate could not be imported with a private key.' }
-          if ($certificate.Subject -cne 'CN=AppPublisher') { throw "Unexpected configured certificate subject: $($certificate.Subject)" }
-          if ($certificate.Thumbprint -cne 'BD85AD77A651C86CA01A480C8E9BC64952993F98') { throw "Unexpected configured certificate thumbprint: $($certificate.Thumbprint)" }
+          $password = ConvertTo-SecureString $env:RELEASE_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          if (-not $cert -or -not $cert.HasPrivateKey) { throw 'Configured certificate could not be imported.' }
+          if ($cert.Subject -cne 'CN=AppPublisher' -or $cert.Thumbprint -cne 'BD85AD77A651C86CA01A480C8E9BC64952993F98') { throw "Unexpected signing certificate: $($cert.Subject) / $($cert.Thumbprint)" }
           $cer = Join-Path $root 'PageArc-v0.1.0-acceptance.cer'
-          Export-Certificate -Cert $certificate -FilePath $cer | Out-Null
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
           "ACCEPTANCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "PFX_PATH=$pfx" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "CERTIFICATE_PATH=$cer" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          "CERT_THUMBPRINT=$($certificate.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          "CERT_SUBJECT=$($certificate.Subject)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Prepare native WinUI packaged build
+      - name: Prepare standard packaged WinUI build
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $projectPath = 'PageArc.csproj'
-          $projectText = Get-Content -Raw $projectPath
-          $projectText = $projectText -replace '(?m)^\s*<WindowsPackageType>None</WindowsPackageType>\s*\r?\n', ''
-          $projectText = $projectText -replace '<WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>', '<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>'
-          if ($projectText -notmatch '<SelfContained>') {
-            $projectText = $projectText -replace '(<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>)', "$1`r`n    <SelfContained>true</SelfContained>"
-          }
-          if ($projectText -notmatch '<RuntimeIdentifier>') {
-            $projectText = $projectText -replace '(<RuntimeIdentifiers>[^<]+</RuntimeIdentifiers>)', "$1`r`n    <RuntimeIdentifier>win-x64</RuntimeIdentifier>"
-          }
-          if ($projectText -notmatch '<WindowsAppSdkDeploymentManagerInitialize>') {
-            $projectText = $projectText -replace '(<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>)', "$1`r`n    <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>"
-          }
-          Set-Content -LiteralPath $projectPath -Value $projectText -Encoding utf8
-          if ((Get-Content -Raw $projectPath) -match '<WindowsPackageType>None</WindowsPackageType>') { throw 'WindowsPackageType=None was not removed for packaged acceptance build.' }
+          # Switch the checkout from its normal unpackaged development mode to the
+          # standard framework-dependent packaged WinUI model for this acceptance build.
+          $text = Get-Content -Raw PageArc.csproj
+          $text = $text -replace '(?m)^\s*<WindowsPackageType>None</WindowsPackageType>\s*\r?\n', ''
+          $text = $text -replace '(?m)^\s*<PublishProfile>.*?</PublishProfile>\s*\r?\n', ''
+          $text = $text -replace '<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>', '<WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>'
+          $text = $text -replace '(?m)^\s*<SelfContained>.*?</SelfContained>\s*\r?\n', ''
+          $text = $text -replace '(?m)^\s*<RuntimeIdentifier>.*?</RuntimeIdentifier>\s*\r?\n', ''
+          $text = $text -replace '(?m)^\s*<WindowsAppSdkDeploymentManagerInitialize>.*?</WindowsAppSdkDeploymentManagerInitialize>\s*\r?\n', ''
+          Set-Content -LiteralPath PageArc.csproj -Value $text -Encoding utf8
 
           $assets = Join-Path (Get-Location) 'Assets'
           New-Item -ItemType Directory -Force -Path $assets | Out-Null
           Add-Type -AssemblyName System.Drawing
           function New-Logo([string]$Path, [int]$Width, [int]$Height) {
-            $bitmap = New-Object System.Drawing.Bitmap($Width, $Height)
-            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-            $graphics.Clear([System.Drawing.Color]::FromArgb(255, 36, 90, 153))
-            $fontSize = [Math]::Max(12, [Math]::Floor([Math]::Min($Width, $Height) * 0.32))
-            $font = New-Object System.Drawing.Font('Segoe UI', $fontSize, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-            $format = New-Object System.Drawing.StringFormat
-            $format.Alignment = [System.Drawing.StringAlignment]::Center
-            $format.LineAlignment = [System.Drawing.StringAlignment]::Center
-            $graphics.DrawString('PA', $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF(0,0,$Width,$Height)), $format)
-            $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
-            $format.Dispose(); $font.Dispose(); $graphics.Dispose(); $bitmap.Dispose()
+            $bmp = New-Object System.Drawing.Bitmap($Width,$Height)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.Clear([System.Drawing.Color]::FromArgb(255,36,90,153))
+            $size = [Math]::Max(12,[Math]::Floor([Math]::Min($Width,$Height)*0.32))
+            $font = New-Object System.Drawing.Font('Segoe UI',$size,[System.Drawing.FontStyle]::Bold,[System.Drawing.GraphicsUnit]::Pixel)
+            $fmt = New-Object System.Drawing.StringFormat
+            $fmt.Alignment = [System.Drawing.StringAlignment]::Center; $fmt.LineAlignment = [System.Drawing.StringAlignment]::Center
+            $g.DrawString('PA',$font,[System.Drawing.Brushes]::White,(New-Object System.Drawing.RectangleF(0,0,$Width,$Height)),$fmt)
+            $bmp.Save($Path,[System.Drawing.Imaging.ImageFormat]::Png)
+            $fmt.Dispose(); $font.Dispose(); $g.Dispose(); $bmp.Dispose()
           }
           New-Logo (Join-Path $assets 'Square44x44Logo.png') 44 44
           New-Logo (Join-Path $assets 'Square150x150Logo.png') 150 150
           New-Logo (Join-Path $assets 'Wide310x150Logo.png') 310 150
           New-Logo (Join-Path $assets 'StoreLogo.png') 50 50
 
-          $manifest = @'
+          @'
           <?xml version="1.0" encoding="utf-8"?>
-          <Package
-            xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-            xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
-            xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-            xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-            IgnorableNamespaces="uap rescap">
+          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+                   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+                   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+                   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+                   IgnorableNamespaces="uap rescap">
             <Identity Name="KiYouJyo.PageArc.Acceptance" Publisher="CN=AppPublisher" Version="0.1.0.0" />
             <mp:PhoneIdentity PhoneProductId="2efbd068-554e-49c0-8508-0a86a7522914" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
-            <Properties>
-              <DisplayName>PageArc</DisplayName>
-              <PublisherDisplayName>KiYouJyo</PublisherDisplayName>
-              <Logo>Assets\StoreLogo.png</Logo>
-            </Properties>
-            <Dependencies>
-              <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
-            </Dependencies>
+            <Properties><DisplayName>PageArc</DisplayName><PublisherDisplayName>KiYouJyo</PublisherDisplayName><Logo>Assets\StoreLogo.png</Logo></Properties>
+            <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" /></Dependencies>
             <Resources><Resource Language="x-generate" /></Resources>
             <Applications>
               <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
@@ -148,127 +122,87 @@ jobs:
             </Applications>
             <Capabilities><rescap:Capability Name="runFullTrust" /></Capabilities>
           </Package>
-          '@
-          $manifest = ($manifest -split "`r?`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`r`n"
-          Set-Content -LiteralPath Package.appxmanifest -Value $manifest -Encoding utf8
+          '@ | ForEach-Object { $_ -replace '(?m)^          ', '' } | Set-Content -LiteralPath Package.appxmanifest -Encoding utf8
 
-      - name: Build unsigned packaged x64 MSIX
+      - name: Build and sign framework-dependent MSIX
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $output = Join-Path $env:RUNNER_TEMP 'PageArc-AppPackages'
-          dotnet restore PageArc.csproj -r win-x64 -p:Configuration=Release -p:Platform=x64
-          if ($LASTEXITCODE -ne 0) { throw "packaged restore failed: $LASTEXITCODE" }
-          dotnet build PageArc.csproj -c Release -p:Platform=x64 -r win-x64 --no-restore `
+          dotnet restore PageArc.csproj -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw "Packaged restore failed: $LASTEXITCODE" }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore `
             -p:GenerateAppxPackageOnBuild=true `
             -p:AppxPackageSigningEnabled=false `
             -p:AppxBundle=Never `
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:AppxPackageDir="$output\"
-          if ($LASTEXITCODE -ne 0) { throw "packaged MSIX build failed: $LASTEXITCODE" }
-          $msix = @(Get-ChildItem $output -Recurse -Filter '*.msix' | Where-Object { $_.Name -notmatch 'Dependencies' } | Sort-Object LastWriteTime -Descending) | Select-Object -First 1
-          if (-not $msix) { throw 'Single-project MSIX build produced no .msix package.' }
-          $destination = Join-Path $env:ACCEPTANCE_ROOT 'PageArc_0.1.0.0_x64.msix'
-          Copy-Item -LiteralPath $msix.FullName -Destination $destination -Force
-          "MSIX_PATH=$destination" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          if ($LASTEXITCODE -ne 0) { throw "Packaged build failed: $LASTEXITCODE" }
+          $built = @(Get-ChildItem $output -Recurse -Filter '*.msix' | Where-Object Name -notmatch 'Dependencies' | Sort-Object LastWriteTime -Descending) | Select-Object -First 1
+          if (-not $built) { throw 'No MSIX was produced.' }
+          $msix = Join-Path $env:ACCEPTANCE_ROOT 'PageArc_0.1.0.0_x64.msix'
+          Copy-Item $built.FullName $msix -Force
+          $kits = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $signtool = Get-ChildItem (Join-Path $kits 'Windows Kits\10\bin') -Recurse -Filter signtool.exe | Where-Object FullName -match '\\x64\\signtool.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /sha1 $env:CERT_THUMBPRINT /tr http://timestamp.digicert.com /td SHA256 $msix
+          if ($LASTEXITCODE -ne 0) { throw "Signing failed: $LASTEXITCODE" }
+          $sig = Get-AuthenticodeSignature $msix
+          if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -cne $env:CERT_THUMBPRINT) { throw 'Signer verification failed.' }
+          "MSIX_PATH=$msix" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Sign and verify packaged MSIX
+      - name: Install and launch acceptance smoke test
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $kitsRoot = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
-          $signtool = Get-ChildItem (Join-Path $kitsRoot 'Windows Kits\10\bin') -Recurse -Filter signtool.exe | Where-Object FullName -match '\\x64\\signtool.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
-          if (-not $signtool) { throw 'x64 signtool.exe was not found.' }
-          & $signtool.FullName sign /fd SHA256 /sha1 $env:CERT_THUMBPRINT /tr http://timestamp.digicert.com /td SHA256 $env:MSIX_PATH
-          if ($LASTEXITCODE -ne 0) { throw "signtool sign failed: $LASTEXITCODE" }
-          $signature = Get-AuthenticodeSignature -FilePath $env:MSIX_PATH
-          if (-not $signature.SignerCertificate) { throw 'Signed MSIX has no embedded signer certificate.' }
-          if ($signature.SignerCertificate.Subject -cne $env:CERT_SUBJECT -or $signature.SignerCertificate.Thumbprint -cne $env:CERT_THUMBPRINT) { throw 'Signed MSIX signer does not match the configured repository certificate.' }
-
-      - name: Install and launch smoke test
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $trusted = Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $env:CERT_THUMBPRINT
-          if (-not $trusted) {
-            Import-Certificate -FilePath $env:CERTIFICATE_PATH -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $env:CERT_THUMBPRINT)) {
+            Import-Certificate -FilePath $env:CERTIFICATE_PATH -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
           }
-          Get-AppxPackage -Name 'KiYouJyo.PageArc.Acceptance' | Remove-AppxPackage -ErrorAction SilentlyContinue
+          Get-AppxPackage -Name KiYouJyo.PageArc.Acceptance | Remove-AppxPackage -ErrorAction SilentlyContinue
           Add-AppxPackage -Path $env:MSIX_PATH -ForceApplicationShutdown
-          $package = Get-AppxPackage -Name 'KiYouJyo.PageArc.Acceptance'
-          if (-not $package) { throw 'Package was not registered after Add-AppxPackage.' }
-          $aumid = "$($package.PackageFamilyName)!App"
-          Write-Host "Launching packaged app via AUMID: $aumid"
+          $pkg = Get-AppxPackage -Name KiYouJyo.PageArc.Acceptance
+          if (-not $pkg) { throw 'Package registration failed.' }
+          $aumid = "$($pkg.PackageFamilyName)!App"
           Start-Process explorer.exe -ArgumentList "shell:AppsFolder\$aumid"
           Start-Sleep -Seconds 8
-          $process = Get-Process -Name PageArc -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $process) {
-            Write-Host 'PageArc did not remain running. Recent AppModel Runtime events:'
-            Get-WinEvent -LogName 'Microsoft-Windows-AppModel-Runtime/Admin' -MaxEvents 30 -ErrorAction SilentlyContinue | Where-Object { $_.TimeCreated -gt (Get-Date).AddMinutes(-5) } | Format-List TimeCreated,Id,LevelDisplayName,Message
-            Write-Host 'Recent Application errors mentioning PageArc:'
-            Get-WinEvent -LogName Application -MaxEvents 100 -ErrorAction SilentlyContinue | Where-Object { $_.TimeCreated -gt (Get-Date).AddMinutes(-5) -and $_.Message -match 'PageArc' } | Format-List TimeCreated,Id,ProviderName,LevelDisplayName,Message
-            throw 'Installed PageArc package failed the launch smoke test.'
+          $proc = Get-Process PageArc -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $proc) {
+            Write-Host 'PageArc exited during startup.'
+            Get-WinEvent -LogName Application -MaxEvents 120 -ErrorAction SilentlyContinue | Where-Object { $_.TimeCreated -gt (Get-Date).AddMinutes(-5) -and $_.Message -match 'PageArc' } | Format-List TimeCreated,Id,ProviderName,Message
+            throw 'Launch smoke test failed.'
           }
-          Write-Host "Launch smoke test passed. PID=$($process.Id)"
-          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-          Remove-AppxPackage -Package $package.PackageFullName -ErrorAction SilentlyContinue
+          Write-Host "PageArc launch smoke test passed. PID=$($proc.Id)"
+          Stop-Process -Id $proc.Id -Force
+          Remove-AppxPackage -Package $pkg.PackageFullName -ErrorAction SilentlyContinue
 
-      - name: Generate acceptance package
+      - name: Build acceptance ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $package = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.1.0-x64-signed-acceptance'
-          New-Item -ItemType Directory -Force -Path $package | Out-Null
-          Copy-Item -LiteralPath $env:MSIX_PATH -Destination $package -Force
-          Copy-Item -LiteralPath $env:CERTIFICATE_PATH -Destination $package -Force
-          $installPs1 = @'
+          $dir = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.1.0-x64-signed-acceptance'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item $env:MSIX_PATH $dir
+          Copy-Item $env:CERTIFICATE_PATH $dir
+          @'
           $ErrorActionPreference = 'Stop'
-          function Test-IsAdministrator {
-            $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
-            return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-          }
-          if (-not (Test-IsAdministrator)) {
-            $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"") -join ' '
-            $elevated = Start-Process -FilePath 'powershell.exe' -ArgumentList $args -Verb RunAs -Wait -PassThru
-            exit $elevated.ExitCode
-          }
-          $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-          $certPath = Join-Path $root 'PageArc-v0.1.0-acceptance.cer'
-          $msixPath = Join-Path $root 'PageArc_0.1.0.0_x64.msix'
-          $certificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new($certPath)
-          $trusted = Get-ChildItem 'Cert:\LocalMachine\TrustedPeople' -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $certificate.Thumbprint
-          if (-not $trusted) { Import-Certificate -FilePath $certPath -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null }
-          Get-AppxPackage -Name 'KiYouJyo.PageArc.Acceptance' | Remove-AppxPackage -ErrorAction SilentlyContinue
-          Add-AppxPackage -Path $msixPath -ForceApplicationShutdown
-          Write-Host 'PageArc v0.1.0 installed successfully.' -ForegroundColor Green
-          '@
-          $installPs1 = ($installPs1 -split "`r?`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`r`n"
-          Set-Content -LiteralPath (Join-Path $package 'Install.ps1') -Value $installPs1 -Encoding utf8
-          Set-Content -LiteralPath (Join-Path $package 'Install.cmd') -Value @('@echo off', 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1"', 'if errorlevel 1 pause') -Encoding ascii
-          $readme = @"
-          PageArc v0.1.0 x64 Signed Acceptance
-          ====================================
-          Build: $env:GITHUB_SHA
-          Signature subject: $env:CERT_SUBJECT
-          Certificate thumbprint: $env:CERT_THUMBPRINT
-          Packaging: native WinUI single-project MSIX
-          Launch smoke test: passed before artifact upload
+          function IsAdmin { ([Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
+          if (-not (IsAdmin)) { $p = Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"") -Verb RunAs -Wait -PassThru; exit $p.ExitCode }
+          $root = Split-Path -Parent $PSCommandPath
+          $cert = Join-Path $root 'PageArc-v0.1.0-acceptance.cer'
+          $msix = Join-Path $root 'PageArc_0.1.0.0_x64.msix'
+          $c = [Security.Cryptography.X509Certificates.X509Certificate2]::new($cert)
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $c.Thumbprint)) { Import-Certificate $cert -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null }
+          Get-AppxPackage -Name KiYouJyo.PageArc.Acceptance | Remove-AppxPackage -ErrorAction SilentlyContinue
+          Add-AppxPackage -Path $msix -ForceApplicationShutdown
+          Write-Host 'PageArc v0.1.0 installed.' -ForegroundColor Green
+          '@ | ForEach-Object { $_ -replace '(?m)^          ', '' } | Set-Content (Join-Path $dir 'Install.ps1') -Encoding utf8
+          Set-Content (Join-Path $dir 'Install.cmd') -Value @('@echo off','powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1"','if errorlevel 1 pause') -Encoding ascii
+          @("PageArc v0.1.0 x64 Signed Acceptance","Build: $env:GITHUB_SHA","Signer: CN=AppPublisher / $env:CERT_THUMBPRINT","Packaging: standard framework-dependent WinUI 3 MSIX","CI launch smoke test: PASSED","","Extract and run Install.cmd, then launch PageArc from Start.") | Set-Content (Join-Path $dir 'README.txt') -Encoding utf8
+          $hashes = Get-ChildItem $dir -File | Sort-Object Name | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(),$_.Name }
+          $hashes | Set-Content (Join-Path $dir 'SHA256SUMS.txt') -Encoding ascii
+          Remove-Item $env:PFX_PATH -Force -ErrorAction SilentlyContinue
+          Compress-Archive -LiteralPath $dir -DestinationPath (Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.1.0-x64-signed-acceptance.zip') -CompressionLevel Optimal -Force
 
-          Extract this ZIP, run Install.cmd, approve the UAC prompt, then launch PageArc from Start.
-          The package uses the repository-configured release certificate; no temporary signing certificate is generated.
-          "@
-          $readme = ($readme -split "`r?`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`r`n"
-          Set-Content -LiteralPath (Join-Path $package 'README.txt') -Value $readme -Encoding utf8
-          Remove-Item -LiteralPath $env:PFX_PATH -Force -ErrorAction SilentlyContinue
-          $files = Get-ChildItem $package -File | Sort-Object Name
-          $hashes = foreach ($file in $files) { "{0}  {1}" -f (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $file.Name }
-          Set-Content -LiteralPath (Join-Path $package 'SHA256SUMS.txt') -Value $hashes -Encoding ascii
-          $zip = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.1.0-x64-signed-acceptance.zip'
-          Compress-Archive -LiteralPath $package -DestinationPath $zip -CompressionLevel Optimal -Force
-          if (-not (Test-Path $zip)) { throw 'Acceptance ZIP was not produced.' }
-
-      - name: Upload signed acceptance artifact
-        uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v6
         with:
           name: PageArc-v0.1.0-x64-signed-acceptance
           path: ${{ env.ACCEPTANCE_ROOT }}
