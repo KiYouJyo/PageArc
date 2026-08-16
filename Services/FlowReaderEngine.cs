@@ -29,17 +29,40 @@ public sealed class FlowReaderEngine
 
     public bool CanOpen(BookEntry book) => _adapters.Any(adapter => adapter.CanOpen(book));
 
-    public Task<IFlowBookSource> OpenAsync(BookEntry book, CancellationToken cancellationToken = default)
+    public async Task<IFlowBookSource> OpenAsync(BookEntry book, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(book);
-        var adapter = _adapters.FirstOrDefault(x => x.CanOpen(book));
-        if (adapter is null)
+        var candidates = _adapters.Where(x => x.CanOpen(book)).ToArray();
+        if (candidates.Length == 0)
         {
             var format = BookFormatRegistry.Normalize(book.Format);
             throw new NotSupportedException($"No flow adapter is registered for {format}.");
         }
 
-        return adapter.OpenAsync(book, cancellationToken);
+        Exception? lastFailure = null;
+        foreach (var adapter in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                return await adapter.OpenAsync(book, cancellationToken);
+            }
+            catch (DrmProtectedEbookException)
+            {
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                lastFailure = ex;
+                StartupDiagnostics.Log($"Flow adapter {adapter.GetType().Name} failed for {book.Format}; trying the next compatible adapter.", ex);
+            }
+        }
+
+        throw lastFailure ?? new InvalidDataException($"Unable to open {book.Format} with the registered flow adapters.");
     }
 
     private static IEnumerable<IFlowBookAdapter> CreateDefaultAdapters()
