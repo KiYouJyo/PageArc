@@ -28,13 +28,10 @@ public sealed class BookEntry
     {
         get
         {
-            var words = Title.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            return words.Length switch
-            {
-                0 => "PA",
-                1 => words[0][..Math.Min(2, words[0].Length)].ToUpperInvariant(),
-                _ => string.Concat(words.Take(2).Select(word => char.ToUpperInvariant(word[0])))
-            };
+            if (string.IsNullOrWhiteSpace(Title)) return "PA";
+            var chars = Title.Where(char.IsLetterOrDigit).Take(2).ToArray();
+            if (chars.Length == 0) return string.IsNullOrWhiteSpace(Format) ? "PA" : Format[..Math.Min(2, Format.Length)].ToUpperInvariant();
+            return new string(chars).ToUpperInvariant();
         }
     }
 }
