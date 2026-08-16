@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0] - 2026-08-16
+
+### Added
+- Built-in DRM-free MOBI and KF8/AZW3 reading behind the same `FlowReaderEngine` used by EPUB and FB2.
+- Pinned local Kindle parsing runtime based on the MIT-licensed foliate-js MOBI parser and fflate zlib runtime; no runtime CDN is used.
+- Isolated invisible parser WebView2 that performs lazy Kindle section/resource parsing while the visible Reader WebView remains dedicated to PageArc's safe reflow rendering surface.
+- Kindle metadata, author, language, cover and table-of-contents projection into the common `FlowDocument` model.
+- Native Palm database / MOBI signature and PalmDOC encryption probing before parser execution.
+- Ordered same-format adapter fallback: the built-in Kindle parser is preferred, while the optional calibre normalization path can handle compatible edge cases if installed.
+- Dedicated third-party license notices and exact upstream pin/blob provenance for the vendored parser runtime.
+
+### Changed
+- Confirmed DRM/encryption now raises a dedicated open failure and stops provider fallback; PageArc never attempts DRM removal.
+- Kindle blob resources and styles are materialized into self-contained, sanitized section HTML before reaching the visible reader.
+- The packaged application version is now 0.3.0.
+
+### Notes
+- EPUB, FB2, MOBI and AZW3 now have built-in reading adapters.
+- The calibre bridge remains optional for format conversion and compatibility fallback; it is not bundled with PageArc.
+- LIT continues to use the optional normalization fallback in this release and is the main built-in format target for v0.4.0.
+
 ## [0.2.0] - 2026-08-16
 
 ### Added
