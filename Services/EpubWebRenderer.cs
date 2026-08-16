@@ -69,13 +69,14 @@ public static class EpubWebRenderer
 
     private static string BuildBaseHref(string relativePath)
     {
-        // Base must represent the original chapter URL, not only its directory.
-        // Besides keeping CSS/image relative paths correct, this preserves fragment-only
-        // links such as href="#note-1" and makes sibling chapter links resolve naturally.
-        var webPath = EpubPath.ToWebPath(relativePath);
-        return string.IsNullOrWhiteSpace(webPath)
+        var normalized = EpubPath.Normalize(relativePath);
+        var slash = normalized.LastIndexOf('/');
+        if (slash < 0) return "https://pagearc.local/";
+        var directory = normalized[..slash];
+        var webDirectory = EpubPath.ToWebPath(directory);
+        return string.IsNullOrWhiteSpace(webDirectory)
             ? "https://pagearc.local/"
-            : $"https://pagearc.local/{webPath}";
+            : $"https://pagearc.local/{webDirectory}/";
     }
 
     private static string ResolveSafePath(string root, string relativePath)
