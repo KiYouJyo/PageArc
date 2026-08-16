@@ -11,8 +11,7 @@ public sealed class NormalizedFlowAdapterTests
     [Theory]
     [InlineData("MOBI", ".mobi")]
     [InlineData("AZW3", ".azw3")]
-    [InlineData("LIT", ".lit")]
-    public async Task Adapter_NormalizesLegacyFormatsIntoTheUnifiedFlowContract(string format, string extension)
+    public async Task Adapter_NormalizesKindleCompatibilityFallbackIntoTheUnifiedFlowContract(string format, string extension)
     {
         var bookId = $"normalized-{Guid.NewGuid():N}";
         var input = Path.Combine(Path.GetTempPath(), $"pagearc-{Guid.NewGuid():N}{extension}");
@@ -55,7 +54,7 @@ public sealed class NormalizedFlowAdapterTests
         public bool IsAvailable => true;
 
         public bool CanConvert(string inputFormat, string outputFormat) =>
-            new[] { "MOBI", "AZW3", "LIT" }.Contains(BookFormatRegistry.Normalize(inputFormat), StringComparer.OrdinalIgnoreCase)
+            new[] { "MOBI", "AZW3" }.Contains(BookFormatRegistry.Normalize(inputFormat), StringComparer.OrdinalIgnoreCase)
             && string.Equals(BookFormatRegistry.Normalize(outputFormat), "EPUB", StringComparison.OrdinalIgnoreCase);
 
         public Task<EbookConversionResult> ConvertAsync(EbookConversionRequest request, CancellationToken cancellationToken = default)
