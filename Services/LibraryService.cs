@@ -8,105 +8,222 @@ public sealed class LibraryService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly object _gate = new();
+    private readonly string _libraryFile;
+
+    public LibraryService(string? libraryFile = null)
+    {
+        _libraryFile = string.IsNullOrWhiteSpace(libraryFile) ? AppPaths.LibraryFile : Path.GetFullPath(libraryFile);
+    }
 
     public ObservableCollection<BookEntry> Books { get; } = [];
+    public bool DuplicateDetectionEnabled { get; set; } = true;
 
     public void Load()
     {
-        AppPaths.Ensure();
+        EnsureStorage();
         try
         {
-            if (!File.Exists(AppPaths.LibraryFile)) return;
-            var items = JsonSerializer.Deserialize<List<BookEntry>>(File.ReadAllText(AppPaths.LibraryFile)) ?? [];
+            if (!File.Exists(_libraryFile)) return;
+            var items = JsonSerializer.Deserialize<List<BookEntry>>(File.ReadAllText(_libraryFile)) ?? [];
             Books.Clear();
-            foreach (var item in items.Where(x => File.Exists(x.FilePath)))
+            foreach (var item in items)
             {
-                var normalized = BookFormatRegistry.Normalize(item.Format);
-                if (string.IsNullOrWhiteSpace(normalized)) normalized = BookFormatRegistry.FormatFromPath(item.FilePath);
-                if (!string.IsNullOrWhiteSpace(normalized)) item.Format = normalized;
-                item.SectionFraction = Math.Clamp(item.SectionFraction, 0, 1);
-                item.Progress = Math.Clamp(item.Progress, 0, 1);
+                NormalizeLoadedEntry(item);
                 Books.Add(item);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            StartupDiagnostics.Log("Library load failed; starting with an empty in-memory library.", ex);
             Books.Clear();
         }
     }
 
+    public BookEntry? FindById(string? id) =>
+        string.IsNullOrWhiteSpace(id)
+            ? null
+            : Books.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.Ordinal));
+
     public async Task<BookEntry> ImportAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(filePath)) throw new FileNotFoundException("Book file not found.", filePath);
-        var fullPath = Path.GetFullPath(filePath);
+        var result = await ImportDetailedAsync(filePath, cancellationToken);
+        if (result.Book is not null && result.Disposition is LibraryImportDisposition.Added or LibraryImportDisposition.ExistingPath or LibraryImportDisposition.DuplicateContent)
+            return result.Book;
 
-        lock (_gate)
+        throw result.Disposition switch
         {
-            var existing = Books.FirstOrDefault(x =>
-                string.Equals(Path.GetFullPath(x.FilePath), fullPath, StringComparison.OrdinalIgnoreCase));
-            if (existing is not null) return existing;
+            LibraryImportDisposition.Missing => new FileNotFoundException(result.ErrorMessage ?? "Book file not found.", result.FilePath),
+            LibraryImportDisposition.Unsupported => new NotSupportedException(result.ErrorMessage ?? "Unsupported ebook format."),
+            _ => new InvalidDataException(result.ErrorMessage ?? "The ebook could not be imported.")
+        };
+    }
+
+    public async Task<LibraryImportItemResult> ImportDetailedAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(filePath))
+            return new LibraryImportItemResult(filePath ?? string.Empty, LibraryImportDisposition.Missing, ErrorMessage: "Book path is empty.");
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(filePath);
         }
+        catch (Exception ex)
+        {
+            return new LibraryImportItemResult(filePath, LibraryImportDisposition.Failed, ErrorMessage: ex.Message);
+        }
+
+        if (!File.Exists(fullPath))
+            return new LibraryImportItemResult(fullPath, LibraryImportDisposition.Missing, ErrorMessage: "Book file not found.");
 
         var info = new FileInfo(fullPath);
         var format = BookFormatRegistry.FormatFromPath(fullPath);
         if (string.IsNullOrWhiteSpace(format))
-            throw new NotSupportedException($"Unsupported ebook format: {info.Extension}");
+            return new LibraryImportItemResult(fullPath, LibraryImportDisposition.Unsupported, ErrorMessage: $"Unsupported ebook format: {info.Extension}");
 
-        var title = Path.GetFileNameWithoutExtension(fullPath);
-        var author = string.Empty;
-
-        if (format == "EPUB")
+        lock (_gate)
         {
-            try
+            var existingPath = Books.FirstOrDefault(x => PathsEqual(x.FilePath, fullPath));
+            if (existingPath is not null)
             {
-                var metadata = await EpubParser.ReadMetadataAsync(fullPath, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(metadata.Title)) title = metadata.Title;
-                author = metadata.Author;
-            }
-            catch
-            {
-                // Keep filename metadata. Opening the book will surface the parsing error.
+                existingPath.IsMissing = false;
+                return new LibraryImportItemResult(fullPath, LibraryImportDisposition.ExistingPath, existingPath);
             }
         }
-        else if (format == "FB2")
+
+        try
         {
-            try
+            string? fingerprint = null;
+            if (DuplicateDetectionEnabled)
             {
-                var probe = new BookEntry
+                fingerprint = await LibraryFingerprintService.ComputeAsync(fullPath, cancellationToken);
+                lock (_gate)
                 {
-                    FilePath = fullPath,
-                    Format = format,
-                    Title = title,
-                    Author = author,
-                    FileSize = info.Length
-                };
-                await using var source = await new Fb2FlowAdapter().OpenAsync(probe, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(source.Document.Title)) title = source.Document.Title;
-                author = source.Document.Author;
+                    var duplicate = Books.FirstOrDefault(x =>
+                        !string.IsNullOrWhiteSpace(x.FileFingerprint)
+                        && string.Equals(x.FileFingerprint, fingerprint, StringComparison.OrdinalIgnoreCase));
+                    if (duplicate is not null)
+                        return new LibraryImportItemResult(fullPath, LibraryImportDisposition.DuplicateContent, duplicate);
+                }
+            }
+
+            var entry = new BookEntry
+            {
+                FilePath = fullPath,
+                Format = format,
+                Title = Path.GetFileNameWithoutExtension(fullPath),
+                FileSize = info.Length,
+                SourceModifiedAt = info.LastWriteTimeUtc,
+                FileFingerprint = fingerprint,
+                IsMissing = false
+            };
+
+            await EnrichMetadataAsync(entry, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            lock (_gate)
+            {
+                var racedPath = Books.FirstOrDefault(x => PathsEqual(x.FilePath, fullPath));
+                if (racedPath is not null)
+                    return new LibraryImportItemResult(fullPath, LibraryImportDisposition.ExistingPath, racedPath);
+
+                if (DuplicateDetectionEnabled && !string.IsNullOrWhiteSpace(entry.FileFingerprint))
+                {
+                    var racedDuplicate = Books.FirstOrDefault(x =>
+                        !string.IsNullOrWhiteSpace(x.FileFingerprint)
+                        && string.Equals(x.FileFingerprint, entry.FileFingerprint, StringComparison.OrdinalIgnoreCase));
+                    if (racedDuplicate is not null)
+                        return new LibraryImportItemResult(fullPath, LibraryImportDisposition.DuplicateContent, racedDuplicate);
+                }
+
+                Books.Add(entry);
+            }
+
+            Save();
+            return new LibraryImportItemResult(fullPath, LibraryImportDisposition.Added, entry);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log($"Library import failed for '{fullPath}'.", ex);
+            return new LibraryImportItemResult(fullPath, LibraryImportDisposition.Failed, ErrorMessage: ex.Message);
+        }
+    }
+
+    public async Task<LibraryImportSummary> ImportManyAsync(
+        IEnumerable<string> filePaths,
+        IProgress<LibraryImportProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filePaths);
+        var paths = filePaths
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var results = new List<LibraryImportItemResult>(paths.Length);
+
+        for (var index = 0; index < paths.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var path = paths[index];
+            progress?.Report(new LibraryImportProgress(index, paths.Length, path));
+            results.Add(await ImportDetailedAsync(path, cancellationToken));
+            progress?.Report(new LibraryImportProgress(index + 1, paths.Length, path));
+        }
+
+        return new LibraryImportSummary(results);
+    }
+
+    public bool RefreshFileStates(bool saveIfChanged = true)
+    {
+        var changed = false;
+        foreach (var book in Books)
+        {
+            var exists = SafeFileExists(book.FilePath);
+            if (book.IsMissing == exists)
+            {
+                book.IsMissing = !exists;
+                changed = true;
+            }
+
+            if (!exists) continue;
+            try
+            {
+                var info = new FileInfo(book.FilePath);
+                if (book.FileSize != info.Length)
+                {
+                    book.FileSize = info.Length;
+                    changed = true;
+                }
+                var modified = new DateTimeOffset(info.LastWriteTimeUtc);
+                if (book.SourceModifiedAt != modified)
+                {
+                    book.SourceModifiedAt = modified;
+                    changed = true;
+                }
             }
             catch
             {
-                // Keep filename metadata. Opening the book will surface the parsing error.
+                if (!book.IsMissing)
+                {
+                    book.IsMissing = true;
+                    changed = true;
+                }
             }
         }
 
-        var entry = new BookEntry
-        {
-            FilePath = fullPath,
-            Format = format,
-            Title = title,
-            Author = author,
-            FileSize = info.Length
-        };
-
-        Books.Add(entry);
-        Save();
-        return entry;
+        if (changed && saveIfChanged) Save();
+        return changed;
     }
 
     public void MarkOpened(BookEntry book)
     {
         book.LastOpenedAt = DateTimeOffset.Now;
+        book.IsMissing = !SafeFileExists(book.FilePath);
         Save();
     }
 
@@ -119,10 +236,95 @@ public sealed class LibraryService
     {
         lock (_gate)
         {
-            AppPaths.Ensure();
-            var temp = AppPaths.LibraryFile + ".tmp";
+            EnsureStorage();
+            var temp = _libraryFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(Books.ToList(), JsonOptions));
-            File.Move(temp, AppPaths.LibraryFile, true);
+            File.Move(temp, _libraryFile, true);
+        }
+    }
+
+    private void NormalizeLoadedEntry(BookEntry item)
+    {
+        var normalized = BookFormatRegistry.Normalize(item.Format);
+        if (string.IsNullOrWhiteSpace(normalized)) normalized = BookFormatRegistry.FormatFromPath(item.FilePath);
+        if (!string.IsNullOrWhiteSpace(normalized)) item.Format = normalized;
+        item.SectionFraction = Math.Clamp(item.SectionFraction, 0, 1);
+        item.Progress = Math.Clamp(item.Progress, 0, 1);
+        item.IsMissing = !SafeFileExists(item.FilePath);
+
+        if (!item.IsMissing)
+        {
+            try
+            {
+                var info = new FileInfo(item.FilePath);
+                if (item.FileSize <= 0) item.FileSize = info.Length;
+                item.SourceModifiedAt ??= new DateTimeOffset(info.LastWriteTimeUtc);
+            }
+            catch
+            {
+                item.IsMissing = true;
+            }
+        }
+    }
+
+    private static async Task EnrichMetadataAsync(BookEntry entry, CancellationToken cancellationToken)
+    {
+        if (entry.Format == "EPUB")
+        {
+            try
+            {
+                var metadata = await EpubParser.ReadMetadataAsync(entry.FilePath, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(metadata.Title)) entry.Title = metadata.Title;
+                entry.Author = metadata.Author;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                StartupDiagnostics.Log($"EPUB metadata enrichment failed for '{entry.FilePath}'.", ex);
+            }
+            return;
+        }
+
+        if (entry.Format == "FB2")
+        {
+            try
+            {
+                await using var source = await new Fb2FlowAdapter().OpenAsync(entry, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(source.Document.Title)) entry.Title = source.Document.Title;
+                entry.Author = source.Document.Author;
+                entry.Language = source.Document.Language;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                StartupDiagnostics.Log($"FB2 metadata enrichment failed for '{entry.FilePath}'.", ex);
+            }
+        }
+    }
+
+    private void EnsureStorage()
+    {
+        if (string.Equals(_libraryFile, AppPaths.LibraryFile, StringComparison.OrdinalIgnoreCase))
+            AppPaths.Ensure();
+        var directory = Path.GetDirectoryName(_libraryFile);
+        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+    }
+
+    private static bool SafeFileExists(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        try { return File.Exists(path); }
+        catch { return false; }
+    }
+
+    private static bool PathsEqual(string? left, string right)
+    {
+        if (string.IsNullOrWhiteSpace(left)) return false;
+        try
+        {
+            return string.Equals(Path.GetFullPath(left), right, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
