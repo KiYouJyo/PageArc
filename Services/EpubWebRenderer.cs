@@ -43,10 +43,6 @@ public static class EpubWebRenderer
         var saved = Math.Clamp(savedIndex, 0, document.Spine.Count - 1);
         if (saved > 0 || progress > 0.001) return saved;
 
-        // Many Calibre EPUB2 books put an image-only titlepage at spine 0. Starting there
-        // can look like a failed open when the cover resource is slow or unavailable.
-        // For a never-opened book, prefer the first real TOC target while keeping the
-        // previous button available for the cover/title page.
         foreach (var tocItem in document.Toc)
         {
             var tocPath = EpubPath.Normalize(tocItem.Href);
@@ -68,9 +64,6 @@ public static class EpubWebRenderer
             @"<meta\b[^>]*http-equiv\s*=\s*[""']Content-Security-Policy[""'][^>]*>",
             string.Empty,
             RegexOptions.IgnoreCase);
-
-        // Calibre EPUB2 title pages commonly use SVG <image xlink:href="cover.jpeg">.
-        // Chromium's HTML parser is more reliable with the modern unprefixed SVG href.
         html = Regex.Replace(html, @"\bxlink:href\s*=", "href=", RegexOptions.IgnoreCase);
 
         var injection = $"<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><base href=\"{WebUtility.HtmlEncode(baseHref)}\">";
@@ -103,14 +96,12 @@ public static class EpubWebRenderer
 
     private static string BuildBaseHref(string relativePath)
     {
-        var normalized = EpubPath.Normalize(relativePath);
-        var slash = normalized.LastIndexOf('/');
-        if (slash < 0) return "https://pagearc.local/";
-        var directory = normalized[..slash];
-        var webDirectory = EpubPath.ToWebPath(directory);
-        return string.IsNullOrWhiteSpace(webDirectory)
+        // Use the original chapter URL as the base. This preserves both normal relative
+        // resources (../stylesheet.css, images/a.jpg) and fragment-only links (#note-1).
+        var webPath = EpubPath.ToWebPath(relativePath);
+        return string.IsNullOrWhiteSpace(webPath)
             ? "https://pagearc.local/"
-            : $"https://pagearc.local/{webDirectory}/";
+            : $"https://pagearc.local/{webPath}";
     }
 
     private static string ResolveSafePath(string root, string relativePath)
