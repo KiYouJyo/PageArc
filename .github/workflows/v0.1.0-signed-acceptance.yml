@@ -189,7 +189,10 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          Import-Certificate -FilePath $env:CERTIFICATE_PATH -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+          $trusted = Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $env:CERT_THUMBPRINT
+          if (-not $trusted) {
+            Import-Certificate -FilePath $env:CERTIFICATE_PATH -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
+          }
           Get-AppxPackage -Name 'KiYouJyo.PageArc.Acceptance' | Remove-AppxPackage -ErrorAction SilentlyContinue
           Add-AppxPackage -Path $env:MSIX_PATH -ForceApplicationShutdown
           $package = Get-AppxPackage -Name 'KiYouJyo.PageArc.Acceptance'
@@ -220,10 +223,21 @@ jobs:
           Copy-Item -LiteralPath $env:CERTIFICATE_PATH -Destination $package -Force
           $installPs1 = @'
           $ErrorActionPreference = 'Stop'
+          function Test-IsAdministrator {
+            $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+            return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+          }
+          if (-not (Test-IsAdministrator)) {
+            $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"") -join ' '
+            $elevated = Start-Process -FilePath 'powershell.exe' -ArgumentList $args -Verb RunAs -Wait -PassThru
+            exit $elevated.ExitCode
+          }
           $root = Split-Path -Parent $MyInvocation.MyCommand.Path
           $certPath = Join-Path $root 'PageArc-v0.1.0-acceptance.cer'
           $msixPath = Join-Path $root 'PageArc_0.1.0.0_x64.msix'
-          Import-Certificate -FilePath $certPath -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+          $certificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new($certPath)
+          $trusted = Get-ChildItem 'Cert:\LocalMachine\TrustedPeople' -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $certificate.Thumbprint
+          if (-not $trusted) { Import-Certificate -FilePath $certPath -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null }
           Get-AppxPackage -Name 'KiYouJyo.PageArc.Acceptance' | Remove-AppxPackage -ErrorAction SilentlyContinue
           Add-AppxPackage -Path $msixPath -ForceApplicationShutdown
           Write-Host 'PageArc v0.1.0 installed successfully.' -ForegroundColor Green
@@ -240,7 +254,7 @@ jobs:
           Packaging: native WinUI single-project MSIX
           Launch smoke test: passed before artifact upload
 
-          Extract this ZIP, run Install.cmd, then launch PageArc from Start.
+          Extract this ZIP, run Install.cmd, approve the UAC prompt, then launch PageArc from Start.
           The package uses the repository-configured release certificate; no temporary signing certificate is generated.
           "@
           $readme = ($readme -split "`r?`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`r`n"
