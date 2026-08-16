@@ -10,6 +10,7 @@ public partial class App : Application
     public static LocalizationService Localization { get; } = new(Settings);
     public static LibraryService Library { get; } = new();
     public static CategoryService Categories { get; } = new();
+    public static ReadingDataService ReadingData { get; } = new();
     public static GitHubUpdateService Updates { get; } = new();
 
     internal static string PendingNavigationTag { get; set; } = "library";
@@ -44,6 +45,8 @@ public partial class App : Application
             StartupDiagnostics.Log("Library.Load completed.");
             Categories.Load(Library.Books);
             StartupDiagnostics.Log("Categories.Load completed.");
+            ReadingData.Load();
+            StartupDiagnostics.Log("ReadingData.Load completed.");
             CreateMainWindow();
             StartupDiagnostics.Log("CreateMainWindow completed.");
         }
