@@ -1,0 +1,59 @@
+using Xunit;
+
+namespace PageArc.Tests;
+
+public sealed class ReaderRegressionTests
+{
+    [Fact]
+    public void ReaderUsesNativeWinUiTextPathWithoutWebViewConstruction()
+    {
+        var root = FindRepoRoot();
+        var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
+        var code = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml.cs"));
+
+        Assert.DoesNotContain("WebView2", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("CoreWebView2", code, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("NavigateToString", code, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("NativeReaderText", xaml, StringComparison.Ordinal);
+        Assert.Contains("NativeReaderText.Text = chapter.PlainText", code, StringComparison.Ordinal);
+        Assert.Contains("FindReadableChapterAsync", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReaderNormalizesCalibreEpub2SvgCoverLinksAndExtractsText()
+    {
+        var root = FindRepoRoot();
+        var code = File.ReadAllText(Path.Combine(root, "Services", "EpubWebRenderer.cs"));
+        Assert.Contains("xlink:href", code, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("href=", code, StringComparison.Ordinal);
+        Assert.Contains("ExtractReadableText", code, StringComparison.Ordinal);
+        Assert.Contains("ResolveInitialSpineIndex", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LanguageSwitchKeepsExistingWindowAndReloadsOnlyLocalizedContent()
+    {
+        var root = FindRepoRoot();
+        var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
+        var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
+        var localizationCode = File.ReadAllText(Path.Combine(root, "Services", "LocalizationService.cs"));
+
+        Assert.DoesNotContain("ReloadMainWindow", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("LanguageChanged", localizationCode, StringComparison.Ordinal);
+        Assert.Contains("App.Localization.LanguageChanged += OnLanguageChanged", windowCode, StringComparison.Ordinal);
+        Assert.Contains("ReloadLocalizedShell", windowCode, StringComparison.Ordinal);
+        Assert.Contains("SuppressNavigationTransitionInfo", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("new MainWindow", settingsCode, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        string? current = AppContext.BaseDirectory;
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current, "PageArc.csproj"))) return current;
+            current = Directory.GetParent(current)?.FullName;
+        }
+        throw new DirectoryNotFoundException("PageArc repository root not found.");
+    }
+}

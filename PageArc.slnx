@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/tests/">
+    <Project Path="tests/PageArc.Tests/PageArc.Tests.csproj" />
+  </Folder>
+  <Project Path="PageArc.csproj" />
+</Solution>

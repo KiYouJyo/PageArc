@@ -1,0 +1,59 @@
+<Application
+    x:Class="PageArc.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <controls:XamlControlsResources/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <!-- The resting compact pane follows the neutral title-bar tone. Open-pane interaction tint is applied by MainWindow. -->
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#F3F3F3"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#F3F3F3"/>
+                    <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00FFFFFF"/>
+                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#F3F3F3"/>
+                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00FFFFFF"/>
+                    <StaticResource x:Key="PageArcCardBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcSurfaceBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcCardStrokeBrush" ResourceKey="CardStrokeColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcAccentBrush" ResourceKey="AccentFillColorDefaultBrush"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <!-- The resting compact pane is neutral dark gray. Open-pane interaction tint is applied by MainWindow. -->
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#202020"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#202020"/>
+                    <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00000000"/>
+                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#202020"/>
+                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00000000"/>
+                    <StaticResource x:Key="PageArcCardBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcSurfaceBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcCardStrokeBrush" ResourceKey="CardStrokeColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcAccentBrush" ResourceKey="AccentFillColorDefaultBrush"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcCanvasBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcCardBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="PageArcAccentBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <Style x:Key="PageArcCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource PageArcCardBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource PageArcCardStrokeBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="16"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
