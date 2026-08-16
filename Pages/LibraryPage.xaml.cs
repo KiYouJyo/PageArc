@@ -100,6 +100,7 @@ public sealed partial class LibraryPage : Page
         }
         catch (Exception ex)
         {
+            ImportInfoBar.Severity = InfoBarSeverity.Error;
             ImportInfoBar.Message = ex.Message;
             ImportInfoBar.IsOpen = true;
         }
@@ -113,6 +114,31 @@ public sealed partial class LibraryPage : Page
 
     private void BookCard_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: BookEntry book }) App.MainWindow?.OpenBook(book);
+        ImportInfoBar.IsOpen = false;
+        if (sender is not FrameworkElement { DataContext: BookEntry book }) return;
+
+        if (!book.Format.Equals("EPUB", StringComparison.OrdinalIgnoreCase))
+        {
+            ImportInfoBar.Severity = InfoBarSeverity.Warning;
+            ImportInfoBar.Message = App.Localization.GetString("Reader_UnsupportedV01");
+            ImportInfoBar.IsOpen = true;
+            return;
+        }
+
+        try
+        {
+            if (App.MainWindow?.OpenBook(book) != true)
+            {
+                ImportInfoBar.Severity = InfoBarSeverity.Error;
+                ImportInfoBar.Message = "The reader could not be opened.";
+                ImportInfoBar.IsOpen = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            ImportInfoBar.Severity = InfoBarSeverity.Error;
+            ImportInfoBar.Message = ex.Message;
+            ImportInfoBar.IsOpen = true;
+        }
     }
 }
