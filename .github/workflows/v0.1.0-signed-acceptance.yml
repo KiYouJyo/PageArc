@@ -1,0 +1,223 @@
+name: v0.1.0 Signed Acceptance
+
+on:
+  push:
+    branches:
+      - feat/v0.1.0-foundation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pagearc-v0.1.0-signed-acceptance
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: Validate, build, sign, and package x64
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout acceptance branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify v0.1.0 source metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$project = Get-Content -Raw PageArc.csproj
+          $version = @($project.Project.PropertyGroup | ForEach-Object Version | Where-Object { $_ })[0]
+          $assemblyVersion = @($project.Project.PropertyGroup | ForEach-Object AssemblyVersion | Where-Object { $_ })[0]
+          if ($version -ne '0.1.0') { throw "Project version mismatch: $version" }
+          if ($assemblyVersion -ne '0.1.0.0') { throw "Assembly version mismatch: $assemblyVersion" }
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
+
+      - name: Run foundation tests
+        shell: pwsh
+        run: dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore --verbosity normal
+
+      - name: Build Debug x64
+        shell: pwsh
+        run: dotnet build PageArc.csproj -c Debug -p:Platform=x64
+
+      - name: Build Release x64
+        shell: pwsh
+        run: dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore
+
+      - name: Publish self-contained acceptance payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $publish = Join-Path $env:RUNNER_TEMP 'PageArc-publish'
+          dotnet publish PageArc.csproj -c Release -p:Platform=x64 -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true -p:WindowsPackageType=None -o $publish
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed: $LASTEXITCODE" }
+          if (-not (Test-Path (Join-Path $publish 'PageArc.exe'))) { throw 'PageArc.exe was not produced.' }
+          "PUBLISH_DIR=$publish" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build and sign x64 MSIX
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'PageArc-v0.1.0-signed-acceptance'
+          $staging = Join-Path $env:RUNNER_TEMP 'PageArc-msix-staging'
+          New-Item -ItemType Directory -Force -Path $root,$staging | Out-Null
+          Copy-Item -Path (Join-Path $env:PUBLISH_DIR '*') -Destination $staging -Recurse -Force
+
+          $assets = Join-Path $staging 'Assets'
+          New-Item -ItemType Directory -Force -Path $assets | Out-Null
+          Add-Type -AssemblyName System.Drawing
+          function New-Logo([string]$Path, [int]$Width, [int]$Height) {
+            $bitmap = New-Object System.Drawing.Bitmap($Width, $Height)
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            $graphics.Clear([System.Drawing.Color]::FromArgb(255, 36, 90, 153))
+            $fontSize = [Math]::Max(12, [Math]::Floor([Math]::Min($Width, $Height) * 0.32))
+            $font = New-Object System.Drawing.Font('Segoe UI', $fontSize, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+            $brush = [System.Drawing.Brushes]::White
+            $format = New-Object System.Drawing.StringFormat
+            $format.Alignment = [System.Drawing.StringAlignment]::Center
+            $format.LineAlignment = [System.Drawing.StringAlignment]::Center
+            $graphics.DrawString('PA', $font, $brush, (New-Object System.Drawing.RectangleF(0,0,$Width,$Height)), $format)
+            $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+            $format.Dispose(); $font.Dispose(); $graphics.Dispose(); $bitmap.Dispose()
+          }
+          New-Logo (Join-Path $assets 'Square44x44Logo.png') 44 44
+          New-Logo (Join-Path $assets 'Square150x150Logo.png') 150 150
+          New-Logo (Join-Path $assets 'Wide310x150Logo.png') 310 150
+          New-Logo (Join-Path $assets 'StoreLogo.png') 50 50
+
+          $manifest = @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+                   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+                   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+                   IgnorableNamespaces="uap rescap">
+            <Identity Name="KiYouJyo.PageArc.Acceptance" Publisher="CN=PageArc Acceptance" Version="0.1.0.0" ProcessorArchitecture="x64" />
+            <Properties>
+              <DisplayName>PageArc</DisplayName>
+              <PublisherDisplayName>KiYouJyo</PublisherDisplayName>
+              <Logo>Assets\StoreLogo.png</Logo>
+            </Properties>
+            <Resources>
+              <Resource Language="en-us" />
+              <Resource Language="zh-cn" />
+              <Resource Language="ja-jp" />
+            </Resources>
+            <Dependencies>
+              <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+            </Dependencies>
+            <Applications>
+              <Application Id="App" Executable="PageArc.exe" EntryPoint="Windows.FullTrustApplication">
+                <uap:VisualElements DisplayName="PageArc" Description="PageArc v0.1.0 acceptance build" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png">
+                  <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+                </uap:VisualElements>
+              </Application>
+            </Applications>
+            <Capabilities>
+              <rescap:Capability Name="runFullTrust" />
+            </Capabilities>
+          </Package>
+          '@
+          $manifest = ($manifest -split "`r?`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`r`n"
+          Set-Content -LiteralPath (Join-Path $staging 'AppxManifest.xml') -Value $manifest -Encoding utf8
+
+          $kitsRoot = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $makeappx = Get-ChildItem (Join-Path $kitsRoot 'Windows Kits\10\bin') -Recurse -Filter makeappx.exe | Where-Object FullName -match '\\x64\\makeappx.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
+          $signtool = Get-ChildItem (Join-Path $kitsRoot 'Windows Kits\10\bin') -Recurse -Filter signtool.exe | Where-Object FullName -match '\\x64\\signtool.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $makeappx -or -not $signtool) { throw 'Windows SDK makeappx.exe or signtool.exe was not found.' }
+
+          $msix = Join-Path $root 'PageArc_0.1.0.0_x64.msix'
+          & $makeappx.FullName pack /d $staging /p $msix /o
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $msix)) { throw "makeappx failed: $LASTEXITCODE" }
+
+          $cert = New-SelfSignedCertificate -Type Custom -Subject 'CN=PageArc Acceptance' -FriendlyName 'PageArc v0.1.0 Acceptance' -CertStoreLocation 'Cert:\CurrentUser\My' -KeyAlgorithm RSA -KeyLength 3072 -HashAlgorithm SHA256 -KeyUsage DigitalSignature -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(3) -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3')
+          if (-not $cert.HasPrivateKey) { throw 'Acceptance certificate has no private key.' }
+          $cer = Join-Path $root 'PageArc-v0.1.0-acceptance.cer'
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+
+          & $signtool.FullName sign /fd SHA256 /sha1 $cert.Thumbprint $msix
+          if ($LASTEXITCODE -ne 0) { throw "signtool sign failed: $LASTEXITCODE" }
+          & $signtool.FullName verify /pa /v $msix
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning 'signtool /pa reports the expected trust-chain warning for the self-signed acceptance certificate; validating embedded signer directly.'
+          }
+          $signature = Get-AuthenticodeSignature -FilePath $msix
+          if (-not $signature.SignerCertificate) { throw 'Signed MSIX has no embedded signer certificate.' }
+          if ($signature.SignerCertificate.Subject -cne 'CN=PageArc Acceptance' -or $signature.SignerCertificate.Thumbprint -cne $cert.Thumbprint) { throw 'Signed MSIX signer does not match the acceptance certificate.' }
+          "ACCEPTANCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "MSIX_PATH=$msix" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Generate one-click installer package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.1.0-x64-signed-acceptance'
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          Copy-Item -LiteralPath $env:MSIX_PATH -Destination $package -Force
+          Copy-Item -LiteralPath (Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.1.0-acceptance.cer') -Destination $package -Force
+
+          $installPs1 = @'
+          $ErrorActionPreference = 'Stop'
+          $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+          $certPath = Join-Path $root 'PageArc-v0.1.0-acceptance.cer'
+          $msixPath = Join-Path $root 'PageArc_0.1.0.0_x64.msix'
+          Write-Host 'PageArc v0.1.0 signed acceptance installer' -ForegroundColor Cyan
+          Write-Host 'Installing the bundled self-signed acceptance certificate into CurrentUser\\TrustedPeople...'
+          Import-Certificate -FilePath $certPath -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+          Write-Host 'Installing PageArc...'
+          Add-AppxPackage -Path $msixPath -ForceApplicationShutdown
+          Write-Host 'Installation completed.' -ForegroundColor Green
+          Start-Process 'shell:AppsFolder\KiYouJyo.PageArc.Acceptance_7q7f8x6r3j6m0!App' -ErrorAction SilentlyContinue
+          '@
+          $installPs1 = ($installPs1 -split "`r?`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`r`n"
+          Set-Content -LiteralPath (Join-Path $package 'Install.ps1') -Value $installPs1 -Encoding utf8
+          Set-Content -LiteralPath (Join-Path $package 'Install.cmd') -Value '@echo off
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1"
+if errorlevel 1 pause' -Encoding ascii
+
+          $readme = @"
+          PageArc v0.1.0 x64 Signed Acceptance
+          ====================================
+
+          Build: $env:GITHUB_SHA
+          Signature subject: CN=PageArc Acceptance
+          Certificate thumbprint: $env:CERT_THUMBPRINT
+
+          Installation
+          ------------
+          1. Double-click Install.cmd.
+          2. The script trusts the bundled acceptance certificate for the current Windows user.
+          3. The signed MSIX is installed with Add-AppxPackage.
+
+          This is an acceptance build, not a Microsoft Store release. The certificate is self-signed and is included only so this preview package can be installed and signature-verified during testing.
+          "@
+          $readme = ($readme -split "`r?`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`r`n"
+          Set-Content -LiteralPath (Join-Path $package 'README.txt') -Value $readme -Encoding utf8
+
+          $files = Get-ChildItem $package -File | Sort-Object Name
+          $hashes = foreach ($file in $files) { "{0}  {1}" -f (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $file.Name }
+          Set-Content -LiteralPath (Join-Path $package 'SHA256SUMS.txt') -Value $hashes -Encoding ascii
+
+          $zip = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.1.0-x64-signed-acceptance.zip'
+          Compress-Archive -LiteralPath $package -DestinationPath $zip -CompressionLevel Optimal -Force
+          if (-not (Test-Path $zip)) { throw 'Acceptance ZIP was not produced.' }
+
+      - name: Upload signed acceptance artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: PageArc-v0.1.0-x64-signed-acceptance
+          path: ${{ env.ACCEPTANCE_ROOT }}
+          if-no-files-found: error
+          retention-days: 14
