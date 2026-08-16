@@ -15,6 +15,7 @@
   <ItemGroup>
     <Compile Include="../../Models/BookEntry.cs" Link="Models/BookEntry.cs" />
     <Compile Include="../../Models/LibraryImportModels.cs" Link="Models/LibraryImportModels.cs" />
+    <Compile Include="../../Models/ImportFolderEntry.cs" Link="Models/ImportFolderEntry.cs" />
     <Compile Include="../../Models/EbookFormatDescriptor.cs" Link="Models/EbookFormatDescriptor.cs" />
     <Compile Include="../../Models/EbookConversion.cs" Link="Models/EbookConversion.cs" />
     <Compile Include="../../Models/EbookConversionCapability.cs" Link="Models/EbookConversionCapability.cs" />
@@ -26,6 +27,7 @@
     <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
     <Compile Include="../../Services/LibraryFingerprintService.cs" Link="Services/LibraryFingerprintService.cs" />
     <Compile Include="../../Services/LibraryService.cs" Link="Services/LibraryService.cs" />
+    <Compile Include="../../Services/ImportFolderService.cs" Link="Services/ImportFolderService.cs" />
     <Compile Include="../../Services/EbookOpenExceptions.cs" Link="Services/EbookOpenExceptions.cs" />
     <Compile Include="../../Services/IFlowBookAdapter.cs" Link="Services/IFlowBookAdapter.cs" />
     <Compile Include="../../Services/IKindleParserRuntime.cs" Link="Services/IKindleParserRuntime.cs" />
