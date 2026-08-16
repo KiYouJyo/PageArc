@@ -23,10 +23,10 @@
                 IsSettingsVisible="False"
                 IsBackButtonVisible="Collapsed"
                 IsPaneToggleButtonVisible="True"
-                IsPaneOpen="True"
-                PaneDisplayMode="Left"
-                OpenPaneLength="240"
+                PaneDisplayMode="Auto"
+                OpenPaneLength="320"
                 CompactPaneLength="48"
+                DisplayModeChanged="AppNavigation_DisplayModeChanged"
                 SelectionChanged="AppNavigation_SelectionChanged">
                 <NavigationView.MenuItems>
                     <NavigationViewItem x:Uid="Nav_Library" Tag="library">
