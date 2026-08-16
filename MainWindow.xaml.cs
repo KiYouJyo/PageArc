@@ -147,15 +147,24 @@ public sealed partial class MainWindow : Window
         if (_navigationSplitView is null) return;
 
         var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
-        var themeKey = highContrast
-            ? "HighContrast"
-            : AppNavigation.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
-        var themeResources = Application.Current.Resources.ThemeDictionaries[themeKey] as ResourceDictionary;
-
+        var isDark = AppNavigation.ActualTheme == ElementTheme.Dark;
         var isActive = forceActive ?? (AppNavigation.IsPaneOpen || AppNavigation.DisplayMode == NavigationViewDisplayMode.Expanded);
-        var brushKey = isActive ? "PageArcNavigationPaneActiveBrush" : "PageArcNavigationPaneRestBrush";
-        if (themeResources?[brushKey] is Brush brush)
-            _navigationSplitView.PaneBackground = brush;
+
+        if (!highContrast && isActive)
+        {
+            // Match UrbanPlanToolbox interaction semantics: the compact/resting rail is neutral,
+            // while an opened/expanded navigation pane regains the cyan family.
+            var activeColor = isDark
+                ? ColorHelper.FromArgb(255, 26, 35, 35)      // #1A2323 deep cyan
+                : ColorHelper.FromArgb(255, 229, 249, 249); // #E5F9F9 light cyan
+            _navigationSplitView.PaneBackground = new SolidColorBrush(activeColor);
+            return;
+        }
+
+        var themeKey = highContrast ? "HighContrast" : isDark ? "Dark" : "Light";
+        var themeResources = Application.Current.Resources.ThemeDictionaries[themeKey] as ResourceDictionary;
+        if (themeResources?["PageArcNavigationPaneBrush"] is Brush restingBrush)
+            _navigationSplitView.PaneBackground = restingBrush;
     }
 
     private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
