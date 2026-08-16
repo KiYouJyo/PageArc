@@ -17,6 +17,7 @@
     <Compile Include="../../Models/BookMetadataSnapshot.cs" Link="Models/BookMetadataSnapshot.cs" />
     <Compile Include="../../Models/LibraryImportModels.cs" Link="Models/LibraryImportModels.cs" />
     <Compile Include="../../Models/ImportFolderEntry.cs" Link="Models/ImportFolderEntry.cs" />
+    <Compile Include="../../Models/AppActivationRequest.cs" Link="Models/AppActivationRequest.cs" />
     <Compile Include="../../Models/EbookFormatDescriptor.cs" Link="Models/EbookFormatDescriptor.cs" />
     <Compile Include="../../Models/EbookConversion.cs" Link="Models/EbookConversion.cs" />
     <Compile Include="../../Models/EbookConversionCapability.cs" Link="Models/EbookConversionCapability.cs" />
@@ -26,6 +27,7 @@
     <Compile Include="../../Models/ReadingData.cs" Link="Models/ReadingData.cs" />
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
     <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
+    <Compile Include="../../Services/AppActivationRequestParser.cs" Link="Services/AppActivationRequestParser.cs" />
     <Compile Include="../../Services/BookMetadataService.cs" Link="Services/BookMetadataService.cs" />
     <Compile Include="../../Services/CoverCacheService.cs" Link="Services/CoverCacheService.cs" />
     <Compile Include="../../Services/LibraryFingerprintService.cs" Link="Services/LibraryFingerprintService.cs" />
@@ -55,5 +57,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="../../Strings/**/*.resw" Link="Strings/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../Packaging/PageArc.Package.appxmanifest" Link="Packaging/PageArc.Package.appxmanifest" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
