@@ -148,10 +148,6 @@ jobs:
 
           & $signtool.FullName sign /fd SHA256 /sha1 $cert.Thumbprint $msix
           if ($LASTEXITCODE -ne 0) { throw "signtool sign failed: $LASTEXITCODE" }
-          & $signtool.FullName verify /pa /v $msix
-          if ($LASTEXITCODE -ne 0) {
-            Write-Warning 'signtool /pa reports the expected trust-chain warning for the self-signed acceptance certificate; validating embedded signer directly.'
-          }
           $signature = Get-AuthenticodeSignature -FilePath $msix
           if (-not $signature.SignerCertificate) { throw 'Signed MSIX has no embedded signer certificate.' }
           if ($signature.SignerCertificate.Subject -cne 'CN=PageArc Acceptance' -or $signature.SignerCertificate.Thumbprint -cne $cert.Thumbprint) { throw 'Signed MSIX signer does not match the acceptance certificate.' }
@@ -174,18 +170,16 @@ jobs:
           $certPath = Join-Path $root 'PageArc-v0.1.0-acceptance.cer'
           $msixPath = Join-Path $root 'PageArc_0.1.0.0_x64.msix'
           Write-Host 'PageArc v0.1.0 signed acceptance installer' -ForegroundColor Cyan
-          Write-Host 'Installing the bundled self-signed acceptance certificate into CurrentUser\\TrustedPeople...'
+          Write-Host 'Installing the bundled self-signed acceptance certificate into CurrentUser\TrustedPeople...'
           Import-Certificate -FilePath $certPath -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
           Write-Host 'Installing PageArc...'
           Add-AppxPackage -Path $msixPath -ForceApplicationShutdown
           Write-Host 'Installation completed.' -ForegroundColor Green
-          Start-Process 'shell:AppsFolder\KiYouJyo.PageArc.Acceptance_7q7f8x6r3j6m0!App' -ErrorAction SilentlyContinue
           '@
           $installPs1 = ($installPs1 -split "`r?`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`r`n"
           Set-Content -LiteralPath (Join-Path $package 'Install.ps1') -Value $installPs1 -Encoding utf8
-          Set-Content -LiteralPath (Join-Path $package 'Install.cmd') -Value '@echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1"
-if errorlevel 1 pause' -Encoding ascii
+          $installCmd = @('@echo off', 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1"', 'if errorlevel 1 pause')
+          Set-Content -LiteralPath (Join-Path $package 'Install.cmd') -Value $installCmd -Encoding ascii
 
           $readme = @"
           PageArc v0.1.0 x64 Signed Acceptance
