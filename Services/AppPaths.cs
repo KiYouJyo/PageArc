@@ -11,11 +11,13 @@ public static class AppPaths
     public static string ReadingDataFile => Path.Combine(Root, "reading-data.json");
     public static string CacheRoot => Path.Combine(Root, "Cache");
     public static string BooksCacheRoot => Path.Combine(CacheRoot, "Books");
+    public static string NormalizedBooksRoot => Path.Combine(CacheRoot, "NormalizedBooks");
 
     public static void Ensure()
     {
         Directory.CreateDirectory(Root);
         Directory.CreateDirectory(CacheRoot);
         Directory.CreateDirectory(BooksCacheRoot);
+        Directory.CreateDirectory(NormalizedBooksRoot);
     }
 }
