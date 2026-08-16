@@ -4,19 +4,24 @@
 
 **PageArc** is a WinUI 3 ebook reader for Windows focused on reflowable formats. The UI follows the PAGEARC Figma source of truth while keeping reading local-first and leaving original ebook files untouched.
 
-## v0.3.0
+## v0.4.0
 
-The reader now uses one format-neutral flow engine:
+v0.4.0 closes the first format-engine milestone:
 
 - built-in EPUB 2 / EPUB 3 and FB2 adapters;
-- built-in local MOBI and KF8/AZW3 parsing based on a pinned, packaged parser runtime with no CDN dependency;
+- built-in local MOBI and KF8/AZW3 parsing based on a pinned packaged runtime with no CDN dependency;
+- a dedicated `LitFlowAdapter` that joins the common `FlowReaderEngine` and uses a read-only EPUB normalization cache when a compatible local conversion provider is available;
 - unified TOC navigation, continuous/paginated reading, section-relative progress, full-text search, bookmarks, annotation data, and Figma-aligned Search / Bookmarks / Notes panes;
 - native PalmDOC encryption probing before MOBI/AZW3 parsing; confirmed DRM stops immediately and is never bypassed;
-- a real conversion queue with pluggable providers for EPUB / FB2 / MOBI / AZW3 / LIT;
-- optional local interoperability with calibre `ebook-convert` when calibre is already installed, for conversion and compatibility fallback. calibre is not bundled with PageArc;
-- LIT remains on the optional normalization compatibility path in v0.3.0 and is the final built-in format target for v0.4.0.
+- an explicit 20-pair ordered conversion capability matrix for EPUB / FB2 / MOBI / AZW3 / LIT, gated by providers actually available on the machine;
+- optional local interoperability with calibre `ebook-convert` when calibre is already installed. calibre is not bundled with PageArc.
 
 **Source safety:** reading caches, Kindle parser workspaces and conversions always use copies or new output files. PageArc never modifies the original ebook and does not attempt DRM removal.
+
+## Next
+
+- **v0.5:** library completion — batch import, richer metadata and covers, search/sort/filtering, collections, details, and large-library performance.
+- **v0.6:** deeper Windows integration — file associations, activation/single-instance behavior, Explorer integration, jump lists, and native open workflows.
 
 ## Design source of truth
 
@@ -34,7 +39,7 @@ dotnet build PageArc.slnx -c Debug -p:Platform=x64
 dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 ```
 
-See [docs/ROADMAP.md](docs/ROADMAP.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ENGINE_ARCHITECTURE.md](docs/ENGINE_ARCHITECTURE.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [PRIVACY.md](PRIVACY.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
+See [docs/ROADMAP.md](docs/ROADMAP.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ENGINE_ARCHITECTURE.md](docs/ENGINE_ARCHITECTURE.md), [docs/FORMAT_SUPPORT.md](docs/FORMAT_SUPPORT.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [PRIVACY.md](PRIVACY.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
