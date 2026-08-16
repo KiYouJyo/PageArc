@@ -1,0 +1,71 @@
+name: Publish v0.4.0
+
+on:
+  push:
+    branches: [ release/v0.4.0-finalize ]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download signed acceptance artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $env:RUNNER_TEMP 'pagearc-v040-release'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          gh run download 31951677994 --repo KiYouJyo/PageArc --name PageArc-v0.4.0-x64-signed-acceptance --dir $out
+          $zip = Get-ChildItem $out -Recurse -Filter '*.zip' | Select-Object -First 1
+          if (-not $zip) {
+            $zipPath = Join-Path $env:RUNNER_TEMP 'PageArc-v0.4.0-x64-signed-acceptance.zip'
+            Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zipPath -Force
+          } else {
+            $zipPath = Join-Path $env:RUNNER_TEMP 'PageArc-v0.4.0-x64-signed-acceptance.zip'
+            Copy-Item $zip.FullName $zipPath -Force
+          }
+          "RELEASE_ASSET=$zipPath" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Create release notes
+        shell: pwsh
+        run: |
+          @'
+          # PageArc v0.4.0
+
+          v0.4.0 closes the first format-engine milestone and brings all five target formats into one PageArc reading/conversion architecture.
+
+          ## Highlights
+          - EPUB, FB2, MOBI and KF8/AZW3 read through PageArc's unified FlowReaderEngine.
+          - MOBI/KF8 uses the pinned local parser runtime and stops immediately on confirmed DRM/encryption.
+          - LIT now has a dedicated Flow adapter and uses a local provider boundary for DRM-free normalization without modifying the source file.
+          - The conversion layer explicitly models all 20 ordered cross-format pairs among EPUB / FB2 / MOBI / AZW3 / LIT and reports actual provider availability rather than pretending every machine has a converter installed.
+          - Search, bookmarks, notes, stable section-relative progress and the Figma-derived reader shell remain shared across formats.
+          - Signed x64 acceptance completed successfully: tests, Debug/Release builds, MSIX signing, install and launch smoke test all passed.
+
+          ## Signed acceptance package
+          The attached x64 acceptance ZIP contains the signed MSIX, acceptance certificate and install scripts. Run `Install.cmd` after extracting the ZIP.
+
+          DRM removal is intentionally out of scope. Original ebook files are never modified.
+          '@ | Set-Content -LiteralPath release-notes.md -Encoding utf8
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v0.4.0'
+          $target = 'b8970f167b96a4e168b4aa753f7bb8565f632bb5'
+          gh release view $tag --repo KiYouJyo/PageArc *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $env:RELEASE_ASSET --repo KiYouJyo/PageArc --clobber
+          } else {
+            gh release create $tag $env:RELEASE_ASSET --repo KiYouJyo/PageArc --target $target --title 'PageArc v0.4.0' --notes-file release-notes.md --latest
+          }
