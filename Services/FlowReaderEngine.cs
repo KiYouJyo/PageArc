@@ -4,11 +4,11 @@ namespace PageArc.Services;
 
 public sealed class FlowReaderEngine
 {
-    private readonly IReadOnlyList<IFlowBookAdapter> _adapters;
+    private readonly List<IFlowBookAdapter> _adapters;
 
     public FlowReaderEngine(IEnumerable<IFlowBookAdapter>? adapters = null)
     {
-        _adapters = (adapters ?? CreateDefaultAdapters()).ToArray();
+        _adapters = (adapters ?? CreateDefaultAdapters()).ToList();
     }
 
     public IReadOnlyList<string> ReadableFormats => _adapters
@@ -18,6 +18,14 @@ public sealed class FlowReaderEngine
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
         .ToArray();
+
+    public void RegisterAdapter(IFlowBookAdapter adapter, bool prefer = true)
+    {
+        ArgumentNullException.ThrowIfNull(adapter);
+        _adapters.RemoveAll(existing => ReferenceEquals(existing, adapter));
+        if (prefer) _adapters.Insert(0, adapter);
+        else _adapters.Add(adapter);
+    }
 
     public bool CanOpen(BookEntry book) => _adapters.Any(adapter => adapter.CanOpen(book));
 
