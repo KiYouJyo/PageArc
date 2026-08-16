@@ -184,9 +184,10 @@ public sealed class LibraryService
         foreach (var book in Books)
         {
             var exists = SafeFileExists(book.FilePath);
-            if (book.IsMissing == exists)
+            var missing = !exists;
+            if (book.IsMissing != missing)
             {
-                book.IsMissing = !exists;
+                book.IsMissing = missing;
                 changed = true;
             }
 
@@ -269,34 +270,19 @@ public sealed class LibraryService
 
     private static async Task EnrichMetadataAsync(BookEntry entry, CancellationToken cancellationToken)
     {
-        if (entry.Format == "EPUB")
+        try
         {
-            try
-            {
-                var metadata = await EpubParser.ReadMetadataAsync(entry.FilePath, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(metadata.Title)) entry.Title = metadata.Title;
-                entry.Author = metadata.Author;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                StartupDiagnostics.Log($"EPUB metadata enrichment failed for '{entry.FilePath}'.", ex);
-            }
-            return;
+            var metadata = await BookMetadataService.ReadAsync(entry, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(metadata.Title)) entry.Title = metadata.Title;
+            if (!string.IsNullOrWhiteSpace(metadata.Author)) entry.Author = metadata.Author;
+            entry.Language = metadata.Language;
+            entry.Publisher = metadata.Publisher;
+            entry.Description = metadata.Description;
+            if (!string.IsNullOrWhiteSpace(metadata.CoverPath)) entry.CoverPath = metadata.CoverPath;
         }
-
-        if (entry.Format == "FB2")
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            try
-            {
-                await using var source = await new Fb2FlowAdapter().OpenAsync(entry, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(source.Document.Title)) entry.Title = source.Document.Title;
-                entry.Author = source.Document.Author;
-                entry.Language = source.Document.Language;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                StartupDiagnostics.Log($"FB2 metadata enrichment failed for '{entry.FilePath}'.", ex);
-            }
+            StartupDiagnostics.Log($"Metadata enrichment failed for '{entry.FilePath}'.", ex);
         }
     }
 
