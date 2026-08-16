@@ -70,5 +70,6 @@ public sealed class FlowReaderEngine
         yield return new EpubFlowAdapter();
         yield return new Fb2FlowAdapter();
         yield return new CalibreNormalizedFlowAdapter();
+        yield return new LitFlowAdapter();
     }
 }
