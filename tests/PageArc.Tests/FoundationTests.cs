@@ -253,7 +253,7 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void ShellTheme_UsesMicaAndUrbanPlanToolboxPalette()
+    public void ShellTheme_UsesMicaAndNeutralTitleBarPalette()
     {
         var root = FindRepoRoot();
         var appXaml = File.ReadAllText(Path.Combine(root, "App.xaml"));
@@ -261,8 +261,10 @@ public sealed class FoundationTests
         var readerXaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
 
         Assert.Contains("<MicaBackdrop/>", mainWindowXaml, StringComparison.Ordinal);
-        Assert.Contains("#E5F9F9", appXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("#1A2323", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#F3F3F3", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#202020", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("#E5F9F9", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("#1A2323", appXaml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("PageArcNavigationPaneBrush", appXaml, StringComparison.Ordinal);
         Assert.Contains("CardBackgroundFillColorDefaultBrush", appXaml, StringComparison.Ordinal);
         Assert.Contains("Background=\"Transparent\"", mainWindowXaml, StringComparison.Ordinal);
@@ -285,6 +287,8 @@ public sealed class FoundationTests
         Assert.Contains("sender.IsPaneOpen = false", code, StringComparison.Ordinal);
         Assert.Contains("x:Uid=\"Nav_Categories\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Uid=\"Nav_Conversion\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Symbol=\"Switch\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Symbol=\"SyncFolder\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Uid=\"Nav_Recent\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Uid=\"Nav_Favorites\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Uid=\"Nav_Collections\"", xaml, StringComparison.Ordinal);
@@ -302,6 +306,20 @@ public sealed class FoundationTests
         Assert.DoesNotContain("CoreWebView2", code, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("NativeReaderText.Text = chapter.PlainText", code, StringComparison.Ordinal);
         Assert.Contains("ResolveInitialSpineIndex", code, StringComparison.Ordinal);
+        Assert.Contains("TextTrimming=\"CharacterEllipsis\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("This page contains no text", code, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void LanguageSwitch_AlwaysReEnablesSelectorAndKeepsWindowInPlace()
+    {
+        var root = FindRepoRoot();
+        var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
+        var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
+        Assert.Contains("finally", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("LanguageCombo.IsEnabled = true;", settingsCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReloadMainWindow", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("ReloadLocalizedShell", windowCode, StringComparison.Ordinal);
     }
 
     [Fact]
