@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PageArc.Models;
+using PageArc.Services;
 
 namespace PageArc.Pages;
 
@@ -9,9 +10,12 @@ public sealed partial class ReaderPage
 {
     private readonly ObservableCollection<ReaderAnnotationListItem> _annotationItems = [];
     private bool _notesInitialized;
+    private WebView2? _kindleParserWebView;
+    private WebViewKindleParserRuntime? _kindleParserRuntime;
 
     private void ReaderPage_NotesLoaded(object sender, RoutedEventArgs e)
     {
+        ConfigureKindleFlowRuntime();
         if (_notesInitialized) return;
         _notesInitialized = true;
         NotesList.ItemsSource = _annotationItems;
@@ -20,6 +24,31 @@ public sealed partial class ReaderPage
         SearchButton.Click += (_, _) => NotesMode.Visibility = Visibility.Collapsed;
         BookmarkButton.Click += (_, _) => NotesMode.Visibility = Visibility.Collapsed;
         RefreshAnnotations();
+    }
+
+    private void ConfigureKindleFlowRuntime()
+    {
+        if (_kindleParserRuntime is not null || _book is null) return;
+        var format = BookFormatRegistry.Normalize(_book.Format);
+        if (string.IsNullOrWhiteSpace(format)) format = BookFormatRegistry.FormatFromPath(_book.FilePath);
+        if (format is not ("MOBI" or "AZW3")) return;
+        if (Content is not Grid root) return;
+
+        _kindleParserWebView = new WebView2
+        {
+            Width = 1,
+            Height = 1,
+            Opacity = 0,
+            IsHitTestVisible = false,
+            IsTabStop = false,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Bottom
+        };
+        Grid.SetRowSpan(_kindleParserWebView, 2);
+        root.Children.Add(_kindleParserWebView);
+
+        _kindleParserRuntime = new WebViewKindleParserRuntime(_kindleParserWebView);
+        _readerEngine.RegisterAdapter(new MobiFlowAdapter(_kindleParserRuntime), prefer: true);
     }
 
     private void Notes_Click(object sender, RoutedEventArgs e)
