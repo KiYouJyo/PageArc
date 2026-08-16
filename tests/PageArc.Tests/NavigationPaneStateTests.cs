@@ -5,7 +5,7 @@ namespace PageArc.Tests;
 public sealed class NavigationPaneStateTests
 {
     [Fact]
-    public void NavigationPane_UsesNeutralRestAndCyanOpenStates()
+    public void NavigationPane_UsesNeutralInactiveAndCyanActiveWindowStates()
     {
         var root = FindRepoRoot();
         var appXaml = File.ReadAllText(Path.Combine(root, "App.xaml"));
@@ -13,16 +13,17 @@ public sealed class NavigationPaneStateTests
 
         Assert.Contains("#F3F3F3", appXaml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("#202020", appXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("PageArcNavigationPaneBrush", appXaml, StringComparison.Ordinal);
+        Assert.Contains("PageArcNavigationPaneRestBrush", appXaml, StringComparison.Ordinal);
 
-        Assert.Contains("PaneOpening", windowCode, StringComparison.Ordinal);
-        Assert.Contains("PaneOpened", windowCode, StringComparison.Ordinal);
-        Assert.Contains("PaneClosed", windowCode, StringComparison.Ordinal);
-        Assert.Contains("forceActive: true", windowCode, StringComparison.Ordinal);
-        Assert.Contains("forceActive: false", windowCode, StringComparison.Ordinal);
+        Assert.Contains("Activated += MainWindow_Activated", windowCode, StringComparison.Ordinal);
+        Assert.Contains("WindowActivationState.Deactivated", windowCode, StringComparison.Ordinal);
+        Assert.Contains("_isWindowActive", windowCode, StringComparison.Ordinal);
         Assert.Contains("ColorHelper.FromArgb(255, 26, 35, 35)", windowCode, StringComparison.Ordinal);
         Assert.Contains("ColorHelper.FromArgb(255, 229, 249, 249)", windowCode, StringComparison.Ordinal);
-        Assert.Contains("AppNavigation.IsPaneOpen || AppNavigation.DisplayMode == NavigationViewDisplayMode.Expanded", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("forceActive", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppNavigation.IsPaneOpen || AppNavigation.DisplayMode == NavigationViewDisplayMode.Expanded", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("PaneOpening +=", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("PaneClosed +=", windowCode, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()
