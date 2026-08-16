@@ -27,6 +27,22 @@ public sealed class FoundationTests
         Assert.Equal(expected, LanguagePreference.Normalize(value));
     }
 
+    [Theory]
+    [InlineData("OEBPS", "Text/Chapter%201.xhtml#start", "OEBPS/Text/Chapter 1.xhtml")]
+    [InlineData("OPS/nav", "../Text/%E6%97%A5%E6%9C%AC.xhtml", "OPS/Text/日本.xhtml")]
+    [InlineData("", "EPUB\\chapter.xhtml", "EPUB/chapter.xhtml")]
+    public void EpubPath_CombinesAndDecodesPackageReferences(string directory, string href, string expected)
+    {
+        Assert.Equal(expected, EpubPath.Combine(directory, href));
+    }
+
+    [Fact]
+    public void EpubPath_EncodesWebNavigationOnce()
+    {
+        Assert.Equal("OPS/Text/Chapter%201.xhtml", EpubPath.ToWebPath("OPS/Text/Chapter 1.xhtml"));
+        Assert.Equal("OPS/Text/%E6%97%A5%E6%9C%AC.xhtml", EpubPath.ToWebPath("OPS/Text/日本.xhtml"));
+    }
+
     [Fact]
     public void ResourceFiles_HaveIdenticalKeys()
     {
@@ -69,6 +85,24 @@ public sealed class FoundationTests
         Assert.DoesNotContain("Background=\"#F6F6F6\"", mainWindowXaml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Background=\"#F9F9F9\"", readerXaml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("{ThemeResource PageArcToolbarBrush}", readerXaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NavigationShell_HidesItsImplicitBackButton()
+    {
+        var root = FindRepoRoot();
+        var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
+        Assert.Contains("IsBackButtonVisible=\"Collapsed\"", xaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ThemeSwitch_UsesLiveWindowApplication()
+    {
+        var root = FindRepoRoot();
+        var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
+        var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
+        Assert.Contains("App.MainWindow?.ApplyAppTheme(tag);", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("public void ApplyAppTheme(string theme)", windowCode, StringComparison.Ordinal);
     }
 
     private static SortedSet<string> ReadKeys(string path) =>
