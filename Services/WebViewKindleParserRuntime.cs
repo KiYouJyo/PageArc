@@ -44,7 +44,7 @@ public sealed class WebViewKindleParserRuntime : IKindleParserRuntime
         await NavigateAsync($"https://{RuntimeHost}/pagearc-host.html", cancellationToken);
 
         var fileName = Path.GetFileName(GetWorkspaceSourcePath(book));
-        var expression = $"await window.pageArcKindle.open({JsonSerializer.Serialize(fileName)}, {JsonSerializer.Serialize(format)})";
+        var expression = $"window.pageArcKindle.open({JsonSerializer.Serialize(fileName)}, {JsonSerializer.Serialize(format)})";
         var parsed = await InvokeAsync<KindleRuntimeBook>(expression, cancellationToken);
         parsed.Format = format;
         if (string.IsNullOrWhiteSpace(parsed.Title)) parsed.Title = book.Title;
@@ -60,7 +60,7 @@ public sealed class WebViewKindleParserRuntime : IKindleParserRuntime
         if (flowSectionIndex < 0) throw new ArgumentOutOfRangeException(nameof(flowSectionIndex));
 
         return await InvokeAsync<KindleRuntimeSectionContent>(
-            $"await window.pageArcKindle.loadSection({flowSectionIndex})",
+            $"window.pageArcKindle.loadSection({flowSectionIndex})",
             cancellationToken);
     }
 
@@ -71,7 +71,7 @@ public sealed class WebViewKindleParserRuntime : IKindleParserRuntime
         {
             try
             {
-                await InvokeAsync<JsonElement>("window.pageArcKindle.close(); null", cancellationToken);
+                await InvokeAsync<JsonElement>("window.pageArcKindle.close()", cancellationToken);
             }
             catch
             {
@@ -148,21 +148,24 @@ public sealed class WebViewKindleParserRuntime : IKindleParserRuntime
     private async Task NavigateAsync(string uri, CancellationToken cancellationToken)
     {
         var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        TypedEventHandler<WebView2, CoreWebView2NavigationCompletedEventArgs>? handler = null;
-        handler = (_, args) =>
+        void NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
         {
-            _webView.NavigationCompleted -= handler;
+            _webView.NavigationCompleted -= NavigationCompleted;
             if (args.IsSuccess) completion.TrySetResult(true);
             else completion.TrySetException(new InvalidOperationException($"Kindle parser navigation failed: {args.WebErrorStatus}."));
-        };
-        _webView.NavigationCompleted += handler;
-        using var registration = cancellationToken.Register(() =>
-        {
-            _webView.NavigationCompleted -= handler;
-            completion.TrySetCanceled(cancellationToken);
-        });
+        }
+
+        _webView.NavigationCompleted += NavigationCompleted;
+        using var registration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
         _webView.CoreWebView2.Navigate(uri);
-        await completion.Task;
+        try
+        {
+            await completion.Task;
+        }
+        finally
+        {
+            _webView.NavigationCompleted -= NavigationCompleted;
+        }
     }
 
     private async Task<T> InvokeAsync<T>(string expression, CancellationToken cancellationToken)
