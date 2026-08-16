@@ -25,6 +25,18 @@
     <Compile Remove="tests\**\*.cs" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Windows App SDK/MSIX currently embeds XBF resources using their filename only.
+         Flatten the logical Link for XAML Pages kept in subdirectories so generated
+         LoadComponent URIs match the PRI/XBF resource index. All Page XAML filenames
+         in this executable project must therefore remain unique. -->
+    <Page Update="Pages\*.xaml">
+      <Link>%(Filename)%(Extension)</Link>
+    </Page>
+    <Page Update="App.xaml">
+      <Link>App.xaml</Link>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7463" />
   </ItemGroup>
