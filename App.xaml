@@ -11,8 +11,9 @@
 
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <!-- Keep navigation/reader side panes visually tied to the title bar instead of using an accent tint. -->
-                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#F3F3F3"/>
+                    <!-- Closed/compact pane follows the neutral title-bar tone; an opened pane regains the toolbox cyan interaction surface. -->
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#F3F3F3"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneActiveBrush" Color="#E5F9F9"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00FFFFFF"/>
                     <SolidColorBrush x:Key="PageArcPaneBrush" Color="#F3F3F3"/>
                     <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00FFFFFF"/>
@@ -22,8 +23,9 @@
                     <StaticResource x:Key="PageArcAccentBrush" ResourceKey="AccentFillColorDefaultBrush"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <!-- Neutral title-bar gray: darker than the main content surface, without the previous cyan cast. -->
-                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#202020"/>
+                    <!-- Closed/compact pane is neutral dark gray; opened/expanded pane uses the original deep-cyan toolbox interaction tone. -->
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#202020"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneActiveBrush" Color="#1A2323"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00000000"/>
                     <SolidColorBrush x:Key="PageArcPaneBrush" Color="#202020"/>
                     <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00000000"/>
@@ -33,7 +35,8 @@
                     <StaticResource x:Key="PageArcAccentBrush" ResourceKey="AccentFillColorDefaultBrush"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
-                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneActiveBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcPaneBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcToolbarBrush" Color="{ThemeResource SystemColorWindowColor}"/>
