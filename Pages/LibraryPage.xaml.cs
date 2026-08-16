@@ -138,9 +138,22 @@ public sealed partial class LibraryPage : Page
         if (IsLoaded) Refresh();
     }
 
+    private BookEntry? ResolveBook(object sender)
+    {
+        if (sender is not FrameworkElement element) return null;
+        if (element.Tag is string id && !string.IsNullOrWhiteSpace(id))
+            return App.Library.Books.FirstOrDefault(book => string.Equals(book.Id, id, StringComparison.Ordinal));
+        return element.DataContext as BookEntry;
+    }
+
     private void Favorite_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement { DataContext: BookEntry book }) return;
+        var book = ResolveBook(sender);
+        if (book is null)
+        {
+            StartupDiagnostics.Log("Favorite click could not resolve BookEntry from card.");
+            return;
+        }
         ToggleFavorite(book);
     }
 
@@ -153,7 +166,13 @@ public sealed partial class LibraryPage : Page
 
     private async void BookCard_RightTapped(object sender, RightTappedRoutedEventArgs e)
     {
-        if (sender is not FrameworkElement { DataContext: BookEntry book } target) return;
+        if (sender is not FrameworkElement target) return;
+        var book = ResolveBook(sender);
+        if (book is null)
+        {
+            StartupDiagnostics.Log("Book right-click could not resolve BookEntry from card.");
+            return;
+        }
         e.Handled = true;
 
         var flyout = new MenuFlyout();
@@ -295,7 +314,18 @@ public sealed partial class LibraryPage : Page
     private void BookCard_Click(object sender, RoutedEventArgs e)
     {
         ImportInfoBar.IsOpen = false;
-        if (sender is FrameworkElement { DataContext: BookEntry book }) OpenBook(book);
+        var book = ResolveBook(sender);
+        if (book is null)
+        {
+            StartupDiagnostics.Log("BookCard_Click fired but the BookEntry could not be resolved.");
+            ImportInfoBar.Severity = InfoBarSeverity.Error;
+            ImportInfoBar.Message = LocalText("无法识别这本书，请重新导入。", "この本を特定できません。再インポートしてください。", "PageArc could not resolve this book. Please re-import it.");
+            ImportInfoBar.IsOpen = true;
+            return;
+        }
+
+        StartupDiagnostics.Log($"BookCard_Click resolved '{book.Title}' ({book.Id}); opening reader.");
+        OpenBook(book);
     }
 
     private void OpenBook(BookEntry book)
@@ -311,8 +341,10 @@ public sealed partial class LibraryPage : Page
 
         try
         {
+            StartupDiagnostics.Log($"Library requesting reader navigation for '{book.Title}' ({book.Id}).");
             if (App.MainWindow?.OpenBook(book) != true)
             {
+                StartupDiagnostics.Log("MainWindow.OpenBook returned false or MainWindow was unavailable.");
                 ImportInfoBar.Severity = InfoBarSeverity.Error;
                 ImportInfoBar.Message = App.Localization.GetString("Reader_OpenFailed");
                 ImportInfoBar.IsOpen = true;
@@ -320,6 +352,7 @@ public sealed partial class LibraryPage : Page
         }
         catch (Exception ex)
         {
+            StartupDiagnostics.Log("Library OpenBook failed", ex);
             ImportInfoBar.Severity = InfoBarSeverity.Error;
             ImportInfoBar.Message = ex.Message;
             ImportInfoBar.IsOpen = true;
