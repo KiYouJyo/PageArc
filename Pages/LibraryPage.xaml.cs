@@ -14,17 +14,33 @@ public sealed partial class LibraryPage : Page
 
     public LibraryPage()
     {
-        InitializeComponent();
-        BooksRepeater.ItemsSource = _visibleBooks;
-        Loaded += (_, _) => Refresh();
+        StartupDiagnostics.Log("LibraryPage constructor entered.");
+        try
+        {
+            InitializeComponent();
+            StartupDiagnostics.Log("LibraryPage.InitializeComponent completed.");
+            BooksRepeater.ItemsSource = _visibleBooks;
+            Loaded += (_, _) =>
+            {
+                StartupDiagnostics.Log("LibraryPage Loaded event.");
+                Refresh();
+            };
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("LibraryPage constructor failed", ex);
+            throw;
+        }
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
+        StartupDiagnostics.Log("LibraryPage.OnNavigatedTo entered.");
         base.OnNavigatedTo(e);
         if (e.Parameter is LibraryMode mode) _mode = mode;
         ApplyModeText();
         Refresh();
+        StartupDiagnostics.Log("LibraryPage.OnNavigatedTo completed.");
     }
 
     private void ApplyModeText()
