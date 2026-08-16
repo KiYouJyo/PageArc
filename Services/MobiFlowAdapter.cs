@@ -27,6 +27,15 @@ public sealed class MobiFlowAdapter : IFlowBookAdapter
         if (!CanOpen(book))
             throw new NotSupportedException($"The Kindle flow adapter cannot open {book.Format}.");
 
+        if (File.Exists(book.FilePath))
+        {
+            var probe = await KindleFileProbe.ProbeAsync(book.FilePath, cancellationToken);
+            if (!probe.IsMobi)
+                throw new InvalidDataException("The file extension indicates MOBI/AZW3, but the file does not contain a valid MOBI header.");
+            if (probe.IsEncrypted)
+                throw new InvalidDataException("This Kindle ebook is encrypted or DRM-protected and cannot be opened by PageArc.");
+        }
+
         var parsed = await _runtime.OpenAsync(book, cancellationToken);
         if (parsed.Sections.Count == 0)
             throw new InvalidDataException("The Kindle ebook does not expose any readable sections.");
