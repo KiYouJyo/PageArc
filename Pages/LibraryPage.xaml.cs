@@ -10,6 +10,8 @@ namespace PageArc.Pages;
 public sealed partial class LibraryPage : Page
 {
     private LibraryMode _mode = LibraryMode.Library;
+    private string? _categoryName;
+    private string _filterTag = "all";
     private readonly ObservableCollection<BookEntry> _visibleBooks = [];
 
     public LibraryPage()
@@ -37,7 +39,13 @@ public sealed partial class LibraryPage : Page
     {
         StartupDiagnostics.Log("LibraryPage.OnNavigatedTo entered.");
         base.OnNavigatedTo(e);
+        _categoryName = null;
         if (e.Parameter is LibraryMode mode) _mode = mode;
+        if (e.Parameter is string value && value.StartsWith("category:", StringComparison.Ordinal))
+        {
+            _mode = LibraryMode.Library;
+            _categoryName = value["category:".Length..];
+        }
         ApplyModeText();
         Refresh();
         StartupDiagnostics.Log("LibraryPage.OnNavigatedTo completed.");
@@ -45,6 +53,13 @@ public sealed partial class LibraryPage : Page
 
     private void ApplyModeText()
     {
+        if (!string.IsNullOrWhiteSpace(_categoryName))
+        {
+            PageTitle.Text = _categoryName;
+            PageSubtitle.Text = App.Localization.GetString("Categories_DetailSubtitle");
+            return;
+        }
+
         var titleKey = _mode switch
         {
             LibraryMode.Recent => "Recent_Title",
@@ -66,16 +81,33 @@ public sealed partial class LibraryPage : Page
     private void Refresh()
     {
         IEnumerable<BookEntry> books = App.Library.Books;
+        if (!string.IsNullOrWhiteSpace(_categoryName))
+            books = books.Where(x => string.Equals(x.Collection, _categoryName, StringComparison.CurrentCultureIgnoreCase));
+
         books = _mode switch
         {
-            LibraryMode.Recent => books.Where(x => x.LastOpenedAt is not null).OrderByDescending(x => x.LastOpenedAt),
+            LibraryMode.Recent => books.Where(x => x.LastOpenedAt is not null),
             LibraryMode.Favorites => books.Where(x => x.IsFavorite),
             LibraryMode.Collections => books.Where(x => !string.IsNullOrWhiteSpace(x.Collection)),
-            _ => books.OrderByDescending(x => x.LastOpenedAt ?? x.AddedAt)
+            _ => books
         };
+
+        books = _filterTag switch
+        {
+            "recent" => books.OrderByDescending(x => x.AddedAt),
+            "progress" => books.Where(x => x.Progress > 0.001 && x.Progress < 0.999),
+            "finished" => books.Where(x => x.Progress >= 0.999),
+            "favorites" => books.Where(x => x.IsFavorite),
+            _ => books
+        };
+
         var query = SearchBox.Text?.Trim();
         if (!string.IsNullOrWhiteSpace(query))
             books = books.Where(x => x.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase) || x.Author.Contains(query, StringComparison.CurrentCultureIgnoreCase));
+
+        books = SortComboBox.SelectedIndex == 1
+            ? books.OrderBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase)
+            : books.OrderByDescending(x => x.LastOpenedAt ?? x.AddedAt);
 
         _visibleBooks.Clear();
         foreach (var book in books) _visibleBooks.Add(book);
@@ -87,6 +119,29 @@ public sealed partial class LibraryPage : Page
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput) Refresh();
+    }
+
+    private void Filter_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleButton { Tag: string tag } selected) return;
+        _filterTag = tag;
+        foreach (var button in new[] { FilterAll, FilterRecentlyAdded, FilterInProgress, FilterFinished, FilterFavorites })
+            button.IsChecked = ReferenceEquals(button, selected);
+        Refresh();
+    }
+
+    private void SortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (IsLoaded) Refresh();
+    }
+
+    private void Favorite_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: BookEntry book }) return;
+        book.IsFavorite = !book.IsFavorite;
+        App.Library.Save();
+        Refresh();
+        e.Handled = true;
     }
 
     private async void ImportBook_Click(object sender, RoutedEventArgs e)
@@ -130,7 +185,7 @@ public sealed partial class LibraryPage : Page
             if (App.MainWindow?.OpenBook(book) != true)
             {
                 ImportInfoBar.Severity = InfoBarSeverity.Error;
-                ImportInfoBar.Message = "The reader could not be opened.";
+                ImportInfoBar.Message = App.Localization.GetString("Reader_OpenFailed");
                 ImportInfoBar.IsOpen = true;
             }
         }
