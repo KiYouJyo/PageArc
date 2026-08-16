@@ -2,6 +2,7 @@
     x:Class="PageArc.Pages.ReaderPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:PageArc.Models"
     Background="{ThemeResource PageArcCanvasBrush}">
     <Grid>
         <Grid.RowDefinitions>
@@ -42,7 +43,7 @@
                         <TextBlock x:Uid="Reader_ContentsText"/>
                     </StackPanel>
                 </Button>
-                <Button x:Uid="Reader_Search">
+                <Button x:Name="SearchButton" x:Uid="Reader_Search" Click="Search_Click">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <SymbolIcon Symbol="Find"/>
                         <TextBlock x:Uid="Reader_SearchText"/>
@@ -64,12 +65,12 @@
                                 <Slider x:Name="ReaderFontScaleSlider" Minimum="0.8" Maximum="1.6" StepFrequency="0.1" ValueChanged="ReaderFontScaleSlider_ValueChanged"/>
                                 <TextBlock x:Uid="ReaderSettings_LineSpacingLabel" FontWeight="SemiBold"/>
                                 <Slider x:Name="ReaderLineHeightSlider" Minimum="1.35" Maximum="2.1" StepFrequency="0.05" ValueChanged="ReaderLineHeightSlider_ValueChanged"/>
-                                <ToggleSwitch x:Name="ContinuousScrollToggle" x:Uid="ReaderSettings_Continuous" Toggled="ContinuousScrollToggle_Toggled"/>
+                                <ToggleSwitch x:Name="ContinuousScrollToggle" x:Uid="ReaderSettings_Continuous" Toggled="ReaderSettings_Continuous_Toggled"/>
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
                 </Button>
-                <Button x:Uid="Reader_Bookmark" Click="Bookmark_Click"><SymbolIcon Symbol="Bookmarks"/></Button>
+                <Button x:Name="BookmarkButton" x:Uid="Reader_Bookmark" Click="Bookmark_Click"><SymbolIcon Symbol="Bookmarks"/></Button>
                 <Button x:Uid="Reader_More"><SymbolIcon Symbol="More"/></Button>
             </StackPanel>
         </Grid>
@@ -85,18 +86,79 @@
                     Background="{ThemeResource PageArcPaneBrush}"
                     BorderBrush="{ThemeResource PageArcCardStrokeBrush}"
                     BorderThickness="0,0,1,0">
-                <Grid Padding="16,20">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="72"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="32"/>
-                    </Grid.RowDefinitions>
-                    <StackPanel>
-                        <TextBlock x:Uid="Reader_ContentsHeading" FontSize="20" FontWeight="SemiBold"/>
-                        <TextBlock x:Name="ContentsMetaText" Margin="0,6,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    </StackPanel>
-                    <ListView x:Name="TocList" Grid.Row="1" SelectionChanged="TocList_SelectionChanged"/>
-                    <TextBlock x:Name="BookProgressText" Grid.Row="2" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Grid>
+                    <Grid x:Name="ContentsMode" Padding="16,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="72"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel>
+                            <TextBlock x:Uid="Reader_ContentsHeading" FontSize="20" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="ContentsMetaText" Margin="0,6,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                        <ListView x:Name="TocList" Grid.Row="1" SelectionChanged="TocList_SelectionChanged"/>
+                        <TextBlock x:Name="BookProgressText" Grid.Row="2" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+
+                    <Grid x:Name="SearchMode" Padding="16,20" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="38"/>
+                            <RowDefinition Height="42"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="28"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock x:Uid="Reader_SearchText" FontSize="20" FontWeight="SemiBold"/>
+                        <AutoSuggestBox x:Name="ReaderSearchBox"
+                                        Grid.Row="1"
+                                        Height="34"
+                                        VerticalAlignment="Top"
+                                        TextChanged="SearchBox_TextChanged">
+                            <AutoSuggestBox.QueryIcon><SymbolIcon Symbol="Find"/></AutoSuggestBox.QueryIcon>
+                        </AutoSuggestBox>
+                        <TextBlock x:Name="SearchCountText" Grid.Row="2" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <ListView x:Name="SearchResultsList" Grid.Row="3" SelectionMode="Single" SelectionChanged="SearchResultsList_SelectionChanged">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:ReaderSearchListItem">
+                                    <Grid MinHeight="76" Padding="8,7">
+                                        <Grid.RowDefinitions><RowDefinition Height="22"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind ChapterTitle}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind PositionText}" FontSize="11" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{x:Bind Snippet}" FontSize="12" MaxLines="2" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                        <TextBlock x:Name="SearchFooterText" Grid.Row="4" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom"/>
+                    </Grid>
+
+                    <Grid x:Name="BookmarksMode" Padding="16,20" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="72"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel>
+                            <TextBlock x:Name="BookmarksHeading" FontSize="20" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="BookmarksMetaText" Margin="0,6,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                        <ListView x:Name="BookmarksList" Grid.Row="1" SelectionMode="Single" SelectionChanged="BookmarksList_SelectionChanged">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:ReaderBookmarkListItem">
+                                    <Grid MinHeight="80" Padding="8,7">
+                                        <Grid.RowDefinitions><RowDefinition Height="24"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind ChapterTitle}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind PercentText}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{x:Bind Snippet}" FontSize="12" MaxLines="2" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                        <TextBlock x:Name="BookmarksFooterText" Grid.Row="2" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
                 </Grid>
             </Border>
 

@@ -25,6 +25,7 @@ public sealed class FlowSearchService
 
             var chapterTitle = ResolveChapterTitle(document, sectionIndex);
             var searchFrom = 0;
+            var occurrence = 0;
             while (searchFrom < text.Length && results.Count < maxResults)
             {
                 var match = text.IndexOf(query, searchFrom, StringComparison.CurrentCultureIgnoreCase);
@@ -37,7 +38,9 @@ public sealed class FlowSearchService
                     BuildSnippet(text, match, length),
                     text.Substring(match, length),
                     match,
-                    length));
+                    length,
+                    occurrence));
+                occurrence++;
                 searchFrom = Math.Max(match + Math.Max(1, length), searchFrom + 1);
             }
         }

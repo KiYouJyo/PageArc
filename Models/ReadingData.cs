@@ -36,4 +36,19 @@ public sealed record FlowSearchResult(
     string Snippet,
     string MatchText,
     int MatchIndex,
-    int MatchLength);
+    int MatchLength,
+    int OccurrenceInSection = 0);
+
+public sealed record ReaderSearchListItem(FlowSearchResult Result, int Position, int Total)
+{
+    public string ChapterTitle => Result.ChapterTitle;
+    public string Snippet => Result.Snippet;
+    public string PositionText => $"{Position} / {Total}";
+}
+
+public sealed record ReaderBookmarkListItem(ReaderBookmark Bookmark, double OverallProgress)
+{
+    public string ChapterTitle => Bookmark.ChapterTitle;
+    public string Snippet => Bookmark.Snippet;
+    public string PercentText => $"{Math.Round(Math.Clamp(OverallProgress, 0, 1) * 100)}%";
+}
