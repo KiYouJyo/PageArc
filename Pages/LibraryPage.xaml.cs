@@ -23,11 +23,13 @@ public sealed partial class LibraryPage : Page
         try
         {
             InitializeComponent();
+            ApplyLibraryStaticText();
             StartupDiagnostics.Log("LibraryPage.InitializeComponent completed.");
             BooksRepeater.ItemsSource = _visibleBooks;
             Loaded += (_, _) =>
             {
                 StartupDiagnostics.Log("LibraryPage Loaded event.");
+                App.Library.RefreshFileStates();
                 Refresh();
             };
         }
@@ -106,7 +108,14 @@ public sealed partial class LibraryPage : Page
 
         var query = SearchBox.Text?.Trim();
         if (!string.IsNullOrWhiteSpace(query))
-            books = books.Where(x => x.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase) || x.Author.Contains(query, StringComparison.CurrentCultureIgnoreCase));
+        {
+            books = books.Where(x =>
+                x.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || x.Author.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || x.Format.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || x.Publisher.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || (x.Collection?.Contains(query, StringComparison.CurrentCultureIgnoreCase) ?? false));
+        }
 
         books = SortComboBox.SelectedIndex == 1
             ? books.OrderBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase)
@@ -142,7 +151,7 @@ public sealed partial class LibraryPage : Page
     {
         if (sender is not FrameworkElement element) return null;
         if (element.Tag is string id && !string.IsNullOrWhiteSpace(id))
-            return App.Library.Books.FirstOrDefault(book => string.Equals(book.Id, id, StringComparison.Ordinal));
+            return App.Library.FindById(id);
         return element.DataContext as BookEntry;
     }
 
@@ -162,6 +171,7 @@ public sealed partial class LibraryPage : Page
         book.IsFavorite = !book.IsFavorite;
         App.Library.Save();
         Refresh();
+        RefreshDetailsPanel(book);
     }
 
     private async void BookCard_RightTapped(object sender, RightTappedRoutedEventArgs e)
@@ -206,6 +216,7 @@ public sealed partial class LibraryPage : Page
                 book.Collection = category.Name;
                 App.Library.Save();
                 Refresh();
+                RefreshDetailsPanel(book);
             };
             categories.Items.Add(item);
         }
@@ -214,11 +225,11 @@ public sealed partial class LibraryPage : Page
         flyout.Items.Add(categories);
 
         var details = new MenuFlyoutItem { Text = LocalText("查看详情", "詳細を表示", "View details") };
-        details.Click += async (_, _) => await ShowBookDetailsAsync(book);
+        details.Click += (_, _) => ShowBookDetailsPanel(book);
         flyout.Items.Add(details);
         flyout.Items.Add(new MenuFlyoutSeparator());
 
-        var location = new MenuFlyoutItem { Text = LocalText("打开文件位置", "ファイルの場所を開く", "Show file location") };
+        var location = new MenuFlyoutItem { Text = LocalText("打开文件位置", "ファイルの場所を開く", "Show file location"), IsEnabled = !book.IsMissing };
         location.Click += (_, _) => ShowFileLocation(book);
         flyout.Items.Add(location);
 
@@ -227,24 +238,7 @@ public sealed partial class LibraryPage : Page
         flyout.Items.Add(remove);
 
         flyout.ShowAt(target, e.GetPosition(target));
-    }
-
-    private async Task ShowBookDetailsAsync(BookEntry book)
-    {
-        var panel = new StackPanel { Spacing = 8, MinWidth = 360 };
-        panel.Children.Add(new TextBlock { Text = book.DisplayAuthor, FontSize = 14 });
-        panel.Children.Add(new TextBlock { Text = $"{book.Format} · {book.FileSize / 1024d / 1024d:0.0} MB", FontSize = 13 });
-        panel.Children.Add(new TextBlock { Text = book.Collection ?? LocalText("未分类", "未分類", "Uncategorized"), FontSize = 13 });
-        panel.Children.Add(new TextBlock { Text = book.FilePath, FontSize = 12, TextWrapping = TextWrapping.Wrap, Opacity = 0.72 });
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = book.Title,
-            Content = panel,
-            CloseButtonText = LocalText("关闭", "閉じる", "Close")
-        };
-        await dialog.ShowAsync();
+        await Task.CompletedTask;
     }
 
     private async Task ConfirmRemoveAsync(BookEntry book)
@@ -259,6 +253,11 @@ public sealed partial class LibraryPage : Page
             DefaultButton = ContentDialogButton.Close
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (_detailsBook is not null && string.Equals(_detailsBook.Id, book.Id, StringComparison.Ordinal))
+        {
+            BookDetailsPanel.Visibility = Visibility.Collapsed;
+            _detailsBook = null;
+        }
         App.Library.Remove(book);
         Refresh();
     }
@@ -294,8 +293,25 @@ public sealed partial class LibraryPage : Page
         try
         {
             var paths = await PickerService.PickEbooksAsync();
-            foreach (var path in paths) await App.Library.ImportAsync(path);
+            if (paths.Count == 0) return;
+            var summary = await App.Library.ImportManyAsync(paths);
             Refresh();
+
+            if (summary.Existing > 0 || summary.Unsupported > 0 || summary.Failed > 0)
+            {
+                ImportInfoBar.Severity = summary.Failed > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Informational;
+                ImportInfoBar.Message = App.Settings.Current.Language switch
+                {
+                    "zh-CN" => $"已导入 {summary.Added} 本，已存在 {summary.Existing} 本，不支持 {summary.Unsupported} 本，失败 {summary.Failed} 本。",
+                    "ja-JP" => $"追加 {summary.Added} 冊、既存 {summary.Existing} 冊、非対応 {summary.Unsupported} 冊、失敗 {summary.Failed} 冊。",
+                    _ => $"Imported {summary.Added}, existing {summary.Existing}, unsupported {summary.Unsupported}, failed {summary.Failed}."
+                };
+                ImportInfoBar.IsOpen = true;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Picker/import cancellation is not an error.
         }
         catch (Exception ex)
         {
@@ -331,17 +347,19 @@ public sealed partial class LibraryPage : Page
     private void OpenBook(BookEntry book)
     {
         ImportInfoBar.IsOpen = false;
-        if (!book.Format.Equals("EPUB", StringComparison.OrdinalIgnoreCase))
+        if (book.IsMissing || !File.Exists(book.FilePath))
         {
-            ImportInfoBar.Severity = InfoBarSeverity.Warning;
-            ImportInfoBar.Message = App.Localization.GetString("Reader_UnsupportedV01");
+            book.IsMissing = true;
+            App.Library.Save();
+            ImportInfoBar.Severity = InfoBarSeverity.Error;
+            ImportInfoBar.Message = LocalText("找不到原始电子书文件。请恢复文件或重新导入。", "元の電子書籍ファイルが見つかりません。ファイルを復元するか再インポートしてください。", "The original ebook file is missing. Restore it or import the book again.");
             ImportInfoBar.IsOpen = true;
             return;
         }
 
         try
         {
-            StartupDiagnostics.Log($"Library requesting reader navigation for '{book.Title}' ({book.Id}).");
+            StartupDiagnostics.Log($"Library requesting reader navigation for '{book.Title}' ({book.Id}, {book.Format}).");
             if (App.MainWindow?.OpenBook(book) != true)
             {
                 StartupDiagnostics.Log("MainWindow.OpenBook returned false or MainWindow was unavailable.");
