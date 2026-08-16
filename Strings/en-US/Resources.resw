@@ -4,6 +4,8 @@
   <data name="Nav_Recent.Content" xml:space="preserve"><value>Recent</value></data>
   <data name="Nav_Favorites.Content" xml:space="preserve"><value>Favorites</value></data>
   <data name="Nav_Collections.Content" xml:space="preserve"><value>Collections</value></data>
+  <data name="Nav_Categories.Content" xml:space="preserve"><value>Categories</value></data>
+  <data name="Nav_Conversion.Content" xml:space="preserve"><value>Format conversion</value></data>
   <data name="Nav_ImportFolders.Content" xml:space="preserve"><value>Import folders</value></data>
   <data name="Nav_Settings.Content" xml:space="preserve"><value>Settings</value></data>
   <data name="Nav_About.Content" xml:space="preserve"><value>About PageArc</value></data>
@@ -22,6 +24,7 @@
   <data name="Filter_RecentlyAdded.Content" xml:space="preserve"><value>Recently added</value></data>
   <data name="Filter_InProgress.Content" xml:space="preserve"><value>In progress</value></data>
   <data name="Filter_Finished.Content" xml:space="preserve"><value>Finished</value></data>
+  <data name="Filter_Favorites.Content" xml:space="preserve"><value>Favorites</value></data>
   <data name="Sort_Recent.Content" xml:space="preserve"><value>Sort: Recent</value></data>
   <data name="Sort_Title.Content" xml:space="preserve"><value>Sort: Title</value></data>
   <data name="View_Grid.AutomationProperties.Name" xml:space="preserve"><value>Grid</value></data>
@@ -30,6 +33,40 @@
   <data name="Library_EmptyBody.Text" xml:space="preserve"><value>Import EPUB, MOBI, AZW3, FB2, or LIT files to get started.</value></data>
   <data name="Library_EmptyImport.Content" xml:space="preserve"><value>Import books</value></data>
   <data name="Library_EmptyFolder.Content" xml:space="preserve"><value>Import folder</value></data>
+  <data name="Categories_Title.Text" xml:space="preserve"><value>Categories</value></data>
+  <data name="Categories_Subtitle.Text" xml:space="preserve"><value>Organize books by topic, use, or series</value></data>
+  <data name="Categories_NewText.Text" xml:space="preserve"><value>New category</value></data>
+  <data name="Categories_EmptyTitle.Text" xml:space="preserve"><value>No categories yet</value></data>
+  <data name="Categories_EmptyBody.Text" xml:space="preserve"><value>Create a category to organize your library.</value></data>
+  <data name="Categories_EmptyNew.Content" xml:space="preserve"><value>New category</value></data>
+  <data name="Categories_BooksSuffix.Text" xml:space="preserve"><value>books</value></data>
+  <data name="Categories_NamePlaceholder" xml:space="preserve"><value>Category name</value></data>
+  <data name="Categories_NewDialogTitle" xml:space="preserve"><value>Create category</value></data>
+  <data name="Categories_Create" xml:space="preserve"><value>Create</value></data>
+  <data name="Categories_DetailSubtitle" xml:space="preserve"><value>Books in this category</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Conversion_Title.Text" xml:space="preserve"><value>Format conversion</value></data>
+  <data name="Conversion_Subtitle.Text" xml:space="preserve"><value>Convert DRM-free ebooks between common formats</value></data>
+  <data name="Conversion_SourceTitle.Text" xml:space="preserve"><value>Source files</value></data>
+  <data name="Conversion_SourceSubtitle.Text" xml:space="preserve"><value>Select one or more ebooks to convert</value></data>
+  <data name="Conversion_DropTitle.Text" xml:space="preserve"><value>Drop ebooks here</value></data>
+  <data name="Conversion_DropSubtitle.Text" xml:space="preserve"><value>or choose files from this device</value></data>
+  <data name="Conversion_ChooseFilesText.Text" xml:space="preserve"><value>Choose files</value></data>
+  <data name="Conversion_FormatsHint.Text" xml:space="preserve"><value>Input: EPUB · FB2 · MOBI · AZW3 · LIT</value></data>
+  <data name="Conversion_DrmHint.Text" xml:space="preserve"><value>DRM-protected ebooks cannot be converted</value></data>
+  <data name="Conversion_SettingsTitle.Text" xml:space="preserve"><value>Conversion settings</value></data>
+  <data name="Conversion_OutputFormat.Text" xml:space="preserve"><value>Output format</value></data>
+  <data name="Conversion_ContentOptions.Text" xml:space="preserve"><value>Content options</value></data>
+  <data name="Conversion_KeepMetadata.Content" xml:space="preserve"><value>Keep book metadata</value></data>
+  <data name="Conversion_KeepCover.Content" xml:space="preserve"><value>Keep cover image</value></data>
+  <data name="Conversion_KeepToc.Content" xml:space="preserve"><value>Keep table of contents</value></data>
+  <data name="Conversion_SafetyNotice.Text" xml:space="preserve"><value>Conversion creates a new file. PageArc never modifies the original ebook.</value></data>
+  <data name="Conversion_StartText.Text" xml:space="preserve"><value>Start conversion</value></data>
+  <data name="Conversion_QueueTitle.Text" xml:space="preserve"><value>Conversion queue</value></data>
+  <data name="Conversion_QueueEmpty.Text" xml:space="preserve"><value>No conversion tasks yet</value></data>
+  <data name="Conversion_Ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="Conversion_QueueCount" xml:space="preserve"><value>{0} tasks</value></data>
+  <data name="Conversion_EnginePending" xml:space="preserve"><value>The conversion workspace is ready; the format-provider engine will be enabled as the corresponding adapters land.</value></data>
   <data name="Settings_Title.Text" xml:space="preserve"><value>Settings</value></data>
   <data name="Settings_Subtitle.Text" xml:space="preserve"><value>Customize PageArc for your reading workflow</value></data>
   <data name="Settings_Appearance.Text" xml:space="preserve"><value>Appearance</value></data>
@@ -116,4 +153,6 @@
   <data name="Reader_ChapterN" xml:space="preserve"><value>Chapter {0}</value></data>
   <data name="Reader_ReadPercent" xml:space="preserve"><value>{0}% read</value></data>
   <data name="Reader_BookmarkSaved" xml:space="preserve"><value>Bookmark saved for the current chapter.</value></data>
+  <data name="Reader_OpenFailed" xml:space="preserve"><value>The reader could not be opened.</value></data>
+  <data name="Reader_ChapterLoadFailed" xml:space="preserve"><value>The EPUB chapter could not be loaded ({0}).</value></data>
 </root>
