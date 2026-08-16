@@ -26,6 +26,7 @@ public sealed partial class SettingsPage : Page
         ContinuousToggle.IsOn = App.Settings.Current.ContinuousScrolling;
         RecentToggle.IsOn = App.Settings.Current.ShowRecentBooks;
         DuplicatesToggle.IsOn = App.Settings.Current.DuplicateDetection;
+        LanguageCombo.IsEnabled = true;
         _loaded = true;
     }
 
@@ -43,10 +44,16 @@ public sealed partial class SettingsPage : Page
 
         PersistReadingSettings();
         LanguageCombo.IsEnabled = false;
-        var switched = App.Localization.SwitchLanguage(tag);
-        if (!switched)
+        try
         {
-            SelectByTag(LanguageCombo, App.Settings.Current.Language);
+            var switched = App.Localization.SwitchLanguage(tag);
+            if (!switched)
+                SelectByTag(LanguageCombo, App.Settings.Current.Language);
+        }
+        finally
+        {
+            // Switching to "system" can resolve to the already-active language and therefore
+            // does not raise LanguageChanged. Always re-enable the selector on this page too.
             LanguageCombo.IsEnabled = true;
         }
         // On success the existing MainWindow handles LanguageChanged and reloads only the
