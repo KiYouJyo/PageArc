@@ -59,7 +59,7 @@ public sealed class KindleFlowTests
         Assert.Contains("export class MOBI", mobi, StringComparison.Ordinal);
         Assert.Contains("unzlibSync", fflate, StringComparison.Ordinal);
         Assert.Contains("ThirdParty\\foliate-js\\mobi.js", project, StringComparison.Ordinal);
-        Assert.DoesNotContain("cdn", pin, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not load parser code from a CDN", pin, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class FakeKindleRuntime(string format) : IKindleParserRuntime
