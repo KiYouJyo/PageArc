@@ -24,6 +24,7 @@ public sealed partial class LibraryPage : Page
         {
             InitializeComponent();
             ApplyLibraryStaticText();
+            RestoreLibraryPreferences();
             StartupDiagnostics.Log("LibraryPage.InitializeComponent completed.");
             BooksRepeater.ItemsSource = _visibleBooks;
             Loaded += (_, _) =>
@@ -139,11 +140,13 @@ public sealed partial class LibraryPage : Page
         _filterTag = tag;
         foreach (var button in new[] { FilterAll, FilterRecentlyAdded, FilterInProgress, FilterFinished, FilterFavorites })
             button.IsChecked = ReferenceEquals(button, selected);
+        PersistLibraryFilterPreference();
         Refresh();
     }
 
     private void SortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        PersistLibrarySortPreference();
         if (IsLoaded) Refresh();
     }
 
