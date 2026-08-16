@@ -122,12 +122,8 @@ public sealed partial class ReaderPage : Page
             NativeReaderText.Text = chapter.PlainText;
             NativeReaderScroll.ChangeView(null, 0, null, true);
 
-            if (string.IsNullOrWhiteSpace(chapter.PlainText))
-            {
-                ReaderInfoBar.Severity = InfoBarSeverity.Informational;
-                ReaderInfoBar.Message = "This page contains no text. Use the previous or next chapter button to continue.";
-                ReaderInfoBar.IsOpen = true;
-            }
+            // Empty spine items are valid in real EPUBs (cover, spacer, image-only page, etc.).
+            // Keep them silent instead of showing a banner; navigation controls remain available.
 
             _book.SpineIndex = _spineIndex;
             _book.Progress = (_spineIndex + 1d) / _document.Spine.Count;
