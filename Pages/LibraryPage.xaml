@@ -126,11 +126,7 @@
                     </Grid>
 
                     <Grid Margin="0,16,0,0" Height="188">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="140"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Border Background="#245A99" CornerRadius="6">
                             <StackPanel Margin="18,20,0,0">
                                 <TextBlock x:Name="DetailsCoverMonogram" FontSize="34" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" MaxLines="1"/>
@@ -147,22 +143,15 @@
                     </Grid>
 
                     <StackPanel Margin="0,26,0,0" Orientation="Horizontal" Spacing="10">
-                        <Button Width="170" Height="34" Click="DetailsContinue_Click">
-                            <TextBlock x:Name="DetailsContinueText" FontWeight="SemiBold"/>
-                        </Button>
-                        <Button Width="100" Height="34" Click="DetailsFavorite_Click">
-                            <TextBlock x:Name="DetailsFavoriteText"/>
-                        </Button>
+                        <Button Width="170" Height="34" Click="DetailsContinue_Click"><TextBlock x:Name="DetailsContinueText" FontWeight="SemiBold"/></Button>
+                        <Button Width="100" Height="34" Click="DetailsFavorite_Click"><TextBlock x:Name="DetailsFavoriteText"/></Button>
                     </StackPanel>
 
                     <Rectangle Height="1" Margin="0,23,0,0" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
                     <TextBlock x:Name="DetailsFileInfoHeader" Margin="0,22,0,0" FontWeight="SemiBold"/>
-
-                    <Grid Margin="0,16,0,0" RowSpacing="0">
+                    <Grid Margin="0,16,0,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="34"/><RowDefinition Height="34"/><RowDefinition Height="34"/><RowDefinition Height="34"/><RowDefinition Height="34"/>
-                        </Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="34"/><RowDefinition Height="34"/><RowDefinition Height="34"/><RowDefinition Height="34"/><RowDefinition Height="34"/></Grid.RowDefinitions>
                         <TextBlock x:Name="DetailsFormatLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock x:Name="DetailsFormatValue" Grid.Column="1" VerticalAlignment="Center"/>
                         <TextBlock x:Name="DetailsSizeLabel" Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
@@ -174,11 +163,28 @@
                         <TextBlock x:Name="DetailsLocationLabel" Grid.Row="4" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock x:Name="DetailsLocationValue" Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
-
                     <TextBlock x:Name="DetailsReadingDataHeader" Margin="0,28,0,0" FontWeight="SemiBold"/>
                     <TextBlock x:Name="DetailsReadingDataSummary" Margin="0,12,0,0" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
                 </StackPanel>
             </ScrollViewer>
         </Border>
+
+        <Grid x:Name="ImportOverlay"
+              Grid.RowSpan="3"
+              Canvas.ZIndex="40"
+              Margin="-24"
+              Background="#1F000000"
+              Visibility="Collapsed">
+            <Border Width="620"
+                    Height="440"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource PageArcSurfaceBrush}"
+                    BorderBrush="{ThemeResource PageArcCardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                <Grid x:Name="ImportDialogContentHost"/>
+            </Border>
+        </Grid>
     </Grid>
 </Page>
