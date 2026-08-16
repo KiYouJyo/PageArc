@@ -139,8 +139,6 @@ public sealed class FoundationTests
     [Fact]
     public async Task Epub2CalibrePipeline_ParsesRootOpfNcxHtmlSpineAndSvgCover()
     {
-        // Regression shape based on the Calibre 5 EPUB2 used for acceptance:
-        // root OPF, NCX TOC, .html spine items and an SVG xlink cover.
         var epubPath = Path.Combine(Path.GetTempPath(), $"pagearc-epub2-{Guid.NewGuid():N}.epub");
         var bookId = $"epub2-{Guid.NewGuid():N}";
         try
@@ -293,16 +291,16 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void Reader_HasNativeCompatibilityFallbackInsteadOfBlankFailure()
+    public void Reader_UsesNativeWinUiPathSoWebViewCannotBlockOpening()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
         var code = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml.cs"));
-        Assert.Contains("NativeFallbackScroll", xaml, StringComparison.Ordinal);
-        Assert.Contains("NativeFallbackText", xaml, StringComparison.Ordinal);
-        Assert.Contains("TryInitializeWebViewAsync", code, StringComparison.Ordinal);
-        Assert.Contains("ShowNativeFallback", code, StringComparison.Ordinal);
-        Assert.Contains("EnsureRenderCompletesAsync", code, StringComparison.Ordinal);
+        Assert.Contains("NativeReaderScroll", xaml, StringComparison.Ordinal);
+        Assert.Contains("NativeReaderText", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("WebView2", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("CoreWebView2", code, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("NativeReaderText.Text = chapter.PlainText", code, StringComparison.Ordinal);
         Assert.Contains("ResolveInitialSpineIndex", code, StringComparison.Ordinal);
     }
 
