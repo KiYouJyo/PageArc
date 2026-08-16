@@ -21,9 +21,9 @@ public sealed partial class MainWindow : Window
             Title = "PageArc";
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
+            RootGrid.ActualThemeChanged += (_, _) => ConfigureTitleBar();
             StartupDiagnostics.Log("Custom title bar configured.");
-            ConfigureTitleBar();
-            ApplyTheme();
+            ApplyAppTheme(App.Settings.Current.AppTheme);
             StartupDiagnostics.Log("MainWindow theme applied; navigating to initial page.");
             NavigateTo(App.PendingNavigationTag);
             StartupDiagnostics.Log("MainWindow initial navigation completed.");
@@ -40,16 +40,19 @@ public sealed partial class MainWindow : Window
         if (AppWindow?.TitleBar is not { } titleBar) return;
         titleBar.ButtonBackgroundColor = Colors.Transparent;
         titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        titleBar.ButtonForegroundColor = RootGrid.ActualTheme == ElementTheme.Dark ? Colors.White : Colors.Black;
+        titleBar.ButtonInactiveForegroundColor = RootGrid.ActualTheme == ElementTheme.Dark ? Colors.Gray : Colors.DimGray;
     }
 
-    private void ApplyTheme()
+    public void ApplyAppTheme(string theme)
     {
-        RootGrid.RequestedTheme = App.Settings.Current.AppTheme switch
+        RootGrid.RequestedTheme = theme switch
         {
             "light" => ElementTheme.Light,
             "dark" => ElementTheme.Dark,
             _ => ElementTheme.Default
         };
+        ConfigureTitleBar();
     }
 
     private void AppNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -99,11 +102,17 @@ public sealed partial class MainWindow : Window
         AppNavigation.MenuItems.OfType<NavigationViewItem>()
             .Concat(AppNavigation.FooterMenuItems.OfType<NavigationViewItem>());
 
-    public void OpenBook(BookEntry book)
+    public bool OpenBook(BookEntry book)
     {
         AppNavigation.Visibility = Visibility.Collapsed;
         ReaderFrame.Visibility = Visibility.Visible;
-        ReaderFrame.Navigate(typeof(ReaderPage), book);
+        var navigated = ReaderFrame.Navigate(typeof(ReaderPage), book);
+        if (!navigated)
+        {
+            ReaderFrame.Visibility = Visibility.Collapsed;
+            AppNavigation.Visibility = Visibility.Visible;
+        }
+        return navigated;
     }
 
     public void ExitReader()
