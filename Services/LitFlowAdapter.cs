@@ -1,0 +1,120 @@
+using PageArc.Models;
+using PageArc.Services.Conversion;
+
+namespace PageArc.Services;
+
+public sealed class LitFlowAdapter : IFlowBookAdapter
+{
+    private static readonly string[] AdapterFormats = ["LIT"];
+    private readonly EbookConversionService _conversionService;
+
+    public LitFlowAdapter(EbookConversionService? conversionService = null)
+    {
+        _conversionService = conversionService ?? new EbookConversionService();
+    }
+
+    public IReadOnlyCollection<string> Formats => AdapterFormats;
+
+    public bool CanOpen(BookEntry book)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        return string.Equals(ResolveFormat(book), "LIT", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public async Task<IFlowBookSource> OpenAsync(BookEntry book, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        if (!CanOpen(book)) throw new NotSupportedException($"The LIT flow adapter cannot open {book.Format}.");
+
+        if (!_conversionService.CanConvert("LIT", "EPUB"))
+        {
+            throw new NotSupportedException(
+                $"LIT reading requires a local conversion provider capable of LIT→EPUB. " +
+                $"The default provider is calibre ebook-convert; install calibre or set {CalibreConversionProvider.EnvironmentVariable}. " +
+                "PageArc does not modify the source file or attempt DRM removal.");
+        }
+
+        AppPaths.Ensure();
+        var directory = Path.Combine(AppPaths.NormalizedBooksRoot, book.Id, "lit");
+        Directory.CreateDirectory(directory);
+        var normalizedPath = Path.Combine(directory, "source.epub");
+        var sourceInfo = new FileInfo(book.FilePath);
+        var stampPath = Path.Combine(directory, "source.stamp");
+        var expectedStamp = $"{sourceInfo.Length}:{sourceInfo.LastWriteTimeUtc.Ticks}";
+        var cachedStamp = File.Exists(stampPath) ? await File.ReadAllTextAsync(stampPath, cancellationToken) : string.Empty;
+
+        var needsRefresh = !File.Exists(normalizedPath)
+            || new FileInfo(normalizedPath).Length == 0
+            || !string.Equals(cachedStamp, expectedStamp, StringComparison.Ordinal);
+
+        if (needsRefresh)
+        {
+            if (File.Exists(normalizedPath)) File.Delete(normalizedPath);
+            var result = await _conversionService.ConvertAsync(
+                new EbookConversionRequest(
+                    book.FilePath,
+                    "EPUB",
+                    normalizedPath,
+                    new EbookConversionOptions(true, true, true)),
+                cancellationToken);
+
+            if (result.IsDrmProtected)
+                throw new DrmProtectedEbookException(result.ErrorMessage ?? "This LIT ebook is DRM-protected and cannot be opened by PageArc.");
+            if (!result.Success || string.IsNullOrWhiteSpace(result.OutputPath) || !File.Exists(result.OutputPath))
+                throw new InvalidDataException(result.ErrorMessage ?? "Failed to normalize LIT to EPUB.");
+
+            await File.WriteAllTextAsync(stampPath, expectedStamp, cancellationToken);
+        }
+
+        var normalizedBook = new BookEntry
+        {
+            Id = $"{book.Id}-lit-normalized",
+            FilePath = normalizedPath,
+            Format = "EPUB",
+            Title = book.Title,
+            Author = book.Author,
+            FileSize = new FileInfo(normalizedPath).Length,
+            Progress = book.Progress,
+            SpineIndex = book.SpineIndex,
+            SectionFraction = book.SectionFraction
+        };
+
+        var inner = await new EpubFlowAdapter().OpenAsync(normalizedBook, cancellationToken);
+        return new Source(inner);
+    }
+
+    private static string ResolveFormat(BookEntry book)
+    {
+        var format = BookFormatRegistry.Normalize(book.Format);
+        return string.IsNullOrWhiteSpace(format) ? BookFormatRegistry.FormatFromPath(book.FilePath) : format;
+    }
+
+    private sealed class Source : IFlowBookSource
+    {
+        private readonly IFlowBookSource _inner;
+
+        public Source(IFlowBookSource inner)
+        {
+            _inner = inner;
+            var document = inner.Document;
+            Document = new FlowDocument
+            {
+                Format = "LIT",
+                Title = document.Title,
+                Author = document.Author,
+                Language = document.Language,
+                CoverHref = document.CoverHref,
+                CacheRoot = document.CacheRoot,
+                Sections = document.Sections,
+                Toc = document.Toc
+            };
+        }
+
+        public FlowDocument Document { get; }
+
+        public Task<FlowSectionContent> LoadSectionAsync(int sectionIndex, CancellationToken cancellationToken = default) =>
+            _inner.LoadSectionAsync(sectionIndex, cancellationToken);
+
+        public ValueTask DisposeAsync() => _inner.DisposeAsync();
+    }
+}
