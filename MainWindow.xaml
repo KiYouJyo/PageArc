@@ -17,6 +17,7 @@
                 x:Name="AppNavigation"
                 Background="{ThemeResource PageArcCanvasBrush}"
                 IsSettingsVisible="False"
+                IsBackButtonVisible="Collapsed"
                 IsPaneToggleButtonVisible="True"
                 IsPaneOpen="True"
                 PaneDisplayMode="Left"
