@@ -28,6 +28,9 @@ public static class EpubWebRenderer
         var baseHref = BuildBaseHref(item.RelativePath);
         var html = NormalizeForWebView(source, baseHref);
 
+        // Keep a normalized copy for diagnostics and future mapped-file fallback. The reader
+        // currently loads Html directly with NavigateToString so a mapped-file navigation
+        // failure can never make otherwise valid EPUB text unreadable.
         var renderDirectory = Path.Combine(document.ExtractionRoot, "__pagearc");
         Directory.CreateDirectory(renderDirectory);
         var renderFileName = $"spine-{spineIndex:D4}.html";
@@ -48,7 +51,11 @@ public static class EpubWebRenderer
             string.Empty,
             RegexOptions.IgnoreCase);
 
-        var injection = $"<meta charset=\"utf-8\"><base href=\"{WebUtility.HtmlEncode(baseHref)}\">";
+        // Calibre EPUB2 title pages commonly use SVG <image xlink:href="cover.jpeg">.
+        // Chromium's HTML parser is more reliable with the modern unprefixed SVG href.
+        html = Regex.Replace(html, @"\bxlink:href\s*=", "href=", RegexOptions.IgnoreCase);
+
+        var injection = $"<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><base href=\"{WebUtility.HtmlEncode(baseHref)}\">";
         var head = Regex.Match(html, @"<head\b[^>]*>", RegexOptions.IgnoreCase);
         if (head.Success)
             return html.Insert(head.Index + head.Length, injection);
