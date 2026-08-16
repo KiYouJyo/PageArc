@@ -3,12 +3,12 @@ using PageArc.Services.Conversion;
 
 namespace PageArc.Services;
 
-public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
+public sealed class LitFlowAdapter : IFlowBookAdapter
 {
-    private static readonly string[] AdapterFormats = ["MOBI", "AZW3"];
+    private static readonly string[] AdapterFormats = ["LIT"];
     private readonly EbookConversionService _conversionService;
 
-    public CalibreNormalizedFlowAdapter(EbookConversionService? conversionService = null)
+    public LitFlowAdapter(EbookConversionService? conversionService = null)
     {
         _conversionService = conversionService ?? new EbookConversionService();
     }
@@ -17,26 +17,25 @@ public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
 
     public bool CanOpen(BookEntry book)
     {
-        var format = ResolveFormat(book);
-        return AdapterFormats.Contains(format, StringComparer.OrdinalIgnoreCase);
+        ArgumentNullException.ThrowIfNull(book);
+        return string.Equals(ResolveFormat(book), "LIT", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<IFlowBookSource> OpenAsync(BookEntry book, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(book);
-        var format = ResolveFormat(book);
-        if (!AdapterFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
-            throw new NotSupportedException($"The normalized flow adapter cannot open {format}.");
+        if (!CanOpen(book)) throw new NotSupportedException($"The LIT flow adapter cannot open {book.Format}.");
 
-        if (!_conversionService.CanConvert(format, "EPUB"))
+        if (!_conversionService.CanConvert("LIT", "EPUB"))
         {
             throw new NotSupportedException(
-                $"{format} compatibility fallback requires a configured calibre ebook-convert provider. " +
-                $"Install calibre or set {CalibreConversionProvider.EnvironmentVariable}; PageArc never attempts DRM removal.");
+                $"LIT reading requires a local conversion provider capable of LIT→EPUB. " +
+                $"The default provider is calibre ebook-convert; install calibre or set {CalibreConversionProvider.EnvironmentVariable}. " +
+                "PageArc does not modify the source file or attempt DRM removal.");
         }
 
         AppPaths.Ensure();
-        var directory = Path.Combine(AppPaths.NormalizedBooksRoot, book.Id, format.ToLowerInvariant());
+        var directory = Path.Combine(AppPaths.NormalizedBooksRoot, book.Id, "lit");
         Directory.CreateDirectory(directory);
         var normalizedPath = Path.Combine(directory, "source.epub");
         var sourceInfo = new FileInfo(book.FilePath);
@@ -60,16 +59,16 @@ public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
                 cancellationToken);
 
             if (result.IsDrmProtected)
-                throw new DrmProtectedEbookException(result.ErrorMessage ?? $"This {format} ebook is DRM-protected and cannot be opened by PageArc.");
+                throw new DrmProtectedEbookException(result.ErrorMessage ?? "This LIT ebook is DRM-protected and cannot be opened by PageArc.");
             if (!result.Success || string.IsNullOrWhiteSpace(result.OutputPath) || !File.Exists(result.OutputPath))
-                throw new InvalidDataException(result.ErrorMessage ?? $"Failed to normalize {format} to EPUB.");
+                throw new InvalidDataException(result.ErrorMessage ?? "Failed to normalize LIT to EPUB.");
 
             await File.WriteAllTextAsync(stampPath, expectedStamp, cancellationToken);
         }
 
         var normalizedBook = new BookEntry
         {
-            Id = $"{book.Id}-{format.ToLowerInvariant()}-normalized",
+            Id = $"{book.Id}-lit-normalized",
             FilePath = normalizedPath,
             Format = "EPUB",
             Title = book.Title,
@@ -81,7 +80,7 @@ public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
         };
 
         var inner = await new EpubFlowAdapter().OpenAsync(normalizedBook, cancellationToken);
-        return new NormalizedSource(inner, format);
+        return new Source(inner);
     }
 
     private static string ResolveFormat(BookEntry book)
@@ -90,17 +89,17 @@ public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
         return string.IsNullOrWhiteSpace(format) ? BookFormatRegistry.FormatFromPath(book.FilePath) : format;
     }
 
-    private sealed class NormalizedSource : IFlowBookSource
+    private sealed class Source : IFlowBookSource
     {
         private readonly IFlowBookSource _inner;
 
-        public NormalizedSource(IFlowBookSource inner, string originalFormat)
+        public Source(IFlowBookSource inner)
         {
             _inner = inner;
             var document = inner.Document;
             Document = new FlowDocument
             {
-                Format = originalFormat,
+                Format = "LIT",
                 Title = document.Title,
                 Author = document.Author,
                 Language = document.Language,

@@ -16,6 +16,7 @@
     <Compile Include="../../Models/BookEntry.cs" Link="Models/BookEntry.cs" />
     <Compile Include="../../Models/EbookFormatDescriptor.cs" Link="Models/EbookFormatDescriptor.cs" />
     <Compile Include="../../Models/EbookConversion.cs" Link="Models/EbookConversion.cs" />
+    <Compile Include="../../Models/EbookConversionCapability.cs" Link="Models/EbookConversionCapability.cs" />
     <Compile Include="../../Models/EpubDocument.cs" Link="Models/EpubDocument.cs" />
     <Compile Include="../../Models/FlowDocument.cs" Link="Models/FlowDocument.cs" />
     <Compile Include="../../Models/KindleRuntimeModels.cs" Link="Models/KindleRuntimeModels.cs" />
@@ -33,6 +34,7 @@
     <Compile Include="../../Services/Fb2FlowAdapter.cs" Link="Services/Fb2FlowAdapter.cs" />
     <Compile Include="../../Services/MobiFlowAdapter.cs" Link="Services/MobiFlowAdapter.cs" />
     <Compile Include="../../Services/CalibreNormalizedFlowAdapter.cs" Link="Services/CalibreNormalizedFlowAdapter.cs" />
+    <Compile Include="../../Services/LitFlowAdapter.cs" Link="Services/LitFlowAdapter.cs" />
     <Compile Include="../../Services/EpubParser.cs" Link="Services/EpubParser.cs" />
     <Compile Include="../../Services/EpubPath.cs" Link="Services/EpubPath.cs" />
     <Compile Include="../../Services/EpubWebRenderer.cs" Link="Services/EpubWebRenderer.cs" />

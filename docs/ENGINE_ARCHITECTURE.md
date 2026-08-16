@@ -6,24 +6,54 @@ PageArc 0.2–0.4 converges all supported reflowable ebook formats on one reader
 
 `FlowReaderEngine` selects an `IFlowBookAdapter` and returns an `IFlowBookSource`. Every source exposes the same `FlowDocument` metadata, ordered reflow sections, table of contents and section-on-demand loader. Reading position is represented by `FlowContentLocator` (`section + fraction + optional fragment/text quote`) so bookmarks, highlights, notes and search results can survive renderer changes.
 
-The first adapters are EPUB and FB2. EPUB wraps the proven 0.1 parser/cache path. FB2 parses FictionBook XML and generates safe semantic HTML one top-level section at a time. MOBI/KF8 and LIT are added without changing the reader contract.
+Current format paths:
 
-## Rendering direction
+- **EPUB** — built-in EPUB 2 / EPUB 3 parser and cache.
+- **FB2** — built-in FictionBook XML parser producing semantic flow sections.
+- **MOBI / KF8 / AZW3** — built-in pinned foliate-js Kindle parser executed in an isolated local WebView2 runtime; sections/resources are loaded lazily and projected into `FlowDocument`.
+- **LIT** — dedicated `LitFlowAdapter` using a provider-backed, read-only LIT→EPUB normalization cache. The normalized EPUB then enters the same flow engine.
 
-The WinUI reader shell remains the Figma-approved PageArc reader. Format parsing is isolated from presentation. The 0.2 reader host can consume `FlowSectionContent`; the later WebView-based reflow renderer will preserve the same command bar, contents pane, page width and progress geometry from the Figma reader node.
+`FlowReaderEngine` supports ordered same-format adapters. Ordinary compatibility failures may fall through to the next matching adapter, but `DrmProtectedEbookException` always stops immediately so provider fallback can never become an accidental DRM-bypass path.
 
-For MOBI/KF8, the preferred 0.3 implementation path is a pinned, vendored browser parser/renderer adapter rather than a second native reader UI. Any vendored reader code must be pinned, license-attributed and sandboxed so ebook scripts cannot execute.
+## Rendering
+
+The WinUI reader shell remains the Figma-approved PageArc reader. Format parsing is isolated from presentation. The visible WebView2 receives only PageArc-controlled section HTML. EPUB active content is stripped, external requests are blocked, and Kindle blob resources are materialized into self-contained data before they reach the visible reader.
+
+The Kindle parser uses a separate 1×1 transparent, non-interactive WebView2. Its parser code is pinned and packaged locally; it does not load parser code from a CDN. This runtime is infrastructure only and does not create a second visible reader UI.
+
+Continuous reading and paginated reading share the same section-relative progress model. Reader state persists both the section index and within-section fraction, so changing font size, line spacing or page width preserves position more accurately than chapter-only progress.
+
+## Search and reading data
+
+`FlowSearchService` searches section plain text independently of the source ebook format. Search results carry stable section/fraction locators and can be highlighted in the visible reader.
+
+`ReadingDataService` stores bookmarks and annotations separately from the ebook file. Search, Bookmarks and Notes reuse the Figma-approved 260px reader side pane rather than introducing format-specific panels.
 
 ## Conversion pipeline
 
 Conversion is provider-based. `EbookConversionService` understands the five PageArc target formats: EPUB, FB2, MOBI, AZW3 and LIT. Providers declare the format pairs they support and never modify the source file.
 
-The initial provider is a bridge to calibre `ebook-convert` when it is installed/configured. It is deliberately not bundled in 0.2: PageArc is MIT-licensed while calibre is GPLv3, so redistribution/package strategy must be handled explicitly rather than silently copying calibre libraries into the app. The provider accepts only DRM-free input and reports DRM/encryption failures without attempting bypass.
+Five formats produce 20 ordered cross-format pairs. `GetRequiredCapabilityMatrix()` checks every pair against providers that are actually available at runtime, separating two questions:
+
+1. Does PageArc model this format pair?
+2. Is a provider capable of performing it installed on this machine?
+
+The default full-matrix provider is local calibre `ebook-convert` when calibre is installed or explicitly configured. calibre is not bundled in PageArc: PageArc is MIT-licensed while calibre is GPLv3, so the process/file boundary is intentional. DRM-protected input is reported as unsupported; PageArc never attempts removal.
+
+The same provider abstraction is used by the LIT flow adapter. A LIT source is converted into PageArc's local normalized cache, stamped with source size/mtime, and then opened through the EPUB adapter. Original LIT files remain read-only.
+
+## Licensing boundaries
+
+- PageArc main executable: MIT.
+- Vendored foliate-js MOBI parser subset: MIT, exact commit/blob pinned in `ThirdParty/foliate-js/PIN.md`.
+- Vendored fflate runtime: MIT.
+- calibre: optional external GPL provider, not bundled.
+- ConvertLIT: not copied/linked into the PageArc executable; see `docs/LIT_COMPATIBILITY.md`.
 
 ## Version boundaries
 
-- **0.2:** unified flow contracts, stable content locators, EPUB migration, FB2 reading, first conversion provider, reader/search/annotation foundations.
-- **0.3:** MOBI + KF8/AZW3 adapters, lazy resource loading, Kindle metadata/cover/TOC, conversion matrix expansion and compatibility fixtures.
-- **0.4:** LIT adapter/normalization path, complete five-format conversion matrix, conversion packaging decision, compatibility hardening and migration tests.
+- **0.2:** unified flow contracts, EPUB migration, FB2 reading, WebView2 reader, search/bookmark/notes foundations, real provider-based conversion queue.
+- **0.3:** built-in MOBI/KF8/AZW3 parsing, lazy Kindle resources, native encryption probe, metadata/cover/TOC projection and compatibility fallback.
+- **0.4:** dedicated LIT normalization adapter, explicit complete five-format conversion capability matrix, licensing/package boundary decision, and five-format compatibility hardening.
 
 Any user-visible additions or layout changes must be implemented against the PAGEARC Figma file before XAML is changed.
