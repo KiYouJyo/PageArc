@@ -24,6 +24,9 @@ public sealed class BookEntry
     public string ProgressText => $"{Math.Round(Progress * 100)}%";
 
     [JsonIgnore]
+    public string FavoriteGlyph => IsFavorite ? "★" : "☆";
+
+    [JsonIgnore]
     public string CoverMonogram
     {
         get
