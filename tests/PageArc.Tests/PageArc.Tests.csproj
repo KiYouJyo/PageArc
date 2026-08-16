@@ -27,6 +27,7 @@
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
     <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
     <Compile Include="../../Services/BookMetadataService.cs" Link="Services/BookMetadataService.cs" />
+    <Compile Include="../../Services/CoverCacheService.cs" Link="Services/CoverCacheService.cs" />
     <Compile Include="../../Services/LibraryFingerprintService.cs" Link="Services/LibraryFingerprintService.cs" />
     <Compile Include="../../Services/LibraryService.cs" Link="Services/LibraryService.cs" />
     <Compile Include="../../Services/ImportFolderService.cs" Link="Services/ImportFolderService.cs" />
