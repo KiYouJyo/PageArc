@@ -48,13 +48,14 @@ public sealed class FoundationTests
     [Fact]
     public void EpubWebRenderer_NormalizesXhtmlForWebView()
     {
-        const string source = "<?xml version=\"1.0\" encoding=\"utf-8\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>X</title></head><body><img src=\"images/a.png\"/></body></html>";
-        var html = EpubWebRenderer.NormalizeForWebView(source, "https://pagearc.local/OEBPS/Text/");
+        const string source = "<?xml version=\"1.0\" encoding=\"utf-8\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>X</title></head><body><img src=\"images/a.png\"/><p>Hello</p></body></html>";
+        var html = EpubWebRenderer.NormalizeForWebView(source, "https://pagearc.local/OEBPS/Text/Chapter.xhtml");
 
         Assert.DoesNotContain("<?xml", html, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("<meta charset=\"utf-8\">", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/\">", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/Chapter.xhtml\">", html, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("images/a.png", html, StringComparison.Ordinal);
+        Assert.Equal("Hello", EpubWebRenderer.ExtractReadableText(source));
     }
 
     [Fact]
@@ -122,8 +123,9 @@ public sealed class FoundationTests
 
             var rendered = await EpubWebRenderer.PrepareAsync(document, 0);
             Assert.Equal("__pagearc/spine-0000.html", rendered.WebPath);
-            Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/\">", rendered.Html, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/Chapter%201.xhtml\">", rendered.Html, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("Hello PageArc.", rendered.Html, StringComparison.Ordinal);
+            Assert.Contains("Hello PageArc.", rendered.PlainText, StringComparison.Ordinal);
             Assert.True(File.Exists(Path.Combine(document.ExtractionRoot, "__pagearc", "spine-0000.html")));
         }
         finally
@@ -137,8 +139,8 @@ public sealed class FoundationTests
     [Fact]
     public async Task Epub2CalibrePipeline_ParsesRootOpfNcxHtmlSpineAndSvgCover()
     {
-        // Regression shape based on a real Calibre 5 EPUB2 supplied for acceptance:
-        // package at archive root, NCX TOC, .html spine items, and an SVG cover using xlink:href.
+        // Regression shape based on the Calibre 5 EPUB2 used for acceptance:
+        // root OPF, NCX TOC, .html spine items and an SVG xlink cover.
         var epubPath = Path.Combine(Path.GetTempPath(), $"pagearc-epub2-{Guid.NewGuid():N}.epub");
         var bookId = $"epub2-{Guid.NewGuid():N}";
         try
@@ -205,15 +207,18 @@ public sealed class FoundationTests
             Assert.Equal("text/part0000.html", document.Spine[1].RelativePath);
             Assert.Single(document.Toc);
             Assert.Equal("text/part0000.html#start", document.Toc[0].Href);
+            Assert.Equal(1, EpubWebRenderer.ResolveInitialSpineIndex(document, 0, 0));
+            Assert.Equal(0, EpubWebRenderer.ResolveInitialSpineIndex(document, 0, 0.5));
 
             var cover = await EpubWebRenderer.PrepareAsync(document, 0);
             Assert.Contains("href=\"cover.jpeg\"", cover.Html, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("xlink:href", cover.Html, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("<base href=\"https://pagearc.local/\">", cover.Html, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("<base href=\"https://pagearc.local/titlepage.xhtml\">", cover.Html, StringComparison.OrdinalIgnoreCase);
 
             var chapter = await EpubWebRenderer.PrepareAsync(document, 1);
-            Assert.Contains("<base href=\"https://pagearc.local/text/\">", chapter.Html, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("<base href=\"https://pagearc.local/text/part0000.html\">", chapter.Html, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("Readable EPUB2 content.", chapter.Html, StringComparison.Ordinal);
+            Assert.Contains("Readable EPUB2 content.", chapter.PlainText, StringComparison.Ordinal);
         }
         finally
         {
@@ -268,17 +273,37 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void NavigationShell_HidesImplicitBackButtonUsesFigmaIaAndToolboxCompactWidth()
+    public void NavigationShell_UsesToolboxAdaptiveMinimalOverlayBehavior()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
+        var code = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
         Assert.Contains("IsBackButtonVisible=\"Collapsed\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("PaneDisplayMode=\"Auto\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("OpenPaneLength=\"320\"", xaml, StringComparison.Ordinal);
         Assert.Contains("CompactPaneLength=\"48\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsPaneOpen=\"True\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("NavigationViewDisplayMode.Minimal", code, StringComparison.Ordinal);
+        Assert.Contains("sender.IsPaneOpen = false", code, StringComparison.Ordinal);
         Assert.Contains("x:Uid=\"Nav_Categories\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Uid=\"Nav_Conversion\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Uid=\"Nav_Recent\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Uid=\"Nav_Favorites\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Uid=\"Nav_Collections\"", xaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Reader_HasNativeCompatibilityFallbackInsteadOfBlankFailure()
+    {
+        var root = FindRepoRoot();
+        var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
+        var code = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml.cs"));
+        Assert.Contains("NativeFallbackScroll", xaml, StringComparison.Ordinal);
+        Assert.Contains("NativeFallbackText", xaml, StringComparison.Ordinal);
+        Assert.Contains("TryInitializeWebViewAsync", code, StringComparison.Ordinal);
+        Assert.Contains("ShowNativeFallback", code, StringComparison.Ordinal);
+        Assert.Contains("EnsureRenderCompletesAsync", code, StringComparison.Ordinal);
+        Assert.Contains("ResolveInitialSpineIndex", code, StringComparison.Ordinal);
     }
 
     [Fact]
