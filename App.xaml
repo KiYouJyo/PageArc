@@ -1,9 +1,14 @@
 <Application
     x:Class="PageArc.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <controls:XamlControlsResources/>
+            </ResourceDictionary.MergedDictionaries>
+
             <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#F3F3F3"/>
             <SolidColorBrush x:Key="PageArcPaneBrush" Color="#F8F8F8"/>
             <SolidColorBrush x:Key="PageArcCardBrush" Color="#B3FFFFFF"/>
