@@ -24,10 +24,25 @@ jobs:
         run: dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64 --no-restore
 
       - name: Build Debug x64
-        run: dotnet build PageArc.csproj -c Debug -p:Platform=x64 --no-restore
+        shell: pwsh
+        run: |
+          dotnet build PageArc.csproj -c Debug -p:Platform=x64 --no-restore 2>&1 | Tee-Object -FilePath build-debug.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build Release x64
-        run: dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore
+        shell: pwsh
+        run: |
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore 2>&1 | Tee-Object -FilePath build-release.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics
+          path: build-*.log
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Whitespace check
         shell: pwsh
