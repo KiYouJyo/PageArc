@@ -68,8 +68,8 @@
                     </ItemsRepeater.Layout>
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:BookEntry">
-                            <Grid Height="300" RightTapped="BookCard_RightTapped">
-                                <Button Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
+                            <Grid Height="300" Tag="{x:Bind Id}" RightTapped="BookCard_RightTapped">
+                                <Button Tag="{x:Bind Id}" Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
                                     <Border Style="{StaticResource PageArcCardStyle}" Padding="12" Height="300">
                                         <Grid>
                                             <Grid.RowDefinitions>
@@ -96,7 +96,7 @@
                                         </Grid>
                                     </Border>
                                 </Button>
-                                <Button Click="Favorite_Click" Width="32" Height="32" Padding="0" Margin="0,14,14,0" HorizontalAlignment="Right" VerticalAlignment="Top" Background="#26000000" BorderThickness="0" CornerRadius="16" Foreground="White">
+                                <Button Tag="{x:Bind Id}" Click="Favorite_Click" Width="32" Height="32" Padding="0" Margin="0,14,14,0" HorizontalAlignment="Right" VerticalAlignment="Top" Background="#26000000" BorderThickness="0" CornerRadius="16" Foreground="White">
                                     <TextBlock Text="{x:Bind FavoriteGlyph}" FontSize="17"/>
                                 </Button>
                             </Grid>
