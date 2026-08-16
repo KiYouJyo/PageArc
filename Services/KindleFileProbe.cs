@@ -21,8 +21,8 @@ public static class KindleFileProbe
 
         var pdb = new byte[96];
         await ReadExactlyAsync(stream, pdb, cancellationToken);
-        var firstRecordOffset = BinaryPrimitives.ReadUInt32BigEndian(pdb.AsSpan(PdbRecordTableOffset, 4));
-        if (firstRecordOffset < 0 || firstRecordOffset + MobiMagicOffset + 4 > stream.Length)
+        var firstRecordOffset = (long)BinaryPrimitives.ReadUInt32BigEndian(pdb.AsSpan(PdbRecordTableOffset, 4));
+        if (firstRecordOffset + MobiMagicOffset + 4 > stream.Length)
             return new KindleFileProbeResult(false, 0, firstRecordOffset);
 
         stream.Position = firstRecordOffset;
