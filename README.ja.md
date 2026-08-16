@@ -2,26 +2,26 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-**PageArc** は、リフロー型電子書籍に特化した WinUI 3 製 Windows リーダーです。Figma を UI の基準としつつ、ローカル優先・元ファイル非変更の読書体験を重視します。
+**PageArc** は、リフロー型電子書籍に特化した WinUI 3 製 Windows リーダーです。Figma を UI の基準とし、ローカル優先・元ファイル非変更の読書体験を重視します。
 
-## v0.1.0 基盤
+## v0.1.0
 
-現在の開発ブランチでは次を実装しています。
+PageArc v0.1.0 は最初の公開リリースです。
 
-- Figma に沿った Library / Reader / Settings / About の WinUI 3 UI
-- Windows ネイティブ `SymbolIcon` を使う折りたたみ式 NavigationView
-- 简体中文 / 日本語 / English の三言語リソースとアプリ内言語切替
-- ローカルのライブラリ・設定保存
-- EPUB の metadata / OPF / spine / EPUB 3 nav 基礎解析
-- WebView2 によるローカル本文表示、章移動、読書テーマ・文字サイズ・行間
-- ユーザー操作時のみ実行する GitHub Release 更新確認
-- CI、テスト、プライバシー文書、ロードマップ等のリポジトリ基盤
+- PAGEARC Figma に沿った WinUI 3 / Windows App SDK の Library、Categories、Reader、Format Conversion、Import Folders、Settings、About UI
+- 画面幅に適応する NavigationView、Windows ネイティブの Fluent アイコン、ウィンドウのアクティブ状態に応じたシアン系 / ニュートラルグレーのナビゲーション配色
+- 简体中文 / 日本語 / English の三言語リソース、システム追従、ウィンドウを再生成しないアプリ内言語切替
+- ローカルのライブラリ、分類、お気に入りフィルター、読書進捗、読書設定の保存
+- EPUB 2 / EPUB 3 の metadata、OPF、spine、nav / NCX 解析と安全なキャッシュ
+- WinUI ネイティブ本文表示、目次移動、前後章、進捗、文字サイズ、行間、読書テーマ
+- About ページからの GitHub Release 更新確認
+- CI、テスト、署名済み MSIX 検証、プライバシー / コントリビューション / アーキテクチャ文書
 
-**形式の状況:** 製品目標は EPUB / FB2 / MOBI / AZW3 / LIT です。v0.1.0 ではまず EPUB 読書コアを優先し、他形式は後続マイルストーンで実装します。
+**形式の状況:** v0.1.0 の安定した読書経路は **EPUB** です。ライブラリは FB2 / MOBI / AZW3 / LIT を認識しますが、これらの読書アダプターは後続バージョンで実装予定です。形式変換ページは UI とタスクフローのみで、変換エンジンは v0.1.0 には含まれません。
 
 ## プライバシー
 
-アカウントは不要です。ライブラリ、設定、読書データは端末内に保存し、元の電子書籍ファイルを変更しません。通常の読書はオフラインで動作し、現在の v0.1.0 でネットワークを使うのはユーザーが「更新を確認」を押した場合の GitHub アクセスだけです。
+アカウントは不要です。ライブラリ、設定、読書データは端末内に保存し、元の電子書籍ファイルを変更しません。通常の読書はオフラインで動作し、ネットワークを使うのはユーザーが「更新を確認」を実行した場合の GitHub Release API へのアクセスだけです。
 
 ## ビルド
 
