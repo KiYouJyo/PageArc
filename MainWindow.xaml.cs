@@ -32,8 +32,9 @@ public sealed partial class MainWindow : Window
                 ApplyLocalizedNavigation();
             };
             RootGrid.ActualThemeChanged += RootGrid_ActualThemeChanged;
-            AppNavigation.PaneOpening += (_, _) => ApplyNavigationPaneBackground();
-            AppNavigation.PaneOpened += (_, _) => ApplyNavigationPaneBackground();
+            AppNavigation.PaneOpening += (_, _) => ApplyNavigationPaneBackground(forceActive: true);
+            AppNavigation.PaneOpened += (_, _) => ApplyNavigationPaneBackground(forceActive: true);
+            AppNavigation.PaneClosed += (_, _) => ApplyNavigationPaneBackground(forceActive: false);
             App.Localization.LanguageChanged += OnLanguageChanged;
             Closed += MainWindow_Closed;
 
@@ -58,8 +59,6 @@ public sealed partial class MainWindow : Window
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
-        // Follow UrbanPlanToolbox's runtime localization model: keep the existing native
-        // Window and reload only localized shell/page content after replacing MRT resources.
         DispatcherQueue.TryEnqueue(ReloadLocalizedShell);
     }
 
@@ -73,9 +72,8 @@ public sealed partial class MainWindow : Window
 
         if (ReaderFrame.Visibility == Visibility.Visible)
         {
-            // Language changes are normally made from Settings, but do not tear down a reader
-            // if another caller changes language while a book is open.
             AppNavigation.IsPaneOpen = wasPaneOpen && displayMode != NavigationViewDisplayMode.Minimal;
+            ApplyNavigationPaneBackground();
             return;
         }
 
@@ -141,9 +139,9 @@ public sealed partial class MainWindow : Window
     }
 
     private void QueueNavigationPaneBackgroundUpdate() =>
-        DispatcherQueue.TryEnqueue(ApplyNavigationPaneBackground);
+        DispatcherQueue.TryEnqueue(() => ApplyNavigationPaneBackground());
 
-    private void ApplyNavigationPaneBackground()
+    private void ApplyNavigationPaneBackground(bool? forceActive = null)
     {
         _navigationSplitView ??= FindDescendant<SplitView>(AppNavigation);
         if (_navigationSplitView is null) return;
@@ -153,7 +151,10 @@ public sealed partial class MainWindow : Window
             ? "HighContrast"
             : AppNavigation.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
         var themeResources = Application.Current.Resources.ThemeDictionaries[themeKey] as ResourceDictionary;
-        if (themeResources?["PageArcNavigationPaneBrush"] is Brush brush)
+
+        var isActive = forceActive ?? (AppNavigation.IsPaneOpen || AppNavigation.DisplayMode == NavigationViewDisplayMode.Expanded);
+        var brushKey = isActive ? "PageArcNavigationPaneActiveBrush" : "PageArcNavigationPaneRestBrush";
+        if (themeResources?[brushKey] is Brush brush)
             _navigationSplitView.PaneBackground = brush;
     }
 
