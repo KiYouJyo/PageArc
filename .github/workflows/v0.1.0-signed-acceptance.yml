@@ -70,8 +70,6 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          # Switch the checkout from its normal unpackaged development mode to the
-          # standard framework-dependent packaged WinUI model for this acceptance build.
           $text = Get-Content -Raw PageArc.csproj
           $text = $text -replace '(?m)^\s*<WindowsPackageType>None</WindowsPackageType>\s*\r?\n', ''
           $text = $text -replace '(?m)^\s*<PublishProfile>.*?</PublishProfile>\s*\r?\n', ''
@@ -157,6 +155,8 @@ jobs:
           if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $env:CERT_THUMBPRINT)) {
             Import-Certificate -FilePath $env:CERTIFICATE_PATH -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
           }
+          Remove-Item (Join-Path $env:TEMP 'PageArc-startup.log') -Force -ErrorAction SilentlyContinue
+          Remove-Item (Join-Path $env:LOCALAPPDATA 'PageArc\startup.log') -Force -ErrorAction SilentlyContinue
           Get-AppxPackage -Name KiYouJyo.PageArc.Acceptance | Remove-AppxPackage -ErrorAction SilentlyContinue
           Add-AppxPackage -Path $env:MSIX_PATH -ForceApplicationShutdown
           $pkg = Get-AppxPackage -Name KiYouJyo.PageArc.Acceptance
@@ -167,7 +167,18 @@ jobs:
           $proc = Get-Process PageArc -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $proc) {
             Write-Host 'PageArc exited during startup.'
-            Get-WinEvent -LogName Application -MaxEvents 120 -ErrorAction SilentlyContinue | Where-Object { $_.TimeCreated -gt (Get-Date).AddMinutes(-5) -and $_.Message -match 'PageArc' } | Format-List TimeCreated,Id,ProviderName,Message
+            Write-Host '=== PageArc startup diagnostic logs ==='
+            $candidateLogs = @(
+              (Join-Path $env:TEMP 'PageArc-startup.log'),
+              (Join-Path $env:LOCALAPPDATA 'PageArc\startup.log')
+            )
+            $candidateLogs += @(Get-ChildItem $env:LOCALAPPDATA -Recurse -Filter 'PageArc-startup.log' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
+            $candidateLogs += @(Get-ChildItem $env:LOCALAPPDATA -Recurse -Filter 'startup.log' -ErrorAction SilentlyContinue | Where-Object FullName -match 'PageArc' | Select-Object -ExpandProperty FullName)
+            foreach ($log in ($candidateLogs | Select-Object -Unique)) {
+              if (Test-Path $log) { Write-Host "--- $log ---"; Get-Content $log -ErrorAction SilentlyContinue }
+            }
+            Write-Host '=== Application Error / Windows Error Reporting ==='
+            Get-WinEvent -LogName Application -MaxEvents 200 -ErrorAction SilentlyContinue | Where-Object { $_.TimeCreated -gt (Get-Date).AddMinutes(-5) -and ($_.ProviderName -eq 'Windows Error Reporting' -or $_.Message -match 'PageArc') } | Format-List TimeCreated,Id,ProviderName,Message
             throw 'Launch smoke test failed.'
           }
           Write-Host "PageArc launch smoke test passed. PID=$($proc.Id)"
