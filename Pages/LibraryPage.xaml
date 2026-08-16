@@ -1,0 +1,98 @@
+<Page
+    x:Class="PageArc.Pages.LibraryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:PageArc.Models"
+    Background="{StaticResource PageArcCanvasBrush}">
+
+    <Grid Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="132"/>
+            <RowDefinition Height="28"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions><RowDefinition Height="68"/><RowDefinition Height="64"/></Grid.RowDefinitions>
+            <Grid>
+                <StackPanel>
+                    <TextBlock x:Name="PageTitle" FontSize="28" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="PageSubtitle" Margin="0,4,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <AutoSuggestBox x:Name="SearchBox" x:Uid="Library_Search" Width="320" TextChanged="SearchBox_TextChanged">
+                        <AutoSuggestBox.QueryIcon><SymbolIcon Symbol="Find"/></AutoSuggestBox.QueryIcon>
+                    </AutoSuggestBox>
+                    <Button x:Uid="Library_ImportBook" Click="ImportBook_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="8"><SymbolIcon Symbol="Add"/><TextBlock x:Uid="Library_ImportBookText"/></StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1" VerticalAlignment="Bottom">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <ToggleButton x:Uid="Filter_All" IsChecked="True"/>
+                    <ToggleButton x:Uid="Filter_RecentlyAdded"/>
+                    <ToggleButton x:Uid="Filter_InProgress"/>
+                    <ToggleButton x:Uid="Filter_Finished"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <ComboBox x:Name="SortComboBox" Width="140" SelectedIndex="0">
+                        <ComboBoxItem x:Uid="Sort_Recent"/><ComboBoxItem x:Uid="Sort_Title"/>
+                    </ComboBox>
+                    <Button x:Uid="View_Grid">
+                        <StackPanel Orientation="Horizontal" Spacing="6"><SymbolIcon Symbol="ViewAll"/><TextBlock x:Uid="View_GridText"/></StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <InfoBar x:Name="ImportInfoBar" Grid.Row="1" IsOpen="False" Severity="Error"/>
+
+        <Grid Grid.Row="2">
+            <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                <SymbolIcon Symbol="Library" FontSize="44"/>
+                <TextBlock x:Uid="Library_EmptyTitle" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock x:Uid="Library_EmptyBody" MaxWidth="560" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                    <Button x:Uid="Library_EmptyImport" Click="ImportBook_Click"/>
+                    <Button x:Uid="Library_EmptyFolder" Click="ImportFolder_Click"/>
+                </StackPanel>
+            </StackPanel>
+
+            <ScrollViewer x:Name="BooksScrollViewer" Visibility="Collapsed">
+                <ItemsRepeater x:Name="BooksRepeater">
+                    <ItemsRepeater.Layout>
+                        <UniformGridLayout MinItemWidth="240" MinItemHeight="300" MinColumnSpacing="26" MinRowSpacing="24" MaximumRowsOrColumns="4" ItemsStretch="Fill" ItemsJustification="SpaceBetween" Orientation="Horizontal"/>
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="models:BookEntry">
+                            <Button Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
+                                <Border Style="{StaticResource PageArcCardStyle}" Height="300">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="196"/><RowDefinition Height="36"/><RowDefinition Height="24"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                        <Border Background="#245A99" CornerRadius="5">
+                                            <Grid>
+                                                <Border Width="7" HorizontalAlignment="Left" Background="#30FFFFFF"/>
+                                                <StackPanel Margin="18">
+                                                    <TextBlock Text="{x:Bind CoverMonogram}" FontSize="28" FontWeight="SemiBold" Foreground="White"/>
+                                                    <Rectangle Height="2" Width="112" Margin="0,8,0,0" HorizontalAlignment="Left" Fill="#70FFFFFF"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Grid.Row="1" Text="{x:Bind Title}" Margin="0,8,0,0" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Row="2" Text="{x:Bind DisplayAuthor}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <Grid Grid.Row="3" Margin="0,2,0,0">
+                                            <ProgressBar Value="{x:Bind Progress}" Maximum="1" Height="3" Margin="0,0,42,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind ProgressText}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>
