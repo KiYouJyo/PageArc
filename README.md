@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-0.1.0--preview-005fb8)
+![Version](https://img.shields.io/badge/version-0.1.0-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -11,30 +11,30 @@
 
 **PageArc** 是一个专注于流式电子书格式的 Windows 阅读器，采用 WinUI 3 构建。设计严格参考项目 Figma，并优先保持本地、轻量、原文件不修改的阅读体验。
 
-## v0.1.0 当前范围
+## v0.1.0
 
-当前开发分支建立了 v0.1.0 的可运行基础：
+PageArc v0.1.0 是首个公开版本，当前包含：
 
-- WinUI 3 / Windows App SDK 应用壳与 Figma 对齐的书库、阅读、设置、关于页面；
-- 可收放 NavigationView，使用 Windows 原生 `SymbolIcon`，不再使用文本字符模拟图标；
-- 简体中文、日本語、English 三语资源与应用内语言切换；
-- 本地书库索引和阅读偏好持久化；
-- EPUB 元数据 / OPF / spine / EPUB 3 nav 基础解析；
-- WebView2 本地 EPUB 正文渲染、章节前后跳转、主题、字号、行距；
+- 与 PAGEARC Figma 设计对齐的 WinUI 3 / Windows App SDK 应用壳、书库、分类、阅读器、格式转换、导入文件夹、设置与关于页面；
+- 自适应 NavigationView、小尺寸覆盖式导航、Windows 原生 Fluent 图标，以及随窗口激活状态变化的浅青 / 深青与中性灰导航配色；
+- 简体中文、日本語、English 三语资源、跟随系统选项与应用内原地语言切换；
+- 本地书库索引、分类、收藏筛选、阅读进度与阅读偏好持久化；
+- EPUB 2 / EPUB 3 的 metadata、OPF、spine、nav / NCX 目录解析与安全缓存；
+- 原生 WinUI EPUB 正文阅读、目录跳转、前后章节、阅读进度、字号、行距和阅读主题；
 - About 页 GitHub Release 更新检查；
-- CI、测试、隐私、贡献、路线图等仓库基础文件。
+- CI、自动测试、签名 MSIX 验收、隐私政策、贡献指南、架构与路线图文档。
 
-> **格式状态**：产品目标覆盖 EPUB / FB2 / MOBI / AZW3 / LIT；v0.1.0 当前阅读核心优先打通 EPUB。其余格式适配器将在后续里程碑接入。在完整实现前，README 不宣称它们已可稳定阅读。
+> **格式状态**：v0.1.0 的稳定阅读路径为 **EPUB**。书库可识别 FB2 / MOBI / AZW3 / LIT，但这些格式的阅读适配器仍在后续版本计划中。格式转换页已建立交互与任务界面，实际转换引擎尚未在 v0.1.0 提供。
 
 ## 设计基准
 
-PageArc 的 UI SSOT 为 Figma `PAGEARC` 文件。实现时优先使用 WinUI 3 原生控件、Mica/Fluent 交互和 `SymbolIcon`，在控件行为与像素级布局冲突时，优先保留 Windows 原生交互语义，同时匹配 Figma 的尺寸、密度与层级。
+PageArc 的 UI SSOT 为 Figma `PAGEARC` 文件。实现时优先使用 WinUI 3 原生控件、Mica / Fluent 交互和系统图标，在控件行为与像素级布局冲突时优先保留 Windows 原生交互语义，同时匹配 Figma 的尺寸、密度与层级。
 
 ## 隐私与联网
 
 PageArc 不要求账户，书库、缓存、阅读进度与设置均保存在本机。原始电子书文件不会被修改。
 
-默认阅读流程不需要联网。当前 v0.1.0 只有用户主动点击“检查更新”时会访问 GitHub Release API。
+默认阅读流程不需要联网。v0.1.0 仅在用户主动点击“检查更新”时访问 GitHub Release API。
 
 ## 开发环境
 
