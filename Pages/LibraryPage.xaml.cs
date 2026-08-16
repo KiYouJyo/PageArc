@@ -289,42 +289,12 @@ public sealed partial class LibraryPage : Page
 
     private async void ImportBook_Click(object sender, RoutedEventArgs e)
     {
-        ImportInfoBar.IsOpen = false;
-        try
-        {
-            var paths = await PickerService.PickEbooksAsync();
-            if (paths.Count == 0) return;
-            var summary = await App.Library.ImportManyAsync(paths);
-            Refresh();
-
-            if (summary.Existing > 0 || summary.Unsupported > 0 || summary.Failed > 0)
-            {
-                ImportInfoBar.Severity = summary.Failed > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Informational;
-                ImportInfoBar.Message = App.Settings.Current.Language switch
-                {
-                    "zh-CN" => $"已导入 {summary.Added} 本，已存在 {summary.Existing} 本，不支持 {summary.Unsupported} 本，失败 {summary.Failed} 本。",
-                    "ja-JP" => $"追加 {summary.Added} 冊、既存 {summary.Existing} 冊、非対応 {summary.Unsupported} 冊、失敗 {summary.Failed} 冊。",
-                    _ => $"Imported {summary.Added}, existing {summary.Existing}, unsupported {summary.Unsupported}, failed {summary.Failed}."
-                };
-                ImportInfoBar.IsOpen = true;
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Picker/import cancellation is not an error.
-        }
-        catch (Exception ex)
-        {
-            ImportInfoBar.Severity = InfoBarSeverity.Error;
-            ImportInfoBar.Message = ex.Message;
-            ImportInfoBar.IsOpen = true;
-        }
+        await ShowImportDialogAsync();
     }
 
     private async void ImportFolder_Click(object sender, RoutedEventArgs e)
     {
-        var folder = await PickerService.PickFolderAsync();
-        if (!string.IsNullOrWhiteSpace(folder)) App.MainWindow?.NavigateTo("import-folders");
+        await ShowImportDialogAsync(browseFolderImmediately: true);
     }
 
     private void BookCard_Click(object sender, RoutedEventArgs e)
