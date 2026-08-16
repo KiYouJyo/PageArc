@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.0] - 2026-08-16
+
+### Added
+- Figma-derived 410 px book-details side panel with reading progress, file information, favorites and bookmark/highlight/note counts.
+- Figma-derived library book context menu with open, continue, favorite, category, details, file-location and safe library-removal actions.
+- Figma three-stage import experience: chooser/drop zone, per-file progress/cancellation, and added/skipped/error completion summary.
+- Persistent watched-folder management with recursive supported-format scans, repeat-safe rescans, availability state and per-folder counts.
+- SHA-256 content fingerprints for duplicate detection across different source paths.
+- Structured single/batch import results and progress contracts.
+- Rich EPUB/FB2 metadata extraction including language, publisher, description and embedded cover cache.
+- Kindle cover data-URL caching and persistence when MOBI/AZW3 parsing runs; normalized LIT/Kindle fallback metadata and cover persistence when those paths run.
+- Missing-source tracking without silently dropping library records.
+- Persistent library filter/sort/view preferences.
+- Large-library regression coverage with 2,000 legacy records.
+
+### Changed
+- Library opening is format-neutral and routes supported formats through the shared reader instead of applying an EPUB-only gate.
+- Search now considers title, author, format, publisher and category.
+- Library persistence writes atomically and migrates older records into the richer v0.5 book schema.
+- Removing a book from PageArc never deletes the original ebook file.
+- The packaged application version is now 0.5.0.
+
+### Notes
+- The PAGEARC Figma nodes for Library, book context menu, book details, import chooser/progress/completion, Categories and Import Folders were inspected before visible UI changes.
+- Normal local library operation remains offline-first.
+
 ## [0.4.0] - 2026-08-16
 
 ### Added
