@@ -80,6 +80,21 @@ public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
             SectionFraction = book.SectionFraction
         };
 
+        try
+        {
+            var metadata = await BookMetadataService.ReadAsync(normalizedBook, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(metadata.Title)) book.Title = metadata.Title;
+            if (!string.IsNullOrWhiteSpace(metadata.Author)) book.Author = metadata.Author;
+            if (!string.IsNullOrWhiteSpace(metadata.Language)) book.Language = metadata.Language;
+            if (!string.IsNullOrWhiteSpace(metadata.Publisher)) book.Publisher = metadata.Publisher;
+            if (!string.IsNullOrWhiteSpace(metadata.Description)) book.Description = metadata.Description;
+            if (!string.IsNullOrWhiteSpace(metadata.CoverPath)) book.CoverPath = metadata.CoverPath;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            StartupDiagnostics.Log($"Normalized {format} metadata enrichment failed for '{book.FilePath}'.", ex);
+        }
+
         var inner = await new EpubFlowAdapter().OpenAsync(normalizedBook, cancellationToken);
         return new NormalizedSource(inner, format);
     }
