@@ -68,7 +68,7 @@
                     </ItemsRepeater.Layout>
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:BookEntry">
-                            <Grid Height="300">
+                            <Grid Height="300" RightTapped="BookCard_RightTapped">
                                 <Button Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
                                     <Border Style="{StaticResource PageArcCardStyle}" Padding="12" Height="300">
                                         <Grid>
