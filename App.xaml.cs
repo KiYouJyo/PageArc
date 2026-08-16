@@ -41,6 +41,7 @@ public partial class App : Application
             StartupDiagnostics.Log("Settings.Load completed.");
             Localization.ApplyPersistedLanguage(Settings.Current);
             StartupDiagnostics.Log("Localization.ApplyPersistedLanguage completed.");
+            Library.DuplicateDetectionEnabled = Settings.Current.DuplicateDetection;
             Library.Load();
             StartupDiagnostics.Log("Library.Load completed.");
             Categories.Load(Library.Books);
