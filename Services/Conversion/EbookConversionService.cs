@@ -14,7 +14,31 @@ public sealed class EbookConversionService
     public IReadOnlyList<IEbookConversionProvider> Providers => _providers;
 
     public bool CanConvert(string inputFormat, string outputFormat) =>
-        _providers.Any(provider => provider.IsAvailable && provider.CanConvert(inputFormat, outputFormat));
+        FindProvider(inputFormat, outputFormat) is not null;
+
+    public IEbookConversionProvider? FindProvider(string inputFormat, string outputFormat)
+    {
+        var input = BookFormatRegistry.Normalize(inputFormat);
+        var output = BookFormatRegistry.Normalize(outputFormat);
+        return _providers.FirstOrDefault(provider =>
+            provider.IsAvailable && provider.CanConvert(input, output));
+    }
+
+    public IReadOnlyList<EbookConversionCapability> GetRequiredCapabilityMatrix()
+    {
+        var formats = BookFormatRegistry.RequiredFormats.Select(format => format.Id).ToArray();
+        var capabilities = new List<EbookConversionCapability>(formats.Length * (formats.Length - 1));
+        foreach (var input in formats)
+        foreach (var output in formats)
+        {
+            if (string.Equals(input, output, StringComparison.OrdinalIgnoreCase)) continue;
+            var provider = FindProvider(input, output);
+            capabilities.Add(new EbookConversionCapability(input, output, provider is not null, provider?.Id));
+        }
+        return capabilities;
+    }
+
+    public bool HasCompleteRequiredMatrix() => GetRequiredCapabilityMatrix().All(capability => capability.IsAvailable);
 
     public async Task<EbookConversionResult> ConvertAsync(EbookConversionRequest request, CancellationToken cancellationToken = default)
     {
@@ -32,7 +56,7 @@ public sealed class EbookConversionService
         if (string.Equals(inputFormat, outputFormat, StringComparison.OrdinalIgnoreCase))
             return EbookConversionResult.Failed("Source and output formats are the same.");
 
-        var provider = _providers.FirstOrDefault(x => x.IsAvailable && x.CanConvert(inputFormat, outputFormat));
+        var provider = FindProvider(inputFormat, outputFormat);
         if (provider is null)
             return EbookConversionResult.Failed($"No installed conversion provider can convert {inputFormat} to {outputFormat}.");
 
