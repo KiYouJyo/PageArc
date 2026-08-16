@@ -5,7 +5,7 @@ namespace PageArc.Services;
 
 public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
 {
-    private static readonly string[] AdapterFormats = ["MOBI", "AZW3", "LIT"];
+    private static readonly string[] AdapterFormats = ["MOBI", "AZW3"];
     private readonly EbookConversionService _conversionService;
 
     public CalibreNormalizedFlowAdapter(EbookConversionService? conversionService = null)
@@ -31,19 +31,22 @@ public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
         if (!_conversionService.CanConvert(format, "EPUB"))
         {
             throw new NotSupportedException(
-                $"{format} reading currently requires a configured calibre ebook-convert provider. " +
+                $"{format} compatibility fallback requires a configured calibre ebook-convert provider. " +
                 $"Install calibre or set {CalibreConversionProvider.EnvironmentVariable}; PageArc never attempts DRM removal.");
         }
 
         AppPaths.Ensure();
-        var directory = Path.Combine(AppPaths.NormalizedBooksRoot, book.Id);
+        var directory = Path.Combine(AppPaths.NormalizedBooksRoot, book.Id, format.ToLowerInvariant());
         Directory.CreateDirectory(directory);
         var normalizedPath = Path.Combine(directory, "source.epub");
         var sourceInfo = new FileInfo(book.FilePath);
+        var stampPath = Path.Combine(directory, "source.stamp");
+        var expectedStamp = $"{sourceInfo.Length}:{sourceInfo.LastWriteTimeUtc.Ticks}";
+        var cachedStamp = File.Exists(stampPath) ? await File.ReadAllTextAsync(stampPath, cancellationToken) : string.Empty;
 
         var needsRefresh = !File.Exists(normalizedPath)
-            || File.GetLastWriteTimeUtc(normalizedPath) < sourceInfo.LastWriteTimeUtc
-            || new FileInfo(normalizedPath).Length == 0;
+            || new FileInfo(normalizedPath).Length == 0
+            || !string.Equals(cachedStamp, expectedStamp, StringComparison.Ordinal);
 
         if (needsRefresh)
         {
@@ -56,15 +59,17 @@ public sealed class CalibreNormalizedFlowAdapter : IFlowBookAdapter
                     new EbookConversionOptions(true, true, true)),
                 cancellationToken);
 
+            if (result.IsDrmProtected)
+                throw new DrmProtectedEbookException(result.ErrorMessage ?? $"This {format} ebook is DRM-protected and cannot be opened by PageArc.");
             if (!result.Success || string.IsNullOrWhiteSpace(result.OutputPath) || !File.Exists(result.OutputPath))
                 throw new InvalidDataException(result.ErrorMessage ?? $"Failed to normalize {format} to EPUB.");
 
-            File.SetLastWriteTimeUtc(normalizedPath, DateTime.UtcNow);
+            await File.WriteAllTextAsync(stampPath, expectedStamp, cancellationToken);
         }
 
         var normalizedBook = new BookEntry
         {
-            Id = $"{book.Id}-normalized",
+            Id = $"{book.Id}-{format.ToLowerInvariant()}-normalized",
             FilePath = normalizedPath,
             Format = "EPUB",
             Title = book.Title,
