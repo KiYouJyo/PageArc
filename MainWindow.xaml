@@ -2,20 +2,20 @@
     x:Class="PageArc.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid x:Name="RootGrid" Background="{StaticResource PageArcCanvasBrush}">
+    <Grid x:Name="RootGrid" Background="{ThemeResource PageArcCanvasBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="#F6F6F6">
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="{ThemeResource PageArcToolbarBrush}">
             <TextBlock Text="PageArc" Margin="16,0,0,0" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"/>
         </Grid>
 
         <Grid Grid.Row="1">
             <NavigationView
                 x:Name="AppNavigation"
-                Background="{StaticResource PageArcCanvasBrush}"
+                Background="{ThemeResource PageArcCanvasBrush}"
                 IsSettingsVisible="False"
                 IsPaneToggleButtonVisible="True"
                 IsPaneOpen="True"
