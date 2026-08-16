@@ -78,6 +78,11 @@ public sealed class LibraryService
         Save();
     }
 
+    public void Remove(BookEntry book)
+    {
+        if (Books.Remove(book)) Save();
+    }
+
     public void Save()
     {
         lock (_gate)
