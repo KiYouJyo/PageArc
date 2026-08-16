@@ -11,48 +11,33 @@
 
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <LinearGradientBrush x:Key="PageArcCanvasBrush" StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#F8FCFB" Offset="0"/>
-                        <GradientStop Color="#EEF8F7" Offset="0.48"/>
-                        <GradientStop Color="#E5F2F3" Offset="1"/>
-                    </LinearGradientBrush>
-                    <LinearGradientBrush x:Key="PageArcPaneBrush" StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#F5FBFA" Offset="0"/>
-                        <GradientStop Color="#EAF5F4" Offset="1"/>
-                    </LinearGradientBrush>
-                    <LinearGradientBrush x:Key="PageArcToolbarBrush" StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="#F8FCFB" Offset="0"/>
-                        <GradientStop Color="#EDF7F6" Offset="1"/>
-                    </LinearGradientBrush>
-                    <SolidColorBrush x:Key="PageArcCardBrush" Color="#E8FFFFFF"/>
-                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="#ECFFFFFF"/>
-                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="#180B3438"/>
-                    <SolidColorBrush x:Key="PageArcAccentBrush" Color="#006C78"/>
+                    <!-- Match UrbanPlanToolbox: a cyan navigation pane over the system Mica surface. -->
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#E5F9F9"/>
+                    <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00FFFFFF"/>
+                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#E5F9F9"/>
+                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00FFFFFF"/>
+                    <StaticResource x:Key="PageArcCardBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcSurfaceBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcCardStrokeBrush" ResourceKey="CardStrokeColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcAccentBrush" ResourceKey="AccentFillColorDefaultBrush"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <LinearGradientBrush x:Key="PageArcCanvasBrush" StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#102A2E" Offset="0"/>
-                        <GradientStop Color="#0B2024" Offset="0.5"/>
-                        <GradientStop Color="#07171A" Offset="1"/>
-                    </LinearGradientBrush>
-                    <LinearGradientBrush x:Key="PageArcPaneBrush" StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#142F32" Offset="0"/>
-                        <GradientStop Color="#0B2023" Offset="1"/>
-                    </LinearGradientBrush>
-                    <LinearGradientBrush x:Key="PageArcToolbarBrush" StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="#112B2F" Offset="0"/>
-                        <GradientStop Color="#091C20" Offset="1"/>
-                    </LinearGradientBrush>
-                    <SolidColorBrush x:Key="PageArcCardBrush" Color="#D91A3033"/>
-                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="#E61A3033"/>
-                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="#2A8FB8BC"/>
-                    <SolidColorBrush x:Key="PageArcAccentBrush" Color="#6EDBE5"/>
+                    <!-- Exact shell pane tint used by UrbanPlanToolbox. The content remains Mica-backed. -->
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#1A2323"/>
+                    <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00000000"/>
+                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#1A2323"/>
+                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00000000"/>
+                    <StaticResource x:Key="PageArcCardBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcSurfaceBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcCardStrokeBrush" ResourceKey="CardStrokeColorDefaultBrush"/>
+                    <StaticResource x:Key="PageArcAccentBrush" ResourceKey="AccentFillColorDefaultBrush"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcPaneBrush" Color="{ThemeResource SystemColorWindowColor}"/>
-                    <SolidColorBrush x:Key="PageArcCardBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
                     <SolidColorBrush x:Key="PageArcToolbarBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcCardBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
                     <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
                     <SolidColorBrush x:Key="PageArcAccentBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
