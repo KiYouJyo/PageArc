@@ -16,6 +16,8 @@ public sealed record LibraryImportItemResult(
     BookEntry? Book = null,
     string? ErrorMessage = null);
 
+public sealed record LibraryImportProgress(int Completed, int Total, string CurrentPath);
+
 public sealed class LibraryImportSummary
 {
     public LibraryImportSummary(IReadOnlyList<LibraryImportItemResult> items)
