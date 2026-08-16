@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.UI.Xaml;
 using PageArc.Models;
 using PageArc.Services;
@@ -8,7 +9,7 @@ public partial class App : Application
 {
     private readonly WindowsAppLifecycleService _lifecycle = new();
     private readonly SemaphoreSlim _activationGate = new(1, 1);
-    private readonly Queue<AppActivationRequest> _queuedActivations = new();
+    private readonly ConcurrentQueue<AppActivationRequest> _queuedActivations = new();
 
     public static MainWindow? MainWindow { get; private set; }
     public static SettingsService Settings { get; } = new();
@@ -70,8 +71,8 @@ public partial class App : Application
             StartupDiagnostics.Log("CreateMainWindow completed.");
 
             await HandleActivationAsync(lifecycle.InitialRequest);
-            while (_queuedActivations.Count > 0)
-                await HandleActivationAsync(_queuedActivations.Dequeue());
+            while (_queuedActivations.TryDequeue(out var queued))
+                await HandleActivationAsync(queued);
         }
         catch (Exception ex)
         {
