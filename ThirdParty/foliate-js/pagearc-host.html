@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PageArc Kindle Parser</title>
+</head>
+<body>
+<script type="module">
+import { MOBI, isMOBI } from './mobi.js';
+import { unzlibSync } from './vendor/fflate.js';
+
+let book = null;
+let flowSections = [];
+let originalToFlow = new Map();
+
+const toDataURL = blob => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = () => reject(reader.error ?? new Error('Failed to materialize Kindle resource.'));
+  reader.readAsDataURL(blob);
+});
+
+const compactText = value => (value ?? '').replace(/\s+/g, ' ').trim();
+
+async function detectPalmDocEncryption(file) {
+  if (file.size < 96) throw new Error('PAGEARC_INVALID_MOBI: file is too small');
+  const pdb = new DataView(await file.slice(0, 96).arrayBuffer());
+  const firstRecordOffset = pdb.getUint32(78, false);
+  if (!Number.isFinite(firstRecordOffset) || firstRecordOffset + 14 > file.size)
+    throw new Error('PAGEARC_INVALID_MOBI: invalid first record offset');
+  const header = new DataView(await file.slice(firstRecordOffset + 12, firstRecordOffset + 14).arrayBuffer());
+  return header.getUint16(0, false);
+}
+
+function flattenToc(items, depth = 0, output = []) {
+  for (const item of items ?? []) {
+    let sectionIndex = null;
+    try {
+      const split = book.splitTOCHref?.(item.href);
+      const originalIndex = Array.isArray(split) ? split[0] : null;
+      if (Number.isInteger(originalIndex)) sectionIndex = originalToFlow.get(originalIndex) ?? null;
+    } catch {}
+    output.push({
+      title: compactText(item.label) || 'Untitled',
+      href: item.href ?? '',
+      sectionIndex,
+      depth
+    });
+    flattenToc(item.subitems, depth + 1, output);
+  }
+  return output;
+}
+
+async function replaceBlobInCss(cssText) {
+  const matches = [...new Set(cssText.match(/blob:[^\s)'";]+/g) ?? [])];
+  let result = cssText;
+  for (const url of matches) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      result = result.split(url).join(await toDataURL(await response.blob()));
+    } catch {}
+  }
+  return result;
+}
+
+async function materializeDocument(rawHtml) {
+  const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+
+  doc.querySelectorAll('script,iframe,object,embed,applet').forEach(node => node.remove());
+  doc.querySelectorAll('*').forEach(element => {
+    for (const attribute of [...element.attributes]) {
+      if (/^on/i.test(attribute.name)) element.removeAttribute(attribute.name);
+      if ((attribute.name === 'href' || attribute.name === 'src') && /^\s*javascript:/i.test(attribute.value))
+        element.setAttribute(attribute.name, '#');
+    }
+  });
+
+  for (const link of [...doc.querySelectorAll('link[rel~="stylesheet"][href]')]) {
+    const href = link.getAttribute('href');
+    if (!href?.startsWith('blob:')) continue;
+    try {
+      const response = await fetch(href);
+      if (!response.ok) continue;
+      const style = doc.createElement('style');
+      style.textContent = await replaceBlobInCss(await response.text());
+      link.replaceWith(style);
+    } catch {
+      link.remove();
+    }
+  }
+
+  const resourceAttributes = ['src', 'poster', 'href', 'xlink:href'];
+  for (const element of [...doc.querySelectorAll('*')]) {
+    for (const name of resourceAttributes) {
+      const value = element.getAttribute(name);
+      if (!value?.startsWith('blob:')) continue;
+      try {
+        const response = await fetch(value);
+        if (response.ok) element.setAttribute(name, await toDataURL(await response.blob()));
+      } catch {
+        element.removeAttribute(name);
+      }
+    }
+    const inlineStyle = element.getAttribute('style');
+    if (inlineStyle?.includes('blob:')) element.setAttribute('style', await replaceBlobInCss(inlineStyle));
+  }
+
+  for (const style of [...doc.querySelectorAll('style')]) {
+    if (style.textContent?.includes('blob:')) style.textContent = await replaceBlobInCss(style.textContent);
+  }
+
+  const plainText = (doc.body?.innerText ?? doc.documentElement?.textContent ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n');
+  return {
+    html: '<!doctype html>' + doc.documentElement.outerHTML,
+    plainText
+  };
+}
+
+async function open(fileName, format) {
+  close();
+  const response = await fetch('./' + encodeURIComponent(fileName));
+  if (!response.ok) throw new Error('PAGEARC_IO: failed to open Kindle source copy');
+  const blob = await response.blob();
+  const file = new File([blob], fileName, { type: 'application/x-mobipocket-ebook' });
+  if (!await isMOBI(file)) throw new Error('PAGEARC_INVALID_MOBI: unsupported Palm database');
+
+  const encryption = await detectPalmDocEncryption(file);
+  if (encryption !== 0) throw new Error('PAGEARC_DRM: encrypted MOBI/AZW content is not supported');
+
+  const mobi = new MOBI({ unzlib: unzlibSync });
+  book = await mobi.open(file);
+  flowSections = [];
+  originalToFlow = new Map();
+  for (let originalIndex = 0; originalIndex < (book.sections?.length ?? 0); originalIndex++) {
+    const section = book.sections[originalIndex];
+    if (typeof section?.load !== 'function') continue;
+    const flowIndex = flowSections.length;
+    originalToFlow.set(originalIndex, flowIndex);
+    flowSections.push({
+      originalIndex,
+      id: String(section.id ?? originalIndex),
+      size: Number(section.size ?? 0),
+      linear: section.linear !== 'no'
+    });
+  }
+  if (!flowSections.length) throw new Error('PAGEARC_INVALID_MOBI: no readable sections');
+
+  let coverHref = null;
+  try {
+    const cover = await book.getCover?.();
+    if (cover) coverHref = await toDataURL(cover);
+  } catch {}
+
+  const metadata = book.metadata ?? {};
+  const authors = Array.isArray(metadata.author) ? metadata.author : [metadata.author].filter(Boolean);
+  return {
+    format,
+    title: compactText(metadata.title),
+    author: authors.map(compactText).filter(Boolean).join(', '),
+    language: compactText(metadata.language),
+    coverHref,
+    fixedLayout: book.rendition?.layout === 'pre-paginated',
+    direction: book.dir ?? null,
+    sections: flowSections,
+    toc: flattenToc(book.toc)
+  };
+}
+
+async function loadSection(flowIndex) {
+  if (!book) throw new Error('PAGEARC_RUNTIME: no Kindle book is open');
+  const descriptor = flowSections[flowIndex];
+  if (!descriptor) throw new RangeError('Kindle flow section is out of range');
+  const section = book.sections[descriptor.originalIndex];
+  const url = await section.load();
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('PAGEARC_RUNTIME: failed to load Kindle section');
+  return await materializeDocument(await response.text());
+}
+
+function close() {
+  try { book?.destroy?.(); } catch {}
+  book = null;
+  flowSections = [];
+  originalToFlow = new Map();
+}
+
+window.pageArcKindle = { open, loadSection, close };
+</script>
+</body>
+</html>
