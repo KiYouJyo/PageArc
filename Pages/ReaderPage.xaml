@@ -1,0 +1,58 @@
+<Page
+    x:Class="PageArc.Pages.ReaderPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource PageArcCanvasBrush}">
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Grid Grid.Row="0" Background="#ADFFFFFF" BorderBrush="#33757575" BorderThickness="0,0,0,1" Padding="12,8">
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <Button x:Uid="Reader_Back" Click="Back_Click"><StackPanel Orientation="Horizontal" Spacing="6"><SymbolIcon Symbol="Back"/><TextBlock x:Uid="Reader_BackText"/></StackPanel></Button>
+                <TextBlock x:Name="BookTitleText" VerticalAlignment="Center" FontWeight="SemiBold"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                <Button x:Name="ContentsButton" x:Uid="Reader_Contents" Click="Contents_Click"><StackPanel Orientation="Horizontal" Spacing="6"><SymbolIcon Symbol="Bullets"/><TextBlock x:Uid="Reader_ContentsText"/></StackPanel></Button>
+                <Button x:Uid="Reader_Search"><StackPanel Orientation="Horizontal" Spacing="6"><SymbolIcon Symbol="Find"/><TextBlock x:Uid="Reader_SearchText"/></StackPanel></Button>
+                <Button x:Name="AppearanceButton" x:Uid="Reader_Appearance">
+                    <SymbolIcon Symbol="Font"/>
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedRight">
+                            <StackPanel Width="300" Spacing="12">
+                                <TextBlock x:Uid="ReaderSettings_Title" FontSize="20" FontWeight="SemiBold"/>
+                                <TextBlock x:Uid="ReaderSettings_ThemeLabel" FontWeight="SemiBold"/>
+                                <ComboBox x:Name="ReaderThemeCombo" SelectionChanged="ReaderThemeCombo_SelectionChanged"><ComboBoxItem x:Uid="ReadingTheme_Light" Tag="light"/><ComboBoxItem x:Uid="ReadingTheme_Sepia" Tag="sepia"/><ComboBoxItem x:Uid="ReadingTheme_Dark" Tag="dark"/></ComboBox>
+                                <TextBlock x:Uid="ReaderSettings_FontSizeLabel" FontWeight="SemiBold"/>
+                                <Slider x:Name="ReaderFontScaleSlider" Minimum="0.8" Maximum="1.6" StepFrequency="0.1" ValueChanged="ReaderFontScaleSlider_ValueChanged"/>
+                                <TextBlock x:Uid="ReaderSettings_LineSpacingLabel" FontWeight="SemiBold"/>
+                                <Slider x:Name="ReaderLineHeightSlider" Minimum="1.35" Maximum="2.1" StepFrequency="0.05" ValueChanged="ReaderLineHeightSlider_ValueChanged"/>
+                                <ToggleSwitch x:Name="ContinuousScrollToggle" x:Uid="ReaderSettings_Continuous" Toggled="ContinuousScrollToggle_Toggled"/>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <Button x:Uid="Reader_Bookmark" Click="Bookmark_Click"><SymbolIcon Symbol="Bookmarks"/></Button>
+                <Button x:Uid="Reader_More"><SymbolIcon Symbol="More"/></Button>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition x:Name="ContentsColumn" Width="260"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Border x:Name="ContentsPane" Grid.Column="0" Background="#F9F9F9" BorderBrush="#24757575" BorderThickness="0,0,1,0">
+                <Grid Padding="16,20"><Grid.RowDefinitions><RowDefinition Height="72"/><RowDefinition Height="*"/><RowDefinition Height="32"/></Grid.RowDefinitions>
+                    <StackPanel><TextBlock x:Uid="Reader_ContentsHeading" FontSize="20" FontWeight="SemiBold"/><TextBlock x:Name="ContentsMetaText" Margin="0,6,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                    <ListView x:Name="TocList" Grid.Row="1" SelectionChanged="TocList_SelectionChanged"/>
+                    <TextBlock x:Name="BookProgressText" Grid.Row="2" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Grid>
+            </Border>
+            <Grid Grid.Column="1" Padding="28,24,28,18">
+                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="46"/></Grid.RowDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Width="40" Height="40" CornerRadius="20" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Previous_Click"><SymbolIcon Symbol="Previous"/></Button>
+                <Border Grid.Column="1" Background="#F5FFFFFF" BorderBrush="#2E757575" BorderThickness="1" CornerRadius="8" MaxWidth="760"><WebView2 x:Name="BookWebView" NavigationCompleted="BookWebView_NavigationCompleted"/></Border>
+                <Button Grid.Column="2" Width="40" Height="40" CornerRadius="20" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Next_Click"><SymbolIcon Symbol="Next"/></Button>
+                <Grid Grid.Row="1" Grid.Column="1" MaxWidth="760"><TextBlock x:Name="ChapterProgressText" FontSize="12" VerticalAlignment="Top"/><ProgressBar x:Name="ReaderProgress" Height="3" Margin="60,4,40,0" VerticalAlignment="Top"/><TextBlock x:Name="ReaderPercentText" HorizontalAlignment="Right" FontSize="12" VerticalAlignment="Top"/></Grid>
+                <InfoBar x:Name="ReaderInfoBar" Grid.RowSpan="2" Grid.ColumnSpan="3" IsOpen="False" VerticalAlignment="Top"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>
