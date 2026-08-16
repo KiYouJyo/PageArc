@@ -18,6 +18,16 @@ public sealed class FlowEngineTests
     }
 
     [Fact]
+    public void FlowEngine_RegistersAllFiveReaderFormats()
+    {
+        var engine = new FlowReaderEngine();
+        Assert.Equal(["AZW3", "EPUB", "FB2", "LIT", "MOBI"], engine.ReadableFormats);
+        Assert.True(engine.CanOpen(new BookEntry { FilePath = "fixture.mobi", Format = "MOBI" }));
+        Assert.True(engine.CanOpen(new BookEntry { FilePath = "fixture.azw3", Format = "AZW3" }));
+        Assert.True(engine.CanOpen(new BookEntry { FilePath = "fixture.lit", Format = "LIT" }));
+    }
+
+    [Fact]
     public void FlowContentLocator_ClampsSectionAndFraction()
     {
         var locator = new FlowContentLocator(99, 1.8, "anchor", "quote").Clamp(4);
