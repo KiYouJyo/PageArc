@@ -49,7 +49,7 @@
                     </StackPanel>
                 </Button>
                 <Button x:Name="AppearanceButton" x:Uid="Reader_Appearance">
-                    <SymbolIcon Symbol="Font"/>
+                    <TextBlock Text="Aa" FontWeight="SemiBold"/>
                     <Button.Flyout>
                         <Flyout Placement="BottomEdgeAlignedRight">
                             <StackPanel Width="300" Spacing="12">
@@ -123,20 +123,7 @@
                         CornerRadius="8"
                         MaxWidth="760">
                     <Grid>
-                        <ScrollViewer x:Name="NativeReaderScroll"
-                                      HorizontalScrollMode="Disabled"
-                                      HorizontalScrollBarVisibility="Disabled"
-                                      VerticalScrollMode="Auto"
-                                      VerticalScrollBarVisibility="Auto"
-                                      Padding="56,44,56,56">
-                            <TextBlock x:Name="NativeReaderText"
-                                       TextWrapping="WrapWholeWords"
-                                       FontSize="18"
-                                       LineHeight="31"
-                                       MaxWidth="620"
-                                       HorizontalAlignment="Center"
-                                       IsTextSelectionEnabled="True"/>
-                        </ScrollViewer>
+                        <WebView2 x:Name="ReaderWebView"/>
                         <Grid x:Name="ReaderLoadingLayer" Background="{ThemeResource PageArcSurfaceBrush}" Visibility="Collapsed">
                             <ProgressRing Width="36" Height="36" IsActive="True" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
@@ -149,7 +136,7 @@
 
                 <Grid Grid.Row="1" Grid.Column="1" MaxWidth="760">
                     <TextBlock x:Name="ChapterProgressText" FontSize="12" VerticalAlignment="Top"/>
-                    <ProgressBar x:Name="ReaderProgress" Height="3" Margin="60,4,40,0" VerticalAlignment="Top"/>
+                    <ProgressBar x:Name="ReaderProgress" Height="3" Margin="60,4,40,0" VerticalAlignment="Top" Minimum="0" Maximum="1"/>
                     <TextBlock x:Name="ReaderPercentText" HorizontalAlignment="Right" FontSize="12" VerticalAlignment="Top"/>
                 </Grid>
                 <InfoBar x:Name="ReaderInfoBar" Grid.RowSpan="2" Grid.ColumnSpan="3" IsOpen="False" VerticalAlignment="Top"/>

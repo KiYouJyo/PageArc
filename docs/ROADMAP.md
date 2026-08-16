@@ -24,13 +24,16 @@
 - [x] EPUB adapter onto the unified reader contract
 - [x] FB2 reflow adapter with metadata / TOC / semantic HTML sections
 - [x] Conversion-provider abstraction and first calibre `ebook-convert` bridge
-- [ ] Wire the Figma-approved Reader UI to the unified flow engine
-- [ ] Wire the Figma-approved Conversion UI to real queue execution
+- [x] Wire the Figma-approved Reader UI to the unified flow engine
+- [x] Add WebView2 reflow host with continuous and paginated section navigation
+- [x] Persist section-relative reading position across renderer/layout changes
+- [x] Wire the Figma-approved Conversion UI to real queue execution
+- [x] Harden EPUB WebView content against active ebook scripts and external requests
 - [ ] Full-text search
 - [ ] Durable bookmarks / highlights / notes
 - [ ] Cover extraction and richer metadata
 - [ ] EPUB + FB2 compatibility fixture expansion
-- [ ] Better paginated mode and touch / keyboard navigation
+- [ ] Touch / keyboard navigation refinement
 
 ## v0.3.0 — MOBI + AZW3 / KF8
 

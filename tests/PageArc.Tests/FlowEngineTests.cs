@@ -18,6 +18,16 @@ public sealed class FlowEngineTests
     }
 
     [Fact]
+    public void FlowContentLocator_ClampsSectionAndFraction()
+    {
+        var locator = new FlowContentLocator(99, 1.8, "anchor", "quote").Clamp(4);
+        Assert.Equal(3, locator.SectionIndex);
+        Assert.Equal(1, locator.Fraction);
+        Assert.Equal("anchor", locator.Fragment);
+        Assert.Equal("quote", locator.TextQuote);
+    }
+
+    [Fact]
     public void CalibreProvider_DeclaresCompleteCrossFormatMatrix()
     {
         var provider = new CalibreConversionProvider(Path.Combine(Path.GetTempPath(), "pagearc-missing-ebook-convert.exe"));
@@ -45,6 +55,24 @@ public sealed class FlowEngineTests
         {
             File.Delete(input);
         }
+    }
+
+    [Fact]
+    public void EpubRenderer_StripsActiveBookContentBeforeWebView()
+    {
+        const string source = """
+            <html><head><meta http-equiv="refresh" content="0;url=https://example.com"><script>alert(1)</script></head>
+            <body onload="evil()"><iframe src="https://example.com"></iframe><p onclick='evil()'>Safe <a href="javascript:evil()">text</a></p></body></html>
+            """;
+        var html = EpubWebRenderer.NormalizeForWebView(source, "https://pagearc.local/Text/chapter.xhtml");
+
+        Assert.DoesNotContain("<script", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("http-equiv=\"refresh\"", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<iframe", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("onload", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("onclick", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("javascript:", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Safe", html, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -64,6 +64,22 @@ public static class EpubWebRenderer
             @"<meta\b[^>]*http-equiv\s*=\s*[""']Content-Security-Policy[""'][^>]*>",
             string.Empty,
             RegexOptions.IgnoreCase);
+        html = Regex.Replace(
+            html,
+            @"<meta\b[^>]*http-equiv\s*=\s*[""']refresh[""'][^>]*>",
+            string.Empty,
+            RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, @"<script\b[^>]*>.*?</script\s*>", string.Empty,
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        html = Regex.Replace(html, @"<(iframe|object|applet)\b[^>]*>.*?</\1\s*>", string.Empty,
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        html = Regex.Replace(html, @"<embed\b[^>]*?/?>", string.Empty, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        html = Regex.Replace(html, @"\s+on[a-zA-Z0-9_-]+\s*=\s*([""']).*?\1", string.Empty,
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        html = Regex.Replace(html, @"\s+on[a-zA-Z0-9_-]+\s*=\s*[^\s>]+", string.Empty,
+            RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, @"\b(href|src)\s*=\s*([""'])\s*javascript:[^""']*\2", "$1=\"#\"",
+            RegexOptions.IgnoreCase);
         html = Regex.Replace(html, @"\bxlink:href\s*=", "href=", RegexOptions.IgnoreCase);
 
         var injection = $"<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><base href=\"{WebUtility.HtmlEncode(baseHref)}\">";
