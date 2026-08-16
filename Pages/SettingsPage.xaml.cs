@@ -48,8 +48,9 @@ public sealed partial class SettingsPage : Page
     private void ThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_loaded || ThemeCombo.SelectedItem is not ComboBoxItem { Tag: string tag }) return;
+        if (string.Equals(tag, App.Settings.Current.AppTheme, StringComparison.OrdinalIgnoreCase)) return;
         App.Settings.Update(x => x.AppTheme = tag);
-        App.ReloadMainWindow("settings");
+        App.MainWindow?.ApplyAppTheme(tag);
     }
 
     private void PersistReadingSettings()
