@@ -31,6 +31,9 @@ public sealed partial class LibraryPage
     private void PopulateBookDetails(BookEntry book)
     {
         DetailsCoverMonogram.Text = book.CoverMonogram;
+        DetailsCoverImage.Source = null;
+        DetailsCoverImage.Opacity = 0;
+        _ = LoadDetailsCoverAsync(book);
         DetailsBookTitle.Text = book.Title;
         DetailsAuthor.Text = book.DisplayAuthor;
         DetailsFormatSize.Text = $"{book.Format} · {book.DisplayFileSize}";
@@ -76,6 +79,8 @@ public sealed partial class LibraryPage
     private void DetailsClose_Click(object sender, RoutedEventArgs e)
     {
         BookDetailsPanel.Visibility = Visibility.Collapsed;
+        DetailsCoverImage.Source = null;
+        DetailsCoverImage.Opacity = 0;
         _detailsBook = null;
     }
 
