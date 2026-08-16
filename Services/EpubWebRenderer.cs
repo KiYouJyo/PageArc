@@ -81,7 +81,9 @@ public static class EpubWebRenderer
     public static string ExtractReadableText(string source)
     {
         if (string.IsNullOrWhiteSpace(source)) return string.Empty;
-        var text = Regex.Replace(source, @"<(script|style)\b[^>]*>.*?</\1>", string.Empty,
+        var text = Regex.Replace(source, @"<head\b[^>]*>.*?</head>", string.Empty,
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        text = Regex.Replace(text, @"<(script|style)\b[^>]*>.*?</\1>", string.Empty,
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
         text = Regex.Replace(text, @"<(br|hr)\b[^>]*>", "\n", RegexOptions.IgnoreCase);
         text = Regex.Replace(text, @"</(p|div|section|article|h[1-6]|li|blockquote|tr)>\s*", "\n", RegexOptions.IgnoreCase);
@@ -96,8 +98,6 @@ public static class EpubWebRenderer
 
     private static string BuildBaseHref(string relativePath)
     {
-        // Use the original chapter URL as the base. This preserves both normal relative
-        // resources (../stylesheet.css, images/a.jpg) and fragment-only links (#note-1).
         var webPath = EpubPath.ToWebPath(relativePath);
         return string.IsNullOrWhiteSpace(webPath)
             ? "https://pagearc.local/"
