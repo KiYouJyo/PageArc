@@ -9,7 +9,7 @@ namespace PageArc.Services;
 public sealed class LocalizationService
 {
     private readonly SettingsService _settings;
-    private ResourceLoader _loader = new();
+    private ResourceLoader? _loader;
 
     public LocalizationService(SettingsService settings)
     {
@@ -34,6 +34,7 @@ public sealed class LocalizationService
         if (string.IsNullOrWhiteSpace(key)) return string.Empty;
         try
         {
+            _loader ??= new ResourceLoader();
             var value = _loader.GetString(key.Replace('.', '/'));
             return string.IsNullOrWhiteSpace(value) ? $"!{key}!" : value;
         }
