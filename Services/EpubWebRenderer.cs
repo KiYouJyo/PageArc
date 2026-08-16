@@ -5,7 +5,7 @@ using PageArc.Models;
 
 namespace PageArc.Services;
 
-public sealed record EpubRenderChapter(string WebPath, string Html);
+public sealed record EpubRenderChapter(string WebPath, string Html, string PlainText);
 
 public static class EpubWebRenderer
 {
@@ -27,16 +27,34 @@ public static class EpubWebRenderer
         var source = await reader.ReadToEndAsync(cancellationToken);
         var baseHref = BuildBaseHref(item.RelativePath);
         var html = NormalizeForWebView(source, baseHref);
+        var plainText = ExtractReadableText(source);
 
-        // Keep a normalized copy for diagnostics and future mapped-file fallback. The reader
-        // currently loads Html directly with NavigateToString so a mapped-file navigation
-        // failure can never make otherwise valid EPUB text unreadable.
         var renderDirectory = Path.Combine(document.ExtractionRoot, "__pagearc");
         Directory.CreateDirectory(renderDirectory);
         var renderFileName = $"spine-{spineIndex:D4}.html";
         var renderPath = Path.Combine(renderDirectory, renderFileName);
         await File.WriteAllTextAsync(renderPath, html, new UTF8Encoding(false), cancellationToken);
-        return new EpubRenderChapter(EpubPath.ToWebPath($"__pagearc/{renderFileName}"), html);
+        return new EpubRenderChapter(EpubPath.ToWebPath($"__pagearc/{renderFileName}"), html, plainText);
+    }
+
+    public static int ResolveInitialSpineIndex(EpubDocument document, int savedIndex, double progress)
+    {
+        if (document.Spine.Count == 0) return 0;
+        var saved = Math.Clamp(savedIndex, 0, document.Spine.Count - 1);
+        if (saved > 0 || progress > 0.001) return saved;
+
+        // Many Calibre EPUB2 books put an image-only titlepage at spine 0. Starting there
+        // can look like a failed open when the cover resource is slow or unavailable.
+        // For a never-opened book, prefer the first real TOC target while keeping the
+        // previous button available for the cover/title page.
+        foreach (var tocItem in document.Toc)
+        {
+            var tocPath = EpubPath.Normalize(tocItem.Href);
+            var index = document.Spine.ToList().FindIndex(item =>
+                string.Equals(EpubPath.Normalize(item.RelativePath), tocPath, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0) return index;
+        }
+        return saved;
     }
 
     public static string NormalizeForWebView(string source, string baseHref)
@@ -65,6 +83,22 @@ public static class EpubWebRenderer
             return html.Insert(root.Index + root.Length, $"<head>{injection}</head>");
 
         return $"<!doctype html><html><head>{injection}</head><body>{html}</body></html>";
+    }
+
+    public static string ExtractReadableText(string source)
+    {
+        if (string.IsNullOrWhiteSpace(source)) return string.Empty;
+        var text = Regex.Replace(source, @"<(script|style)\b[^>]*>.*?</\1>", string.Empty,
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        text = Regex.Replace(text, @"<(br|hr)\b[^>]*>", "\n", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"</(p|div|section|article|h[1-6]|li|blockquote|tr)>\s*", "\n", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"<[^>]+>", string.Empty, RegexOptions.Singleline);
+        text = WebUtility.HtmlDecode(text).Replace('\u00a0', ' ');
+        text = text.Replace("\r\n", "\n").Replace('\r', '\n');
+        var lines = text.Split('\n')
+            .Select(line => Regex.Replace(line, @"\s+", " ").Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line));
+        return string.Join(Environment.NewLine + Environment.NewLine, lines);
     }
 
     private static string BuildBaseHref(string relativePath)
