@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-0.1.0-005fb8)
+![Version](https://img.shields.io/badge/version-0.3.0-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -11,30 +11,29 @@
 
 **PageArc** 是一个专注于流式电子书格式的 Windows 阅读器，采用 WinUI 3 构建。设计严格参考项目 Figma，并优先保持本地、轻量、原文件不修改的阅读体验。
 
-## v0.1.0
+## v0.3.0
 
-PageArc v0.1.0 是首个公开版本，当前包含：
+当前版本已把阅读核心统一为格式无关的流式引擎：
 
-- 与 PAGEARC Figma 设计对齐的 WinUI 3 / Windows App SDK 应用壳、书库、分类、阅读器、格式转换、导入文件夹、设置与关于页面；
-- 自适应 NavigationView、小尺寸覆盖式导航、Windows 原生 Fluent 图标，以及随窗口激活状态变化的浅青 / 深青与中性灰导航配色；
-- 简体中文、日本語、English 三语资源、跟随系统选项与应用内原地语言切换；
-- 本地书库索引、分类、收藏筛选、阅读进度与阅读偏好持久化；
-- EPUB 2 / EPUB 3 的 metadata、OPF、spine、nav / NCX 目录解析与安全缓存；
-- 原生 WinUI EPUB 正文阅读、目录跳转、前后章节、阅读进度、字号、行距和阅读主题；
-- About 页 GitHub Release 更新检查；
-- CI、自动测试、签名 MSIX 验收、隐私政策、贡献指南、架构与路线图文档。
+- EPUB 2 / EPUB 3、FB2 使用内置解析器；
+- MOBI 与 KF8 / AZW3 使用本地固定版本的内置解析运行时，不依赖 CDN；
+- 阅读器统一支持目录、连续滚动 / 分页、章节内进度、全文搜索、书签、标注数据以及 Figma 对齐的搜索 / 书签 / 笔记侧栏；
+- MOBI / AZW3 在解析前检查 PalmDOC 加密标志，确认 DRM 后立即停止，不尝试绕过；
+- 格式转换页已经接入真实任务队列，可通过可插拔 Provider 在 EPUB / FB2 / MOBI / AZW3 / LIT 之间转换；
+- 若本机安装 calibre，可将其 `ebook-convert` 作为可选转换与兼容性 Provider。PageArc 不捆绑 calibre；
+- LIT 在 v0.3.0 仍走可选归一化兼容路径，v0.4.0 将完成最终 LIT 与五格式验收收束。
 
-> **格式状态**：v0.1.0 的稳定阅读路径为 **EPUB**。书库可识别 FB2 / MOBI / AZW3 / LIT，但这些格式的阅读适配器仍在后续版本计划中。格式转换页已建立交互与任务界面，实际转换引擎尚未在 v0.1.0 提供。
+> **原文件安全**：PageArc 的阅读缓存、Kindle 解析工作区和转换输出均使用副本或新文件，绝不修改原电子书。DRM 去除不属于项目范围。
 
 ## 设计基准
 
-PageArc 的 UI SSOT 为 Figma `PAGEARC` 文件。实现时优先使用 WinUI 3 原生控件、Mica / Fluent 交互和系统图标，在控件行为与像素级布局冲突时优先保留 Windows 原生交互语义，同时匹配 Figma 的尺寸、密度与层级。
+PageArc 的 UI SSOT 为 Figma `PAGEARC` 文件。新增或改变可见 UI 前必须先读取相应 Figma 节点；实现优先使用 WinUI 3 原生控件、Mica / Fluent 交互和系统图标。
 
 ## 隐私与联网
 
-PageArc 不要求账户，书库、缓存、阅读进度与设置均保存在本机。原始电子书文件不会被修改。
+PageArc 不要求账户，书库、缓存、阅读进度、书签、标注与设置均保存在本机。正常阅读和内置解析不需要联网。
 
-默认阅读流程不需要联网。v0.1.0 仅在用户主动点击“检查更新”时访问 GitHub Release API。
+网络仅用于用户主动执行的更新检查；若用户选择安装并配置外部转换 Provider，其调用仍在本机完成。
 
 ## 开发环境
 
@@ -53,11 +52,13 @@ dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 
 - [路线图](docs/ROADMAP.md)
 - [架构](docs/ARCHITECTURE.md)
+- [流式引擎架构](docs/ENGINE_ARCHITECTURE.md)
 - [数据与存储](docs/DATA_STORAGE.md)
+- [第三方组件](THIRD_PARTY_NOTICES.md)
 - [隐私政策](PRIVACY.md)
 - [贡献指南](CONTRIBUTING.md)
 - [更新日志](CHANGELOG.md)
 
 ## License
 
-MIT. 详见 [LICENSE](LICENSE)。
+PageArc 主项目采用 MIT License。捆绑的第三方解析组件保留各自的许可证与来源说明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
