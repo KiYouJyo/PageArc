@@ -4,24 +4,19 @@
 
 **PageArc** は、リフロー型電子書籍に特化した WinUI 3 製 Windows リーダーです。PAGEARC Figma を UI の基準とし、ローカル優先・元ファイル非変更の読書体験を重視します。
 
-## v0.4.0
+## v0.6.0
 
-v0.4.0 では、最初のフォーマットエンジン段階を完了しました。
+PageArc は、フォーマットエンジン・ライブラリ・Windows 統合の最初の基盤段階を完了しました。
 
-- EPUB 2 / EPUB 3 と FB2 は内蔵アダプターで解析
-- MOBI / KF8・AZW3 は固定バージョンを同梱したローカル解析ランタイムを使用し、CDN には依存しません
-- LIT は専用 `LitFlowAdapter` から共通 `FlowReaderEngine` に接続し、対応するローカル変換 Provider がある場合は読み取り専用 EPUB 正規化キャッシュを利用
-- 目次、連続スクロール / ページ送り、章内位置を含む進捗、全文検索、ブックマーク、注釈データ、Figma に沿った検索 / ブックマーク / ノートのサイドペインを共通化
-- MOBI / AZW3 は解析前に PalmDOC の暗号化情報を確認し、DRM が確認された場合は処理を停止して解除を試みません
-- EPUB / FB2 / MOBI / AZW3 / LIT の 20 通りの方向付き相互変換能力を明示的にモデル化し、実際に端末上で利用可能な Provider に基づいて実行可否を判定
-- calibre が既にインストールされている場合、`ebook-convert` を任意のローカル変換・互換性 Provider として利用可能。calibre 自体は PageArc に同梱しません
+- EPUB 2 / EPUB 3 と FB2 は内蔵解析、MOBI / KF8 / AZW3 は固定バージョンのローカル解析ランタイム、LIT は専用 Flow Adapter とローカル変換 Provider 境界を使用
+- 目次、連続スクロール / ページ送り、章内進捗、全文検索、ブックマーク、注釈を一つの Reader 契約に統合
+- 実際の表紙・メタデータ、一括インポート、重複検出、監視フォルダー、カテゴリ / お気に入り、詳細表示、欠損ファイル処理、大規模ライブラリ移行を備えたライブラリ
+- パッケージ版では EPUB / FB2 / MOBI / AZW / AZW3 / LIT の Windows ファイル関連付けを登録し、Explorer から直接開けます
+- Windows App SDK の単一インスタンス機構により、新しいファイル / プロトコル起動を既存の PageArc ウィンドウへリダイレクト
+- `pagearc:` ディープリンクと Windows Jump List から最近の本を再度開くことが可能
+- EPUB / FB2 / MOBI / AZW3 / LIT の 20 通りの方向付き相互変換能力を明示的にモデル化し、端末上で実際に利用可能な Provider に基づいて実行可否を判定
 
-**元ファイル保護:** 読書キャッシュ、Kindle 解析ワークスペース、変換結果はすべてコピーまたは新規ファイルとして扱い、元の電子書籍を変更しません。DRM 解除は対象外です。
-
-## 次の段階
-
-- **v0.5:** ライブラリ完成度向上 — 一括インポート、詳細メタデータと表紙、検索 / 並べ替え / フィルター、コレクション、詳細表示、大規模ライブラリ性能。
-- **v0.6:** Windows 深度統合 — ファイル関連付け、アクティベーション / 単一インスタンス、Explorer 連携、ジャンプリスト、ネイティブな「開く」体験。
+**元ファイル保護:** 読書キャッシュ、表紙キャッシュ、解析ワークスペース、変換結果はコピーまたは新規ファイルとして扱います。PageArc から本を削除しても元の電子書籍ファイルは削除しません。DRM 解除は対象外です。
 
 ## デザイン基準
 
@@ -39,7 +34,7 @@ dotnet build PageArc.slnx -c Debug -p:Platform=x64
 dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 ```
 
-詳しくは [docs/ROADMAP.md](docs/ROADMAP.md)、[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、[docs/ENGINE_ARCHITECTURE.md](docs/ENGINE_ARCHITECTURE.md)、[docs/FORMAT_SUPPORT.md](docs/FORMAT_SUPPORT.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)、[PRIVACY.md](PRIVACY.md) を参照してください。
+詳しくは [docs/ROADMAP.md](docs/ROADMAP.md)、[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、[docs/ENGINE_ARCHITECTURE.md](docs/ENGINE_ARCHITECTURE.md)、[docs/WINDOWS_INTEGRATION.md](docs/WINDOWS_INTEGRATION.md)、[docs/FORMAT_SUPPORT.md](docs/FORMAT_SUPPORT.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)、[PRIVACY.md](PRIVACY.md) を参照してください。
 
 ## License
 
