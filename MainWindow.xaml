@@ -36,12 +36,12 @@
                         <NavigationViewItem.Icon><SymbolIcon Symbol="Folder"/></NavigationViewItem.Icon>
                     </NavigationViewItem>
                     <NavigationViewItem x:Uid="Nav_Conversion" Tag="conversion">
-                        <NavigationViewItem.Icon><FontIcon Glyph="⇄"/></NavigationViewItem.Icon>
+                        <NavigationViewItem.Icon><SymbolIcon Symbol="Switch"/></NavigationViewItem.Icon>
                     </NavigationViewItem>
                 </NavigationView.MenuItems>
                 <NavigationView.FooterMenuItems>
                     <NavigationViewItem x:Uid="Nav_ImportFolders" Tag="import-folders">
-                        <NavigationViewItem.Icon><SymbolIcon Symbol="Import"/></NavigationViewItem.Icon>
+                        <NavigationViewItem.Icon><SymbolIcon Symbol="SyncFolder"/></NavigationViewItem.Icon>
                     </NavigationViewItem>
                     <NavigationViewItem x:Uid="Nav_Settings" Tag="settings">
                         <NavigationViewItem.Icon><SymbolIcon Symbol="Setting"/></NavigationViewItem.Icon>
