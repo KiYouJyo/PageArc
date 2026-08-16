@@ -48,7 +48,7 @@
                 <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="46"/></Grid.RowDefinitions>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
                 <Button Grid.Column="0" Width="40" Height="40" CornerRadius="20" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Previous_Click"><SymbolIcon Symbol="Previous"/></Button>
-                <Border Grid.Column="1" Background="{ThemeResource PageArcSurfaceBrush}" BorderBrush="{ThemeResource PageArcCardStrokeBrush}" BorderThickness="1" CornerRadius="8" MaxWidth="760"><WebView2 x:Name="BookWebView" NavigationCompleted="BookWebView_NavigationCompleted"/></Border>
+                <Border Grid.Column="1" Background="{ThemeResource PageArcSurfaceBrush}" BorderBrush="{ThemeResource PageArcCardStrokeBrush}" BorderThickness="1" CornerRadius="8" MaxWidth="760"><WebView2 x:Name="BookWebView" NavigationStarting="BookWebView_NavigationStarting" NavigationCompleted="BookWebView_NavigationCompleted"/></Border>
                 <Button Grid.Column="2" Width="40" Height="40" CornerRadius="20" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Next_Click"><SymbolIcon Symbol="Next"/></Button>
                 <Grid Grid.Row="1" Grid.Column="1" MaxWidth="760"><TextBlock x:Name="ChapterProgressText" FontSize="12" VerticalAlignment="Top"/><ProgressBar x:Name="ReaderProgress" Height="3" Margin="60,4,40,0" VerticalAlignment="Top"/><TextBlock x:Name="ReaderPercentText" HorizontalAlignment="Right" FontSize="12" VerticalAlignment="Top"/></Grid>
                 <InfoBar x:Name="ReaderInfoBar" Grid.RowSpan="2" Grid.ColumnSpan="3" IsOpen="False" VerticalAlignment="Top"/>
