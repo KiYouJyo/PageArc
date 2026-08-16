@@ -27,10 +27,11 @@ public sealed partial class MainWindow : Window
             RootGrid.Loaded += (_, _) =>
             {
                 ConfigureTitleBar();
-                QueueNavigationPaneBackgroundUpdate();
+                ApplyNavigationPaneBackground();
             };
             RootGrid.ActualThemeChanged += RootGrid_ActualThemeChanged;
-            AppNavigation.PaneOpening += (_, _) => QueueNavigationPaneBackgroundUpdate();
+            AppNavigation.PaneOpening += (_, _) => ApplyNavigationPaneBackground();
+            AppNavigation.PaneOpened += (_, _) => ApplyNavigationPaneBackground();
 
             StartupDiagnostics.Log("Custom title bar configured.");
             ApplyAppTheme(App.Settings.Current.AppTheme);
@@ -62,9 +63,6 @@ public sealed partial class MainWindow : Window
 
     public void ApplyAppTheme(string theme)
     {
-        // UrbanPlanToolbox deliberately applies RequestedTheme directly and lets
-        // WinUI + Mica transition as a single compositor-backed surface. A full-window
-        // cross-fade overlay creates the visible flash/jump PageArc previously had.
         RootGrid.RequestedTheme = theme switch
         {
             "light" => ElementTheme.Light,
@@ -73,6 +71,16 @@ public sealed partial class MainWindow : Window
         };
         ConfigureTitleBar();
         QueueNavigationPaneBackgroundUpdate();
+    }
+
+    private void AppNavigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
+    {
+        // Match UrbanPlanToolbox/standard NavigationView adaptive behavior:
+        // narrow windows enter Minimal mode, leaving only the hamburger button.
+        // Opening the pane then overlays the content instead of reserving a permanent rail.
+        if (args.DisplayMode == NavigationViewDisplayMode.Minimal)
+            sender.IsPaneOpen = false;
+        ApplyNavigationPaneBackground();
     }
 
     private void QueueNavigationPaneBackgroundUpdate() =>
