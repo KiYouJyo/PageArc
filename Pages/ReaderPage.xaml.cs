@@ -79,8 +79,8 @@ public sealed partial class ReaderPage : Page
     {
         if (_document is null || _book is null) return;
         _spineIndex = Math.Clamp(index, 0, _document.Spine.Count - 1);
-        var relative = _document.Spine[_spineIndex].RelativePath.Split('/').Select(Uri.EscapeDataString);
-        BookWebView.Source = new Uri($"https://pagearc.local/{string.Join('/', relative)}");
+        var relative = EpubPath.ToWebPath(_document.Spine[_spineIndex].RelativePath);
+        BookWebView.Source = new Uri($"https://pagearc.local/{relative}");
         _book.SpineIndex = _spineIndex;
         _book.Progress = (_spineIndex + 1d) / _document.Spine.Count;
         App.Library.Save();
@@ -93,7 +93,15 @@ public sealed partial class ReaderPage : Page
 
     private async void BookWebView_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
     {
-        if (args.IsSuccess) await ApplyReaderStyleAsync();
+        if (args.IsSuccess)
+        {
+            await ApplyReaderStyleAsync();
+            return;
+        }
+
+        ReaderInfoBar.Severity = InfoBarSeverity.Error;
+        ReaderInfoBar.Message = $"EPUB chapter could not be loaded ({args.WebErrorStatus}).";
+        ReaderInfoBar.IsOpen = true;
     }
 
     private async Task ApplyReaderStyleAsync()
@@ -132,8 +140,8 @@ public sealed partial class ReaderPage : Page
     {
         if (_document is null || TocList.SelectedIndex < 0) return;
         if (_document.Toc.Count == 0) { NavigateToSpine(TocList.SelectedIndex); return; }
-        var href = _document.Toc[TocList.SelectedIndex].Href.Split('#')[0];
-        var index = _document.Spine.ToList().FindIndex(x => string.Equals(x.RelativePath, href, StringComparison.OrdinalIgnoreCase));
+        var href = EpubPath.Normalize(_document.Toc[TocList.SelectedIndex].Href);
+        var index = _document.Spine.ToList().FindIndex(x => string.Equals(EpubPath.Normalize(x.RelativePath), href, StringComparison.OrdinalIgnoreCase));
         if (index >= 0) NavigateToSpine(index);
     }
 
