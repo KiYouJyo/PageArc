@@ -13,6 +13,12 @@ public sealed class AppSettings
     public double FontScale { get; set; } = 1.0;
     public double LineHeight { get; set; } = 1.75;
     public string PageWidth { get; set; } = "medium";
+    // ReaderViewMode is the visible v0.9.3 view-mode selector. ContinuousScrolling is
+    // retained as a migration/compatibility field for settings written by older builds.
+    public string ReaderViewMode { get; set; } = "horizontal";
+    public string ReaderSpreadMode { get; set; } = "single";
+    public string ReaderZoomMode { get; set; } = "auto";
+    public double ReaderZoomFactor { get; set; } = 1.0;
     public bool ContinuousScrolling { get; set; }
     public bool ShowReadingProgress { get; set; } = true;
     public bool ShowRecentBooks { get; set; } = true;

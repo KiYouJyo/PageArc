@@ -15,11 +15,11 @@
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.9.2</Version>
-    <AssemblyVersion>0.9.2.0</AssemblyVersion>
-    <FileVersion>0.9.2.0</FileVersion>
-    <ApplicationDisplayVersion>0.9.2</ApplicationDisplayVersion>
-    <ApplicationVersion>12</ApplicationVersion>
+    <Version>0.9.3</Version>
+    <AssemblyVersion>0.9.3.0</AssemblyVersion>
+    <FileVersion>0.9.3.0</FileVersion>
+    <ApplicationDisplayVersion>0.9.3</ApplicationDisplayVersion>
+    <ApplicationVersion>13</ApplicationVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests\**\*.cs" />

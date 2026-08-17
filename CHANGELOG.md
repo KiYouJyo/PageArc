@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.9.3] - 2026-08-17
+
+### Added
+- Multi-tab title-bar shell with localized Home/library tabs and independent live Reader tabs for multiple open books.
+- Persisted Reader view-mode controls for vertical, horizontal and wrapped reading; single/odd/even spreads; zoom in/out; automatic sizing; fit-width and fit-height.
+- Mouse-wheel and reading-surface click page turning for horizontal/wrapped reading, while preserving links, inputs and active text selections.
+
+### Changed
+- Reader top chrome is reduced to the sidebar toggle, current book title and `Aa`; the obsolete overflow control and visible previous/next page buttons are removed.
+- Reader toolbar, left pane, right settings pane and surrounding reading area now reveal the same Mica backdrop as the custom title bar, while the document page continues to follow the selected reading theme.
+- The 260 px left Reader sidebar and 260 px right `Aa` pane now open/close with a smooth cubic ease-out width/fade transition.
+- Selection annotation UI is temporarily note-only: typing debounce-saves one stable note, dismissal flushes pending text, clearing the note removes the annotation, and note-bearing text uses one muted low-saturation red mark.
+
+### Validation
+- 116/116 tests passed together with Debug x64, Release x64 and whitespace validation.
+- Signed v0.9.3 follow-up acceptance passed package signing, trust verification, MSIX install/version validation and packaged launch smoke testing.
+
+## [0.9.2] - 2026-08-17
+
+### Fixed
+- Restored the Reader UI against the canonical PAGEARC Figma reader and settings surfaces.
+- The default reading surface now follows the effective application Light/Dark theme; explicit Light/Sepia/Dark selections remain persistent overrides and Restore defaults returns to follow-app behavior.
+
+### Changed
+- Reader command-bar, contents-pane, reading-page and progress geometry were converged to the measured Figma baseline.
+- Reading settings were restored with theme, font family, font size, line spacing, page width, continuous scrolling, reading progress and restore-default controls.
+- Dedicated neutral Reader surface tokens were added for Light/Dark mode.
+
+### Validation
+- Signed v0.9.2 acceptance passed Release tests/build, publisher signing, MSIX installation and packaged launch.
+
 ## [0.9.1] - 2026-08-17
 
 ### Fixed

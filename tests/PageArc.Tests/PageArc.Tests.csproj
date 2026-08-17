@@ -29,6 +29,7 @@
     <Compile Include="../../Models/KindleRuntimeModels.cs" Link="Models/KindleRuntimeModels.cs" />
     <Compile Include="../../Models/ReadingData.cs" Link="Models/ReadingData.cs" />
     <Compile Include="../../Models/ReadingBackup.cs" Link="Models/ReadingBackup.cs" />
+    <Compile Include="../../Models/ShellTabSession.cs" Link="Models/ShellTabSession.cs" />
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
     <Compile Include="../../Services/SettingsService.cs" Link="Services/SettingsService.cs" />
     <Compile Include="../../Services/CategoryService.cs" Link="Services/CategoryService.cs" />
@@ -48,6 +49,7 @@
     <Compile Include="../../Services/KindleFileProbe.cs" Link="Services/KindleFileProbe.cs" />
     <Compile Include="../../Services/FlowReaderEngine.cs" Link="Services/FlowReaderEngine.cs" />
     <Compile Include="../../Services/FlowSearchService.cs" Link="Services/FlowSearchService.cs" />
+    <Compile Include="../../Services/FlowPageMap.cs" Link="Services/FlowPageMap.cs" />
     <Compile Include="../../Services/ReadingDataService.cs" Link="Services/ReadingDataService.cs" />
     <Compile Include="../../Services/EpubFlowAdapter.cs" Link="Services/EpubFlowAdapter.cs" />
     <Compile Include="../../Services/Fb2FlowAdapter.cs" Link="Services/Fb2FlowAdapter.cs" />

@@ -273,15 +273,17 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void NavigationShell_UsesToolboxAdaptiveMinimalOverlayBehavior()
+    public void NavigationShell_UsesFigmaAdaptiveMinimalOverlayBehaviorAndTabs()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
         var code = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
         Assert.Contains("IsBackButtonVisible=\"Collapsed\"", xaml, StringComparison.Ordinal);
         Assert.Contains("PaneDisplayMode=\"Auto\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("OpenPaneLength=\"320\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("CompactPaneLength=\"48\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("OpenPaneLength=\"240\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("CompactPaneLength=\"64\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ShellTabs\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("IsAddTabButtonVisible=\"True\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("IsPaneOpen=\"True\"", xaml, StringComparison.Ordinal);
         Assert.Contains("NavigationViewDisplayMode.Minimal", code, StringComparison.Ordinal);
         Assert.Contains("sender.IsPaneOpen = false", code, StringComparison.Ordinal);

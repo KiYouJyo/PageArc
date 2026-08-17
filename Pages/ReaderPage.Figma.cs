@@ -11,14 +11,18 @@ public sealed partial class ReaderPage
 {
     private bool _figmaReaderControlsReady;
     private bool _figmaThemeHooked;
+    private bool _readingSettingsPaneOpen;
 
     private void ReaderPage_FigmaLoaded(object sender, RoutedEventArgs e)
     {
-        // This handler is registered from XAML before ReaderPage_Loaded is subscribed in the
-        // constructor, so the inherited app theme is synchronized before the WebView style is read.
+        // Figma 16:156 / 44:2: the window owns navigation tabs; the reader owns only
+        // its local sidebar, document controls and reading surface.
         SyncFollowAppReaderTheme();
         InitializeFigmaReaderControls();
+        InitializeTabbedReaderChrome();
         ReaderPage_NotesLoaded(sender, e);
+        InitializeSelectionAnnotationUi();
+        InitializeRefinedReaderUi();
 
         if (!_figmaThemeHooked)
         {
@@ -30,6 +34,13 @@ public sealed partial class ReaderPage
     private void InitializeFigmaReaderControls()
     {
         var settings = App.Settings.Current;
+        if (settings.ContinuousScrolling && settings.ReaderViewMode == "horizontal")
+        {
+            // Migrate the pre-view-mode preference without losing a user's old continuous setting.
+            App.Settings.Update(value => value.ReaderViewMode = "vertical");
+            settings = App.Settings.Current;
+        }
+
         var previousSettingsReady = _settingsReady;
         _settingsReady = false;
         _figmaReaderControlsReady = false;
@@ -38,7 +49,7 @@ public sealed partial class ReaderPage
             SelectByTag(ReaderThemeCombo, EffectiveReaderTheme());
             ReaderFontScaleSlider.Value = settings.FontScale;
             ReaderLineHeightSlider.Value = settings.LineHeight;
-            ContinuousScrollToggle.IsOn = settings.ContinuousScrolling;
+            ContinuousScrollToggle.IsOn = settings.ReaderViewMode is not "horizontal";
             SelectByTag(FigmaFontFamilyCombo, settings.DefaultFont);
             FigmaShowProgressToggle.IsOn = settings.ShowReadingProgress;
         }
@@ -48,13 +59,6 @@ public sealed partial class ReaderPage
             _figmaReaderControlsReady = true;
         }
 
-        // The top-level bookmark entry is navigation only. Bookmark creation is a distinct
-        // content action and must never be coupled to merely opening the bookmarks pane.
-        BookmarkButton.Click -= Bookmark_Click;
-        BookmarkButton.Click -= OpenBookmarksPane_Click;
-        BookmarkButton.Click += OpenBookmarksPane_Click;
-
-        BookmarkToolText.Text = ReaderText("书签", "しおり", "Bookmark");
         ReaderFontLabel.Text = ReaderText("字体", "フォント", "Font");
         ThemeLightText.Text = ReaderText("浅色", "ライト", "Light");
         ThemeSepiaText.Text = ReaderText("米黄色", "セピア", "Sepia");
@@ -66,25 +70,21 @@ public sealed partial class ReaderPage
         WidthNarrowText.Text = ReaderText("窄", "狭い", "Narrow");
         WidthMediumText.Text = ReaderText("中", "中", "Medium");
         WidthWideText.Text = ReaderText("宽", "広い", "Wide");
-        ReaderBehaviorLabel.Text = ReaderText("阅读方式", "読書方式", "Reading mode");
+        ReaderBehaviorLabel.Text = ReaderText("阅读选项", "読書オプション", "Reading options");
         ContinuousScrollLabel.Text = ReaderText("连续滚动", "連続スクロール", "Continuous scrolling");
         ShowProgressLabel.Text = ReaderText("显示阅读进度", "読書進捗を表示", "Show reading progress");
         FigmaResetReaderButton.Content = ReaderText("恢复默认设置", "既定の設定に戻す", "Restore defaults");
 
+        SetReadingSettingsPaneOpen(false);
         UpdateFigmaReaderSelectionVisuals();
         ApplyFigmaReaderPageGeometry();
         ApplyFigmaReaderSurfaceTheme();
         ApplyProgressVisibility();
     }
 
-    private void OpenBookmarksPane_Click(object sender, RoutedEventArgs e)
-    {
-        RefreshBookmarks();
-        ShowSidebar(ReaderSidebarMode.Bookmarks);
-    }
-
     private async void ReaderRootGrid_ActualThemeChanged(FrameworkElement sender, object args)
     {
+        UpdateUnifiedSidebarVisuals();
         if (!App.Settings.Current.ReadingThemeFollowsApp) return;
         SyncFollowAppReaderTheme();
 
@@ -101,7 +101,7 @@ public sealed partial class ReaderPage
 
         UpdateFigmaReaderSelectionVisuals();
         ApplyFigmaReaderSurfaceTheme();
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
+        await RefreshReaderPresentationAsync();
     }
 
     private void SyncFollowAppReaderTheme()
@@ -123,6 +123,22 @@ public sealed partial class ReaderPage
             "sepia" => "sepia",
             _ => "light"
         };
+    }
+
+    private void AppearanceButton_Click(object sender, RoutedEventArgs e) =>
+        SetReadingSettingsPaneOpen(!_readingSettingsPaneOpen);
+
+    private void ReaderSettingsClose_Click(object sender, RoutedEventArgs e) => SetReadingSettingsPaneOpen(false);
+
+    private void SetReadingSettingsPaneOpen(bool open)
+    {
+        _readingSettingsPaneOpen = open;
+        _ = AnimateRightSidebarAsync(open);
+        AppearanceButton.Background = open
+            ? new SolidColorBrush(ReaderRootGrid.ActualTheme == ElementTheme.Dark
+                ? ColorHelper.FromArgb(24, 255, 255, 255)
+                : ColorHelper.FromArgb(13, 0, 0, 0))
+            : new SolidColorBrush(Colors.Transparent);
     }
 
     private async void ReaderThemeCard_Click(object sender, RoutedEventArgs e)
@@ -148,14 +164,14 @@ public sealed partial class ReaderPage
 
         UpdateFigmaReaderSelectionVisuals();
         ApplyFigmaReaderSurfaceTheme();
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
+        await RefreshReaderPresentationAsync();
     }
 
     private async void FigmaFontFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_figmaReaderControlsReady || FigmaFontFamilyCombo.SelectedItem is not ComboBoxItem { Tag: string font }) return;
         App.Settings.Update(settings => settings.DefaultFont = font);
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
+        await RefreshReaderPresentationAsync();
     }
 
     private async void ReaderLineSpacing_Click(object sender, RoutedEventArgs e)
@@ -176,7 +192,7 @@ public sealed partial class ReaderPage
         }
 
         UpdateFigmaReaderSelectionVisuals();
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
+        await RefreshReaderPresentationAsync();
     }
 
     private async void ReaderPageWidth_Click(object sender, RoutedEventArgs e)
@@ -186,7 +202,7 @@ public sealed partial class ReaderPage
         App.Settings.Update(settings => settings.PageWidth = width);
         UpdateFigmaReaderSelectionVisuals();
         ApplyFigmaReaderPageGeometry();
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
+        await RefreshReaderPresentationAsync();
     }
 
     private void FigmaShowProgress_Toggled(object sender, RoutedEventArgs e)
@@ -211,6 +227,10 @@ public sealed partial class ReaderPage
                 settings.FontScale = 1.0;
                 settings.LineHeight = 1.75;
                 settings.PageWidth = "medium";
+                settings.ReaderViewMode = "horizontal";
+                settings.ReaderSpreadMode = "single";
+                settings.ReaderZoomMode = "auto";
+                settings.ReaderZoomFactor = 1.0;
                 settings.ContinuousScrolling = false;
                 settings.ShowReadingProgress = true;
             });
@@ -228,14 +248,13 @@ public sealed partial class ReaderPage
             _figmaReaderControlsReady = true;
         }
 
+        UpdateReaderViewModeSummary();
         UpdateFigmaReaderSelectionVisuals();
         ApplyFigmaReaderPageGeometry();
         ApplyFigmaReaderSurfaceTheme();
         ApplyProgressVisibility();
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
+        await RefreshReaderPresentationAsync();
     }
-
-    private void ReaderSettingsClose_Click(object sender, RoutedEventArgs e) => AppearanceButton.Flyout?.Hide();
 
     private void UpdateFigmaReaderSelectionVisuals()
     {
@@ -281,12 +300,10 @@ public sealed partial class ReaderPage
             "wide" => 900d,
             _ => 760d
         };
+        if (App.Settings.Current.ReaderViewMode == "horizontal" && App.Settings.Current.ReaderSpreadMode is "odd" or "even")
+            pageWidth = Math.Min(1180d, pageWidth * 1.55d);
         ReaderSurface.MaxWidth = pageWidth;
         ReaderProgressStrip.MaxWidth = pageWidth;
-
-        var navOffset = pageWidth / 2d + 46d;
-        PreviousPageButton.RenderTransform = new TranslateTransform { X = -navOffset };
-        NextPageButton.RenderTransform = new TranslateTransform { X = navOffset };
     }
 
     private void ApplyFigmaReaderSurfaceTheme()
@@ -300,5 +317,14 @@ public sealed partial class ReaderPage
         };
         ReaderSurface.Background = brush;
         ReaderLoadingLayer.Background = brush;
+    }
+
+    private async Task RefreshReaderPresentationAsync()
+    {
+        if (!_webReady) return;
+        await ApplyWebReaderStyleAsync(_sectionFraction);
+        ApplyFigmaReaderPageGeometry();
+        await ApplyReaderViewEnhancementsAsync();
+        await ApplyNoteOnlyHighlightsAsync();
     }
 }
