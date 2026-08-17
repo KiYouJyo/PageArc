@@ -54,7 +54,7 @@
 - [x] Native file associations for EPUB / FB2 / MOBI / AZW / AZW3 / LIT in the packaged manifest
 - [x] File / launch-argument activation routed through the existing PageArc library and reader path
 - [x] Windows App SDK single-instance registration, redirection, queued startup activation and serialized activation handling
-- [x] Explorer “show file location” plus native Open/Open with workflows through registered ebook associations
+- [x] Explorer “show file location” plus native Open/Open workflows through registered ebook associations
 - [x] Windows Jump List recent-book integration using stable `pagearc://book/<id>` arguments
 - [x] `pagearc:` protocol deep links for stable book IDs and explicit local ebook paths
 - [x] Packaged file-association/protocol manifest plus signed-install registration validation
@@ -69,13 +69,13 @@
 
 ## v0.7.0 — Reader interaction completion
 
-- [ ] Complete the Figma reading-settings contract: theme, font family, font size, line spacing, page width, continuous scrolling, reading-progress visibility and restore defaults
-- [ ] Persist and immediately apply every reader setting without reopening the book
-- [ ] Complete search navigation/highlighting and preserve correct section-relative progress after jumping to a match
-- [ ] Complete bookmark and annotation navigation against the shared flow locator contract
-- [ ] Make saved highlights visible again when their section is rendered, without modifying the source ebook
-- [ ] Add a lightweight annotation capture path for selected text using the existing reader tool surface and native Fluent controls
-- [ ] Add regression coverage for reader-setting persistence, annotation state and search/highlight behavior
+- [x] Complete the Figma reading-settings contract: theme, font family, font size, line spacing, page width, continuous scrolling, reading-progress visibility and restore defaults
+- [x] Persist and immediately apply every reader setting without reopening the book
+- [x] Complete search navigation/highlighting and preserve correct section-relative progress after jumping to a match
+- [x] Complete bookmark and annotation navigation against the shared flow locator contract
+- [x] Make saved highlights visible again when their section is rendered, without modifying the source ebook
+- [x] Add a lightweight annotation capture path for selected text using the existing reader tool surface and native Fluent controls
+- [x] Add regression coverage for reader-setting persistence, annotation state and existing search/highlight behavior
 
 ## v0.8.0 — Settings, data and library control completion
 
