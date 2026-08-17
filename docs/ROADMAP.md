@@ -60,3 +60,9 @@
 - [x] Packaged file-association/protocol manifest plus signed-install registration validation
 - [x] Signed runtime acceptance covering packaged launch, protocol activation, import routing and same-PID single-instance redirection
 - [x] Pure activation/parser/manifest regression tests with graceful unpackaged-development fallbacks
+
+## v0.6.1 — Hotfix baseline
+
+- [x] Repair the major v0.6 library layout, cover extraction, localization, category navigation and non-EPUB normalization regressions found during signed manual acceptance
+- [x] Signed x64 install/launch acceptance and ordinary CI green
+- [ ] Remaining visual/experience polish reported after the hotfix is intentionally deferred while v0.7-v0.9 functional completion proceeds
