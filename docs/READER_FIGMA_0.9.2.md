@@ -56,6 +56,6 @@ For reflowable books, the displayed page count is virtual pagination derived fro
 
 The default reader theme follows the effective application theme. A light app opens a light reading surface and a dark app opens a dark reading surface. The Figma Light, Sepia, and Dark cards remain explicit reader overrides. Choosing one disables follow-app behavior until **Restore defaults** is used; Restore defaults resumes follow-app behavior.
 
-## Manual acceptance focus
+## Implementation gate
 
-The two defect fixes can be verified immediately in the current v0.9.2 runtime. The unified sidebar and seek/page-jump controls are now Figma source-of-truth only and should be implemented in the next WinUI pass after visual approval, rather than inventing a separate runtime layout.
+The two screenshot-reported defects are runtime fixes in the current v0.9.2 branch. The unified sidebar and seek/page-jump controls are deliberately **not yet implemented in WinUI**: their revised Figma states must be visually accepted first. Once accepted, the next code pass should implement these exact states rather than inventing a separate runtime layout.
