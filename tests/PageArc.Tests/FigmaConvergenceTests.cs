@@ -33,6 +33,18 @@ public sealed class FigmaConvergenceTests
     }
 
     [Fact]
+    public void Library_ListRowsTrackTheAvailableViewportWidth()
+    {
+        var root = FindRepoRoot();
+        var code = File.ReadAllText(Path.Combine(root, "Pages", "LibraryPage.ViewModes.cs"));
+
+        Assert.Contains("BooksListRepeater.ElementPrepared", code, StringComparison.Ordinal);
+        Assert.Contains("BooksScrollViewer.ViewportWidth", code, StringComparison.Ordinal);
+        Assert.Contains("element.Width = width", code, StringComparison.Ordinal);
+        Assert.Contains("NormalizeRealizedListWidths", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Categories_UseSameResponsiveFourColumnGeometry()
     {
         var root = FindRepoRoot();
