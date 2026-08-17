@@ -10,6 +10,7 @@ public sealed class AppSettings
     public double LineHeight { get; set; } = 1.75;
     public string PageWidth { get; set; } = "medium";
     public bool ContinuousScrolling { get; set; }
+    public bool ShowReadingProgress { get; set; } = true;
     public bool ShowRecentBooks { get; set; } = true;
     public bool DuplicateDetection { get; set; } = true;
     public string LibrarySort { get; set; } = "recent";
