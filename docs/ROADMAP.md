@@ -87,11 +87,11 @@
 
 ## v0.9.0 — Planned-surface integration completion
 
-- [ ] Finish the About/Update surface with live version reporting, GitHub Release checking and concrete third-party license information
-- [ ] Remove stale placeholder/pending copy from already-implemented conversion and format features
-- [ ] Audit all 19 canonical Figma screens so every visible action is wired or intentionally read-only
-- [ ] Audit zh-CN / ja-JP / en-US runtime-created text for feature-complete localization
-- [ ] Run end-to-end regression coverage across library → import → categories → reader → annotations → backup → conversion → Windows activation
-- [ ] Produce a signed x64 acceptance build only after v0.7-v0.9 functional gates are green
+- [x] Finish the About/Update surface with live version reporting, GitHub Release checking and concrete third-party license information
+- [x] Remove stale placeholder/pending copy from live already-implemented conversion and format surfaces; any retained legacy resource key is unreferenced
+- [x] Audit all 19 canonical Figma screens so every visible action is wired or intentionally read-only
+- [x] Audit zh-CN / ja-JP / en-US runtime-created text for feature-complete localization
+- [x] Run end-to-end regression coverage across library → import → categories → reader → annotations → backup → conversion → Windows activation contracts
+- [x] Produce a signed x64 acceptance build after v0.7-v0.9 functional gates are green (run `31988316528`, artifact `PageArc-v0.9.0-x64-signed-acceptance`)
 
 > UI/experience polish that is not required to make a planned control functional remains deferred until after the v0.9 functional-completion pass. New visible surfaces must continue to derive from the PAGEARC Figma file rather than introducing an unrelated design language.
