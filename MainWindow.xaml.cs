@@ -80,26 +80,38 @@ public sealed partial class MainWindow : Window
         var headerText = new TextBlock
         {
             Text = title,
-            FontSize = 13,
+            FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxLines = 1
         };
 
-        var content = new Grid { ColumnSpacing = 8 };
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+        // FontIcon gives us an explicit glyph size. SymbolIcon's intrinsic glyph could outgrow
+        // the compact 32 px Figma tab and was visibly clipped on installed builds.
+        var icon = new FontIcon
+        {
+            Glyph = symbol == Symbol.Home ? "\uE80F" : "\uE8F1",
+            FontSize = 14,
+            Width = 16,
+            Height = 16,
+            Opacity = 0.68,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var content = new Grid { ColumnSpacing = 6 };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        content.Children.Add(new SymbolIcon { Symbol = symbol, Opacity = 0.68 });
+        content.Children.Add(icon);
         Grid.SetColumn(headerText, 1);
         content.Children.Add(headerText);
 
         var selectButton = new Button
         {
             Tag = id,
-            Padding = new Thickness(12, 0, 42, 0),
+            Padding = new Thickness(10, 0, 36, 0),
             Background = new SolidColorBrush(Colors.Transparent),
             BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(8),
+            CornerRadius = new CornerRadius(7),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -111,17 +123,17 @@ public sealed partial class MainWindow : Window
         var closeButton = new Button
         {
             Tag = id,
-            Width = 32,
-            Height = 32,
-            MinWidth = 32,
-            Margin = new Thickness(0, 2, 4, 2),
+            Width = 28,
+            Height = 28,
+            MinWidth = 28,
+            Margin = new Thickness(0, 2, 3, 2),
             Padding = new Thickness(0),
             Background = new SolidColorBrush(Colors.Transparent),
             BorderThickness = new Thickness(0),
             CornerRadius = new CornerRadius(6),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
-            Content = new TextBlock { Text = "×", FontSize = 13, Opacity = 0.68 }
+            Content = new TextBlock { Text = "×", FontSize = 12, Opacity = 0.68 }
         };
         closeButton.Click += ShellTabClose_Click;
 
@@ -133,8 +145,8 @@ public sealed partial class MainWindow : Window
         {
             Tag = id,
             Width = width,
-            Height = 36,
-            CornerRadius = new CornerRadius(8),
+            Height = 32,
+            CornerRadius = new CornerRadius(7),
             BorderThickness = new Thickness(0),
             Child = layer
         };
