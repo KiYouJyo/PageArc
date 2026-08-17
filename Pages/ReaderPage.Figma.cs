@@ -11,6 +11,7 @@ public sealed partial class ReaderPage
 {
     private bool _figmaReaderControlsReady;
     private bool _figmaThemeHooked;
+    private bool _readingSettingsPaneOpen;
 
     private void ReaderPage_FigmaLoaded(object sender, RoutedEventArgs e)
     {
@@ -20,6 +21,7 @@ public sealed partial class ReaderPage
         InitializeFigmaReaderControls();
         InitializeTabbedReaderChrome();
         ReaderPage_NotesLoaded(sender, e);
+        InitializeSelectionAnnotationUi();
 
         if (!_figmaThemeHooked)
         {
@@ -65,6 +67,7 @@ public sealed partial class ReaderPage
         ShowProgressLabel.Text = ReaderText("显示阅读进度", "読書進捗を表示", "Show reading progress");
         FigmaResetReaderButton.Content = ReaderText("恢复默认设置", "既定の設定に戻す", "Restore defaults");
 
+        SetReadingSettingsPaneOpen(false);
         UpdateFigmaReaderSelectionVisuals();
         ApplyFigmaReaderPageGeometry();
         ApplyFigmaReaderSurfaceTheme();
@@ -112,6 +115,24 @@ public sealed partial class ReaderPage
             "sepia" => "sepia",
             _ => "light"
         };
+    }
+
+    private void AppearanceButton_Click(object sender, RoutedEventArgs e) =>
+        SetReadingSettingsPaneOpen(!_readingSettingsPaneOpen);
+
+    private void ReaderSettingsClose_Click(object sender, RoutedEventArgs e) => SetReadingSettingsPaneOpen(false);
+
+    private void SetReadingSettingsPaneOpen(bool open)
+    {
+        _readingSettingsPaneOpen = open;
+        SettingsColumn.Width = open ? new GridLength(260) : new GridLength(0);
+        ReaderSettingsPane.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        AppearanceButton.Background = open
+            ? new SolidColorBrush(ReaderRootGrid.ActualTheme == ElementTheme.Dark
+                ? ColorHelper.FromArgb(24, 255, 255, 255)
+                : ColorHelper.FromArgb(13, 0, 0, 0))
+            : new SolidColorBrush(Colors.Transparent);
+        ApplyFigmaReaderPageGeometry();
     }
 
     private async void ReaderThemeCard_Click(object sender, RoutedEventArgs e)
@@ -223,8 +244,6 @@ public sealed partial class ReaderPage
         ApplyProgressVisibility();
         if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
     }
-
-    private void ReaderSettingsClose_Click(object sender, RoutedEventArgs e) => AppearanceButton.Flyout?.Hide();
 
     private void UpdateFigmaReaderSelectionVisuals()
     {
