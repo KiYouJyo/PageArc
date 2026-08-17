@@ -1,5 +1,6 @@
 using PageArc.Models;
 using PageArc.Services;
+using Xunit;
 
 namespace PageArc.Tests;
 
@@ -69,7 +70,7 @@ public sealed class TabbedShell093Tests
 
         var third = map.LocatePage(3);
         Assert.Equal(1, third.SectionIndex);
-        Assert.Equal(0, third.Fraction);
+        Assert.Equal(0d, third.Fraction);
     }
 
     [Fact]
