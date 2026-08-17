@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.1] - 2026-08-17
+
+### Fixed
+- The Library view control is now an actual Grid/List toggle instead of a non-functional visual control, and the selected view persists across launches.
+- Removed the always-visible favorite button from Library book covers; favorite remains available from the existing book context menu.
+
+### Changed
+- Performed the first screenshot/Figma-driven UI/UX convergence pass against the canonical PAGEARC desktop screens.
+- Library and Categories now use the Figma four-column geometry with a 258 px minimum item width, 26 px column gap, 24 px row gap, and fill stretching when the navigation pane is collapsed.
+- The NavigationView applies the Figma 240 px expanded and 64 px compact pane widths at runtime while preserving the existing adaptive shell behavior.
+- Grid/List modes reuse the same PageArc card tokens, cover pipeline, progress information, opening behavior, and right-click actions.
+
+### Notes
+- This is a convergence baseline rather than a redesign. Fine typography, per-control offsets, reader rendering details, dialog micro-spacing, and dark-theme tuning remain suitable for subsequent screenshot-driven passes.
+
 ## [0.9.0] - 2026-08-17
 
 ### Added

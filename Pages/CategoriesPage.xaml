@@ -37,12 +37,12 @@
             <ScrollViewer x:Name="CategoriesScrollViewer" Visibility="Collapsed" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <ItemsRepeater x:Name="CategoriesRepeater">
                     <ItemsRepeater.Layout>
-                        <UniformGridLayout MinItemWidth="240" MinItemHeight="206" MinColumnSpacing="26" MinRowSpacing="24" MaximumRowsOrColumns="4" ItemsStretch="None" ItemsJustification="Start" Orientation="Horizontal"/>
+                        <UniformGridLayout MinItemWidth="258" MinItemHeight="206" MinColumnSpacing="26" MinRowSpacing="24" MaximumRowsOrColumns="4" ItemsStretch="Fill" ItemsJustification="Start" Orientation="Horizontal"/>
                     </ItemsRepeater.Layout>
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate x:DataType="models:CategoryEntry">
-                            <Button Tag="{x:Bind Name}" Width="240" Height="206" Click="CategoryCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
-                                <Border Style="{StaticResource PageArcCardStyle}" Padding="15" Width="240" Height="206">
+                            <Button Tag="{x:Bind Name}" MinWidth="258" Height="206" Click="CategoryCard_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
+                                <Border Style="{StaticResource PageArcCardStyle}" Padding="15" Height="206" HorizontalAlignment="Stretch">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="120"/>

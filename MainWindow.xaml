@@ -26,6 +26,7 @@
                 PaneDisplayMode="Auto"
                 OpenPaneLength="320"
                 CompactPaneLength="48"
+                Loaded="AppNavigation_Loaded"
                 DisplayModeChanged="AppNavigation_DisplayModeChanged"
                 SelectionChanged="AppNavigation_SelectionChanged">
                 <NavigationView.MenuItems>
