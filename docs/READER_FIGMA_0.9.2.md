@@ -58,4 +58,4 @@ The default reader theme follows the effective application theme. A light app op
 
 ## Implementation gate
 
-The two screenshot-reported defects are runtime fixes in the current v0.9.2 branch. The unified sidebar and seek/page-jump controls are deliberately **not yet implemented in WinUI**: their revised Figma states must be visually accepted first. Once accepted, the next code pass should implement these exact states rather than inventing a separate runtime layout.
+The two screenshot-reported defects are runtime fixes in the current v0.9.2 branch, with regression coverage for uniform list-row sizing and bookmark-pane navigation semantics. The unified sidebar and seek/page-jump controls are deliberately **not yet implemented in WinUI**: their revised Figma states must be visually accepted first. Once accepted, the next code pass should implement these exact states rather than inventing a separate runtime layout.
