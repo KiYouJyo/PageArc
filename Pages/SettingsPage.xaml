@@ -21,6 +21,10 @@
                                 <ComboBox x:Name="ThemeCombo" Grid.Column="1" SelectionChanged="ThemeCombo_SelectionChanged"><ComboBoxItem x:Uid="Theme_System" Tag="system"/><ComboBoxItem x:Uid="Theme_Light" Tag="light"/><ComboBoxItem x:Uid="Theme_Dark" Tag="dark"/></ComboBox>
                             </Grid>
                             <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions>
+                                <StackPanel><TextBlock x:Name="AccentLabel"/><TextBlock x:Name="AccentHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                                <ComboBox x:Name="AccentCombo" Grid.Column="1"><ComboBoxItem x:Name="WindowsAccentItem" Tag="windows"/></ComboBox>
+                            </Grid>
+                            <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions>
                                 <StackPanel><TextBlock x:Uid="Settings_Language"/><TextBlock x:Uid="Settings_LanguageHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
                                 <ComboBox x:Name="LanguageCombo" Grid.Column="1" SelectionChanged="LanguageCombo_SelectionChanged"><ComboBoxItem x:Uid="Language_System" Tag="system"/><ComboBoxItem Content="中文（简体）" Tag="zh-CN"/><ComboBoxItem Content="日本語" Tag="ja-JP"/><ComboBoxItem Content="English" Tag="en-US"/></ComboBox>
                             </Grid>
@@ -33,6 +37,7 @@
                     <Border Style="{StaticResource PageArcCardStyle}">
                         <StackPanel Spacing="14">
                             <TextBlock x:Uid="Settings_Library" FontSize="18" FontWeight="SemiBold"/>
+                            <Grid><TextBlock x:Name="LibrarySortLabel"/><ComboBox x:Name="LibrarySortCombo" Width="150" HorizontalAlignment="Right"><ComboBoxItem x:Name="LibrarySortRecentItem" Tag="recent"/><ComboBoxItem x:Name="LibrarySortTitleItem" Tag="title"/></ComboBox></Grid>
                             <Grid><StackPanel><TextBlock x:Uid="Settings_ShowRecent"/><TextBlock x:Uid="Settings_ShowRecentHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ToggleSwitch x:Name="RecentToggle" HorizontalAlignment="Right"/></Grid>
                             <Grid><StackPanel><TextBlock x:Uid="Settings_ImportFolders"/><TextBlock x:Uid="Settings_ImportFoldersHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><Button x:Uid="Settings_ManageFolders" HorizontalAlignment="Right" Click="ManageFolders_Click"/></Grid>
                             <Grid><StackPanel><TextBlock x:Uid="Settings_Duplicates"/><TextBlock x:Uid="Settings_DuplicatesHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ToggleSwitch x:Name="DuplicatesToggle" HorizontalAlignment="Right"/></Grid>
@@ -46,13 +51,14 @@
                             <Grid><TextBlock x:Uid="Settings_Font"/><ComboBox x:Name="FontCombo" Width="150" HorizontalAlignment="Right"><ComboBoxItem x:Uid="Font_BookDefault" Tag="book"/><ComboBoxItem Content="Segoe UI Variable" Tag="Segoe UI Variable"/><ComboBoxItem Content="Georgia" Tag="Georgia"/></ComboBox></Grid>
                             <Grid><TextBlock x:Uid="Settings_FontSize"/><Slider x:Name="FontScaleSlider" Width="180" Minimum="0.8" Maximum="1.6" StepFrequency="0.1" HorizontalAlignment="Right"/></Grid>
                             <Grid><TextBlock x:Uid="Settings_LineSpacing"/><Slider x:Name="LineHeightSlider" Width="180" Minimum="1.35" Maximum="2.1" StepFrequency="0.05" HorizontalAlignment="Right"/></Grid>
+                            <Grid><TextBlock x:Name="PageWidthLabel"/><ComboBox x:Name="PageWidthCombo" Width="150" HorizontalAlignment="Right"><ComboBoxItem x:Name="PageWidthNarrowItem" Tag="narrow"/><ComboBoxItem x:Name="PageWidthMediumItem" Tag="medium"/><ComboBoxItem x:Name="PageWidthWideItem" Tag="wide"/></ComboBox></Grid>
                             <Grid><TextBlock x:Uid="Settings_Continuous"/><ToggleSwitch x:Name="ContinuousToggle" HorizontalAlignment="Right"/></Grid>
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource PageArcCardStyle}">
                         <StackPanel Spacing="14">
                             <TextBlock x:Uid="Settings_DataStorage" FontSize="18" FontWeight="SemiBold"/>
-                            <Grid><StackPanel><TextBlock x:Uid="Settings_Backup"/><TextBlock x:Uid="Settings_BackupHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><Button x:Uid="Settings_BackupButton" HorizontalAlignment="Right"/></Grid>
+                            <Grid><StackPanel><TextBlock x:Uid="Settings_Backup"/><TextBlock x:Uid="Settings_BackupHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><Button x:Uid="Settings_BackupButton" HorizontalAlignment="Right" Click="BackupReadingData_Click"/></Grid>
                             <Grid><StackPanel><TextBlock x:Uid="Settings_ClearCache"/><TextBlock x:Uid="Settings_ClearCacheHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><Button x:Uid="Settings_ClearCacheButton" HorizontalAlignment="Right" Click="ClearCache_Click"/></Grid>
                         </StackPanel>
                     </Border>
