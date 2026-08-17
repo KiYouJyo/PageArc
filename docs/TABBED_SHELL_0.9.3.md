@@ -58,7 +58,7 @@ The refinement pass adds source-level regression checks for detached Figma-shape
 
 Final validation for this pass:
 
-- final normal CI run `32003287318`: green — 110/110 tests, Debug x64, Release x64 and whitespace checks;
+- final branch-head normal CI run `32003490766`: green — 110/110 tests, Debug x64, Release x64 and whitespace checks;
 - signed acceptance run `32002795948`: green — Release tests/build, publisher signing and trust verification, MSIX installation/version validation, and real packaged launch;
 - signed artifact: `PageArc-v0.9.3-x64-refined-signed-acceptance` (`9279026175`), artifact digest `sha256:d2d719b012efa663faa6c6d2562e34aae00d7b5e907b679dbd288fda3dc5f081`;
 - packaged MSIX SHA-256: `314697abb1229361d63c2bf05b1c7fc0c5a2151c654a16932fedb31cfcd8e77d`.
