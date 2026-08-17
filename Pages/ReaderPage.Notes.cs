@@ -112,7 +112,12 @@ public sealed partial class ReaderPage
             Grid.SetColumn(_readerShowProgressToggle, 1);
             progressRow.Children.Add(_readerShowProgressToggle);
             panel.Children.Add(progressRow);
-            panel.Children.Add(new Separator());
+            panel.Children.Add(new Border
+            {
+                Height = 1,
+                Opacity = 0.25,
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+            });
 
             _readerResetButton = new HyperlinkButton
             {
