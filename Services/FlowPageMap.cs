@@ -4,8 +4,9 @@ namespace PageArc.Services;
 
 /// <summary>
 /// Provides a stable logical-page map for reflowable books without pretending that EPUB-style
-/// documents contain fixed printed pages. The estimate is derived from each flow section's source
-/// size and is used only for navigation UI; the canonical saved position remains section+fraction.
+/// documents contain fixed printed pages. The page estimate is derived from each flow section's
+/// source size and is used only for direct page navigation; the canonical saved position remains
+/// section+fraction and its global progress keeps PageArc's existing equal-section semantics.
 /// </summary>
 public sealed class FlowPageMap
 {
@@ -65,7 +66,12 @@ public sealed class FlowPageMap
     public FlowContentLocator LocateProgress(double progress)
     {
         progress = Math.Clamp(progress, 0, 1);
-        var page = progress >= 1 ? TotalPages : (int)Math.Floor(progress * TotalPages) + 1;
-        return LocatePage(page);
+        var sectionCount = Math.Max(1, _pagesPerSection.Length);
+        if (progress >= 1) return new FlowContentLocator(sectionCount - 1, 1);
+
+        var scaled = progress * sectionCount;
+        var sectionIndex = Math.Clamp((int)Math.Floor(scaled), 0, sectionCount - 1);
+        var fraction = Math.Clamp(scaled - sectionIndex, 0, 1);
+        return new FlowContentLocator(sectionIndex, fraction);
     }
 }
