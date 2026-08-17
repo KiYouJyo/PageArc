@@ -27,6 +27,7 @@
     <Compile Include="../../Models/KindleRuntimeModels.cs" Link="Models/KindleRuntimeModels.cs" />
     <Compile Include="../../Models/ReadingData.cs" Link="Models/ReadingData.cs" />
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
+    <Compile Include="../../Services/SettingsService.cs" Link="Services/SettingsService.cs" />
     <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
     <Compile Include="../../Services/AppActivationRequestParser.cs" Link="Services/AppActivationRequestParser.cs" />
     <Compile Include="../../Services/BookMetadataService.cs" Link="Services/BookMetadataService.cs" />
