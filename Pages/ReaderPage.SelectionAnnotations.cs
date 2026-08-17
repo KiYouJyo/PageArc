@@ -46,6 +46,8 @@ public sealed partial class ReaderPage
         AnnotationHintText.Visibility = Visibility.Collapsed;
         SelectionAnnotationTextBox.PlaceholderText = ReaderText("为所选文字添加笔记…", "選択したテキストにノートを追加…", "Add a note to the selection…");
         SaveSelectionAnnotationButton.Content = ReaderText("保存", "保存", "Save");
+        FilterAnnotationItemsToNotes();
+        NotesModeButton.Click += (_, _) => DispatcherQueue.TryEnqueue(FilterAnnotationItemsToNotes);
 
         ReaderWebView.NavigationCompleted += async (_, args) =>
         {
@@ -164,6 +166,7 @@ public sealed partial class ReaderPage
         }
 
         await SaveSelectedAnnotationAsync(_selectionQuote, note, "note-red");
+        FilterAnnotationItemsToNotes();
         await ApplyNoteOnlyHighlightsAsync();
         SelectionAnnotationPopup.IsOpen = false;
         if (ReaderWebView.CoreWebView2 is not null)
