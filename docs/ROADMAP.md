@@ -79,11 +79,11 @@
 
 ## v0.8.0 — Settings, data and library control completion
 
-- [ ] Complete every control already present in the Figma Settings screen: Windows accent source, default reader font/size/spacing/page width, default library sort, recent-books visibility, watched folders and duplicate detection
-- [ ] Implement the Figma “Backup reading data” action for bookmarks, highlights, notes and reading progress
-- [ ] Make cache clearing remove generated parser/cover/normalization data only and keep library/settings/reading records intact
-- [ ] Keep category search/new-category/open-category behavior persistent and consistent with the Figma Categories surface
-- [ ] Add migration/default-value coverage for newly persisted settings and backup schema
+- [x] Complete every control already present in the Figma Settings screen: Windows accent source, default reader font/size/spacing/page width, default library sort, recent-books visibility, watched folders and duplicate detection
+- [x] Implement the Figma “Backup reading data” action for bookmarks, highlights, notes and reading progress
+- [x] Make cache clearing remove generated parser/cover/normalization data only and keep library/settings/reading records intact
+- [x] Keep category search/new-category/open-category behavior persistent and consistent with the Figma Categories surface
+- [x] Add migration/default-value coverage for newly persisted settings and backup schema
 
 ## v0.9.0 — Planned-surface integration completion
 
