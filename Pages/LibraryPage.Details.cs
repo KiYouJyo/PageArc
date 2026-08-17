@@ -39,10 +39,10 @@ public sealed partial class LibraryPage
         DetailsFormatSize.Text = $"{book.Format} · {book.DisplayFileSize}";
         DetailsProgressBar.Value = Math.Clamp(book.Progress, 0, 1);
         var percent = (int)Math.Round(Math.Clamp(book.Progress, 0, 1) * 100);
-        DetailsProgressText.Text = App.Settings.Current.Language switch
+        DetailsProgressText.Text = App.Localization.CurrentLanguage switch
         {
-            "zh-CN" => $"已读 {percent}%",
-            "ja-JP" => $"{percent}% 読了",
+            var language when language.StartsWith("zh", StringComparison.OrdinalIgnoreCase) => $"已读 {percent}%",
+            var language when language.StartsWith("ja", StringComparison.OrdinalIgnoreCase) => $"{percent}% 読了",
             _ => $"{percent}% read"
         };
 
@@ -54,18 +54,19 @@ public sealed partial class LibraryPage
         DetailsContinueText.Text = book.Progress > 0.001
             ? LocalText("继续阅读", "続きを読む", "Continue reading")
             : LocalText("开始阅读", "読み始める", "Start reading");
+        DetailsFavoriteIcon.Glyph = book.IsFavorite ? "\uE735" : "\uE734";
         DetailsFavoriteText.Text = book.IsFavorite
-            ? LocalText("★ 已收藏", "★ お気に入り", "★ Favorited")
-            : LocalText("☆ 收藏", "☆ お気に入り", "☆ Favorite");
+            ? LocalText("已收藏", "お気に入り済み", "Favorited")
+            : LocalText("收藏", "お気に入り", "Favorite");
 
         var bookmarks = App.ReadingData.GetBookmarks(book.Id).Count;
         var annotations = App.ReadingData.GetAnnotations(book.Id);
         var highlights = annotations.Count;
         var notes = annotations.Count(x => !string.IsNullOrWhiteSpace(x.Note));
-        DetailsReadingDataSummary.Text = App.Settings.Current.Language switch
+        DetailsReadingDataSummary.Text = App.Localization.CurrentLanguage switch
         {
-            "zh-CN" => $"{bookmarks} 个书签 · {highlights} 处高亮 · {notes} 条笔记",
-            "ja-JP" => $"ブックマーク {bookmarks} · ハイライト {highlights} · ノート {notes}",
+            var language when language.StartsWith("zh", StringComparison.OrdinalIgnoreCase) => $"{bookmarks} 个书签 · {highlights} 处高亮 · {notes} 条笔记",
+            var language when language.StartsWith("ja", StringComparison.OrdinalIgnoreCase) => $"ブックマーク {bookmarks} · ハイライト {highlights} · ノート {notes}",
             _ => $"{bookmarks} bookmarks · {highlights} highlights · {notes} notes"
         };
     }

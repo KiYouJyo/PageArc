@@ -29,9 +29,9 @@
                         <TextBlock x:Uid="Conversion_SourceTitle" FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock x:Uid="Conversion_SourceSubtitle" Margin="0,5,0,0" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <Border x:Name="DropZone" Grid.Row="1" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource PageArcCardStrokeBrush}" Background="{ThemeResource PageArcPaneBrush}" AllowDrop="True" DragOver="DropZone_DragOver" Drop="DropZone_Drop">
+                    <Border x:Name="DropZone" Grid.Row="1" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" Background="{ThemeResource ControlFillColorSecondaryBrush}" AllowDrop="True" DragOver="DropZone_DragOver" Drop="DropZone_Drop">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                            <FontIcon Glyph="⇧" FontSize="34" Foreground="{ThemeResource PageArcAccentBrush}"/>
+                            <FontIcon Glyph="&#xE896;" FontSize="30" Foreground="{ThemeResource PageArcAccentBrush}"/>
                             <TextBlock x:Uid="Conversion_DropTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                             <TextBlock x:Uid="Conversion_DropSubtitle" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center"/>
                             <Button x:Uid="Conversion_ChooseFiles" Click="ChooseFiles_Click" HorizontalAlignment="Center">
@@ -66,14 +66,14 @@
                         <CheckBox x:Name="CoverCheck" x:Uid="Conversion_KeepCover" IsChecked="True"/>
                         <CheckBox x:Name="TocCheck" x:Uid="Conversion_KeepToc" IsChecked="True"/>
                     </StackPanel>
-                    <Border Grid.Row="4" Background="{ThemeResource PageArcPaneBrush}" CornerRadius="6" Padding="12">
+                    <Border Grid.Row="4" Background="{ThemeResource ControlFillColorSecondaryBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
                         <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="i" Foreground="{ThemeResource PageArcAccentBrush}" FontWeight="SemiBold"/>
+                            <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource PageArcAccentBrush}"/>
                             <TextBlock x:Uid="Conversion_SafetyNotice" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                     <Button x:Name="StartConversionButton" Grid.Row="5" x:Uid="Conversion_Start" Click="StartConversion_Click" HorizontalAlignment="Right" VerticalAlignment="Bottom" IsEnabled="False">
-                        <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="⇄"/><TextBlock x:Uid="Conversion_StartText"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8AB;" FontSize="14"/><TextBlock x:Uid="Conversion_StartText"/></StackPanel>
                     </Button>
                 </Grid>
             </Border>
@@ -86,8 +86,8 @@
                     <TextBlock x:Uid="Conversion_QueueTitle" FontSize="17" FontWeight="SemiBold"/>
                     <TextBlock x:Name="QueueCountText" HorizontalAlignment="Right" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Grid>
-                <StackPanel x:Name="EmptyQueue" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
-                    <FontIcon Glyph="⇄" FontSize="24" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <StackPanel x:Name="EmptyQueue" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                    <FontIcon Glyph="&#xE8AB;" FontSize="22" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <TextBlock x:Uid="Conversion_QueueEmpty" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
                 <ListView x:Name="QueueList" Grid.Row="1" Visibility="Collapsed" SelectionMode="None">

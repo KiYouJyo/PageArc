@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using PageArc.Models;
@@ -8,6 +9,9 @@ namespace PageArc.Services;
 public static class BookMetadataService
 {
     private const long MaxCoverBytes = 32L * 1024L * 1024L;
+    private static readonly Regex CoverResourceRegex = new(
+        "(?:src|href|xlink:href)\\s*=\\s*[\"'](?<path>[^\"'#?]+(?:\\.jpe?g|\\.png|\\.gif|\\.webp|\\.bmp))(?:[?#][^\"']*)?[\"']",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static Task<BookMetadataSnapshot> ReadAsync(BookEntry book, CancellationToken cancellationToken = default)
     {
@@ -44,33 +48,112 @@ public static class BookMetadataService
             .Where(x => !string.IsNullOrWhiteSpace(x.Id) && !string.IsNullOrWhiteSpace(x.Href))
             .ToArray();
 
-        EpubManifestItem? cover = manifest.FirstOrDefault(x =>
+        var cover = await ResolveEpubCoverAsync(archive, packagePath, opf, metadata, manifest, cancellationToken);
+        string? coverPath = null;
+        if (cover is not null && cover.Entry.Length <= MaxCoverBytes)
+            coverPath = await WriteCoverAsync(book.Id, cover.Entry.Open(), cover.MediaType, cover.Extension, cancellationToken);
+
+        return new BookMetadataSnapshot(title, author, language, publisher, description, coverPath);
+    }
+
+    private static async Task<EpubCoverCandidate?> ResolveEpubCoverAsync(
+        ZipArchive archive,
+        string packagePath,
+        XDocument opf,
+        XElement? metadata,
+        IReadOnlyList<EpubManifestItem> manifest,
+        CancellationToken cancellationToken)
+    {
+        var packageDirectory = Path.GetDirectoryName(packagePath)?.Replace('\\', '/') ?? string.Empty;
+
+        EpubManifestItem? preferred = manifest.FirstOrDefault(x =>
             x.Properties.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains("cover-image", StringComparer.OrdinalIgnoreCase));
-        if (cover is null)
+
+        if (preferred is null)
         {
             var coverId = metadata?.Descendants()
                 .FirstOrDefault(x => x.Name.LocalName == "meta"
                     && string.Equals((string?)x.Attribute("name"), "cover", StringComparison.OrdinalIgnoreCase))?
                 .Attribute("content")?.Value?.Trim();
             if (!string.IsNullOrWhiteSpace(coverId))
-                cover = manifest.FirstOrDefault(x => string.Equals(x.Id, coverId, StringComparison.Ordinal));
+                preferred = manifest.FirstOrDefault(x => string.Equals(x.Id, coverId, StringComparison.Ordinal));
         }
-        cover ??= manifest.FirstOrDefault(x =>
+
+        preferred ??= manifest.FirstOrDefault(x =>
             x.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
-            && x.Id.Contains("cover", StringComparison.OrdinalIgnoreCase));
+            && (x.Id.Contains("cover", StringComparison.OrdinalIgnoreCase)
+                || x.Href.Contains("cover", StringComparison.OrdinalIgnoreCase)));
 
-        string? coverPath = null;
-        if (cover is not null)
+        var direct = ResolveManifestImage(archive, packageDirectory, preferred);
+        if (direct is not null) return direct;
+
+        var pageCandidates = new List<string>();
+        if (preferred is not null) pageCandidates.Add(preferred.Href);
+
+        var guideCover = opf.Descendants()
+            .FirstOrDefault(x => x.Name.LocalName == "reference"
+                && ((string?)x.Attribute("type"))?.Contains("cover", StringComparison.OrdinalIgnoreCase) == true)?
+            .Attribute("href")?.Value?.Trim();
+        if (!string.IsNullOrWhiteSpace(guideCover)) pageCandidates.Add(guideCover);
+
+        pageCandidates.AddRange(manifest
+            .Where(x => (x.MediaType.Contains("html", StringComparison.OrdinalIgnoreCase)
+                         || x.MediaType.Contains("svg", StringComparison.OrdinalIgnoreCase))
+                        && (x.Id.Contains("cover", StringComparison.OrdinalIgnoreCase)
+                            || x.Href.Contains("cover", StringComparison.OrdinalIgnoreCase)
+                            || x.Id.Contains("titlepage", StringComparison.OrdinalIgnoreCase)))
+            .Select(x => x.Href));
+
+        foreach (var href in pageCandidates.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var packageDirectory = Path.GetDirectoryName(packagePath)?.Replace('\\', '/') ?? string.Empty;
-            var logicalPath = EpubPath.Combine(packageDirectory, cover.Href);
-            var entry = TryGetArchiveEntry(archive, logicalPath);
-            if (entry is not null && entry.Length <= MaxCoverBytes)
-                coverPath = await WriteCoverAsync(book.Id, entry.Open(), cover.MediaType, Path.GetExtension(cover.Href), cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            var pagePath = EpubPath.Combine(packageDirectory, href);
+            var pageEntry = TryGetArchiveEntry(archive, pagePath);
+            if (pageEntry is null || pageEntry.Length <= 0 || pageEntry.Length > 4 * 1024 * 1024) continue;
+
+            string markup;
+            await using (var stream = pageEntry.Open())
+            using (var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: false))
+                markup = await reader.ReadToEndAsync(cancellationToken);
+
+            var match = CoverResourceRegex.Match(markup);
+            if (!match.Success) continue;
+            var resourceHref = match.Groups["path"].Value;
+            var pageDirectory = Path.GetDirectoryName(pagePath)?.Replace('\\', '/') ?? string.Empty;
+            var resourcePath = EpubPath.Combine(pageDirectory, resourceHref);
+            var resourceEntry = TryGetArchiveEntry(archive, resourcePath);
+            if (resourceEntry is null) continue;
+
+            var manifestItem = manifest.FirstOrDefault(x =>
+                string.Equals(EpubPath.Combine(packageDirectory, x.Href), resourcePath, StringComparison.OrdinalIgnoreCase));
+            var mediaType = manifestItem?.MediaType ?? GuessImageMediaType(resourcePath);
+            return new EpubCoverCandidate(resourceEntry, mediaType, Path.GetExtension(resourcePath));
         }
 
-        return new BookMetadataSnapshot(title, author, language, publisher, description, coverPath);
+        return null;
     }
+
+    private static EpubCoverCandidate? ResolveManifestImage(
+        ZipArchive archive,
+        string packageDirectory,
+        EpubManifestItem? item)
+    {
+        if (item is null || !item.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)) return null;
+        if (item.MediaType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase)) return null;
+        var logicalPath = EpubPath.Combine(packageDirectory, item.Href);
+        var entry = TryGetArchiveEntry(archive, logicalPath);
+        return entry is null ? null : new EpubCoverCandidate(entry, item.MediaType, Path.GetExtension(item.Href));
+    }
+
+    private static string GuessImageMediaType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".png" => "image/png",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        ".bmp" => "image/bmp",
+        _ => "application/octet-stream"
+    };
 
     private static async Task<BookMetadataSnapshot> ReadFb2Async(BookEntry book, CancellationToken cancellationToken)
     {
@@ -216,4 +299,5 @@ public static class BookMetadataService
     }
 
     private sealed record EpubManifestItem(string Id, string Href, string MediaType, string Properties);
+    private sealed record EpubCoverCandidate(ZipArchiveEntry Entry, string MediaType, string Extension);
 }

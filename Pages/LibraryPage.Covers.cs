@@ -9,11 +9,21 @@ namespace PageArc.Pages;
 
 public sealed partial class LibraryPage
 {
+    private readonly HashSet<string> _coverRefreshAttempts = new(StringComparer.Ordinal);
+
     private async void CoverImage_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Image { Tag: string id } image) return;
         var book = App.Library.FindById(id);
-        if (book is null || string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath))
+        if (book is null) return;
+
+        if ((string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath))
+            && _coverRefreshAttempts.Add(book.Id))
+        {
+            await TryRefreshStoredCoverAsync(book);
+        }
+
+        if (string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath))
         {
             image.Source = null;
             image.Opacity = 0;
@@ -35,10 +45,36 @@ public sealed partial class LibraryPage
         }
     }
 
+    private async Task TryRefreshStoredCoverAsync(BookEntry book)
+    {
+        var format = BookFormatRegistry.Normalize(book.Format);
+        if (format is not ("EPUB" or "FB2") || book.IsMissing || !File.Exists(book.FilePath)) return;
+        try
+        {
+            var metadata = await BookMetadataService.ReadAsync(book);
+            if (!string.IsNullOrWhiteSpace(metadata.Title)) book.Title = metadata.Title;
+            if (!string.IsNullOrWhiteSpace(metadata.Author)) book.Author = metadata.Author;
+            if (!string.IsNullOrWhiteSpace(metadata.Language)) book.Language = metadata.Language;
+            if (!string.IsNullOrWhiteSpace(metadata.Publisher)) book.Publisher = metadata.Publisher;
+            if (!string.IsNullOrWhiteSpace(metadata.Description)) book.Description = metadata.Description;
+            if (!string.IsNullOrWhiteSpace(metadata.CoverPath)) book.CoverPath = metadata.CoverPath;
+            App.Library.Save();
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log($"Cover refresh failed for existing library book '{book.FilePath}'.", ex);
+        }
+    }
+
     private async Task LoadDetailsCoverAsync(BookEntry book)
     {
         DetailsCoverImage.Source = null;
         DetailsCoverImage.Opacity = 0;
+        if ((string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath))
+            && _coverRefreshAttempts.Add(book.Id))
+        {
+            await TryRefreshStoredCoverAsync(book);
+        }
         if (string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath)) return;
         var expectedId = book.Id;
         try

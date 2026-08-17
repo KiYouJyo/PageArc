@@ -64,7 +64,10 @@ public sealed partial class CategoriesPage : Page
 
     private void CategoryCard_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: CategoryEntry category })
-            App.MainWindow?.OpenCategory(category.Name);
+        if (sender is not FrameworkElement element) return;
+        var name = element.Tag as string
+            ?? (element.DataContext as CategoryEntry)?.Name;
+        if (string.IsNullOrWhiteSpace(name)) return;
+        App.MainWindow?.OpenCategory(name);
     }
 }

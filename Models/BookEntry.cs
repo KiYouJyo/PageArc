@@ -32,7 +32,7 @@ public sealed class BookEntry
     public string ProgressText => $"{Math.Round(Progress * 100)}%";
 
     [JsonIgnore]
-    public string FavoriteGlyph => IsFavorite ? "★" : "☆";
+    public string FavoriteGlyph => IsFavorite ? "\uE735" : "\uE734";
 
     [JsonIgnore]
     public string DisplayFileSize => FileSize switch
@@ -48,10 +48,8 @@ public sealed class BookEntry
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(Title)) return "PA";
-            var chars = Title.Where(char.IsLetterOrDigit).Take(2).ToArray();
-            if (chars.Length == 0) return string.IsNullOrWhiteSpace(Format) ? "PA" : Format[..Math.Min(2, Format.Length)].ToUpperInvariant();
-            return new string(chars).ToUpperInvariant();
+            if (string.IsNullOrWhiteSpace(Title)) return "PageArc";
+            return Title.Trim();
         }
     }
 }
