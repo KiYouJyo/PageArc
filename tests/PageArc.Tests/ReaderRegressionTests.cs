@@ -52,21 +52,26 @@ public sealed class ReaderRegressionTests
     }
 
     [Fact]
-    public void BookmarkToolbarEntryOnlyOpensTheBookmarksPane()
+    public void BookmarkSidebarNavigationAndBookmarkCreationAreSeparateActions()
     {
         var root = FindRepoRoot();
-        var figmaCode = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.Figma.cs"));
+        var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
+        var tabbedCode = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.Tabbed.cs"));
 
-        Assert.Contains("BookmarkButton.Click -= Bookmark_Click", figmaCode, StringComparison.Ordinal);
-        Assert.Contains("BookmarkButton.Click += OpenBookmarksPane_Click", figmaCode, StringComparison.Ordinal);
-        Assert.Contains("ShowSidebar(ReaderSidebarMode.Bookmarks)", figmaCode, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"BookmarksModeButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Tag=\"bookmarks\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"AddCurrentBookmarkButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"AddCurrentBookmark_Click\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Name=\"BookmarkButton\"", xaml, StringComparison.Ordinal);
 
-        var start = figmaCode.IndexOf("private void OpenBookmarksPane_Click", StringComparison.Ordinal);
-        Assert.True(start >= 0);
-        var end = figmaCode.IndexOf("private async void ReaderRootGrid_ActualThemeChanged", start, StringComparison.Ordinal);
-        Assert.True(end > start);
-        var handler = figmaCode[start..end];
-        Assert.DoesNotContain("ToggleBookmark", handler, StringComparison.Ordinal);
+        var modeStart = tabbedCode.IndexOf("private void SidebarModeButton_Click", StringComparison.Ordinal);
+        var modeEnd = tabbedCode.IndexOf("private void ShowUnifiedSidebar", modeStart, StringComparison.Ordinal);
+        Assert.True(modeStart >= 0 && modeEnd > modeStart);
+        Assert.DoesNotContain("ToggleBookmark", tabbedCode[modeStart..modeEnd], StringComparison.Ordinal);
+
+        var addStart = tabbedCode.IndexOf("private void AddCurrentBookmark_Click", StringComparison.Ordinal);
+        Assert.True(addStart >= 0);
+        Assert.Contains("ToggleBookmark", tabbedCode[addStart..], StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()
