@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.9.0] - 2026-08-17
+
+### Added
+- Canonical 19-screen PAGEARC Figma functional contract and repository audit mapping every planned surface to its implementation owner.
+- Cross-feature regression coverage spanning PageArc deep-link activation, the complete five-format conversion matrix, reading annotations/bookmarks and reading-data backup.
+- Concrete About-page third-party license information for bundled foliate-js/fflate and the optional external calibre boundary.
+- Central helper for runtime-created Simplified Chinese / Japanese / English copy using the effective UI language.
+- Signed x64 functional acceptance covering tests, Debug/Release builds, package signing/install, file/protocol registration, launch, import routing and single-instance activation.
+
+### Changed
+- About continues to report the running assembly version and check GitHub Releases on demand, with placeholder license copy replaced by actual dependency information.
+- The packaged application version is now 0.9.0.
+- Cosmetic/experience polish that does not block planned feature functionality remains intentionally deferred to a later Figma-driven pass.
+
+## [0.8.0] - 2026-08-17
+
+### Added
+- Complete Figma Settings control wiring for Windows accent source, page width, default library sort, recent books, watched folders and duplicate detection.
+- Versioned JSON reading-data backup containing bookmarks, highlights/notes and per-book progress/section location.
+- Safe generated-cache maintenance that preserves library, settings and reading-data records while invalidating cached cover paths.
+- Category persistence regression coverage and isolated persistence paths for tests.
+
+### Changed
+- Settings values persist through the shared settings service and duplicate detection is applied immediately to the active library service.
+- The packaged application version is now 0.8.0.
+
+## [0.7.0] - 2026-08-17
+
+### Added
+- Complete Figma reader-settings contract: font family, page width, reading-progress visibility and restore defaults in addition to the existing theme/size/spacing/continuous controls.
+- Selected-text highlight and note capture through the existing reader tool surface.
+- Persistent saved-highlight rendering and annotation navigation using the common flow locator contract.
+- Reader setting and annotation persistence regression coverage.
+
+### Changed
+- Reader settings now apply immediately without reopening the ebook.
+- The packaged application version is now 0.7.0.
+
+## [0.6.1] - 2026-08-17
+
+### Fixed
+- Multi-book library/category layout regressions, cover discovery/fallback presentation, Follow-system runtime localization and category navigation.
+- Book-details/import surfaces that allowed underlying content to bleed through.
+- MOBI/AZW3/LIT calibre normalization now writes and validates a unique temporary EPUB before atomically publishing the normalized cache entry.
+- Raw conversion/provider tracebacks are logged while the reader shows compact localized failures.
+
+### Notes
+- v0.6.1 became the functional baseline for v0.7-v0.9; remaining visual/experience polish was deliberately deferred.
+
 ## [0.6.0] - 2026-08-16
 
 ### Added
