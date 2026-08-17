@@ -14,10 +14,11 @@ public sealed partial class ReaderPage
 
     private void ReaderPage_FigmaLoaded(object sender, RoutedEventArgs e)
     {
-        // This handler is registered from XAML before ReaderPage_Loaded is subscribed in the
-        // constructor, so the inherited app theme is synchronized before the WebView style is read.
+        // Figma 16:156 / 44:2: the window owns navigation tabs; the reader owns only
+        // its local sidebar, document controls and reading surface.
         SyncFollowAppReaderTheme();
         InitializeFigmaReaderControls();
+        InitializeTabbedReaderChrome();
         ReaderPage_NotesLoaded(sender, e);
 
         if (!_figmaThemeHooked)
@@ -48,13 +49,6 @@ public sealed partial class ReaderPage
             _figmaReaderControlsReady = true;
         }
 
-        // The top-level bookmark entry is navigation only. Bookmark creation is a distinct
-        // content action and must never be coupled to merely opening the bookmarks pane.
-        BookmarkButton.Click -= Bookmark_Click;
-        BookmarkButton.Click -= OpenBookmarksPane_Click;
-        BookmarkButton.Click += OpenBookmarksPane_Click;
-
-        BookmarkToolText.Text = ReaderText("书签", "しおり", "Bookmark");
         ReaderFontLabel.Text = ReaderText("字体", "フォント", "Font");
         ThemeLightText.Text = ReaderText("浅色", "ライト", "Light");
         ThemeSepiaText.Text = ReaderText("米黄色", "セピア", "Sepia");
@@ -77,14 +71,9 @@ public sealed partial class ReaderPage
         ApplyProgressVisibility();
     }
 
-    private void OpenBookmarksPane_Click(object sender, RoutedEventArgs e)
-    {
-        RefreshBookmarks();
-        ShowSidebar(ReaderSidebarMode.Bookmarks);
-    }
-
     private async void ReaderRootGrid_ActualThemeChanged(FrameworkElement sender, object args)
     {
+        UpdateUnifiedSidebarVisuals();
         if (!App.Settings.Current.ReadingThemeFollowsApp) return;
         SyncFollowAppReaderTheme();
 
