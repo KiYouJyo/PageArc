@@ -17,9 +17,9 @@
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00FFFFFF"/>
                     <SolidColorBrush x:Key="PageArcPaneBrush" Color="#F3F3F3"/>
                     <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00FFFFFF"/>
-                    <!-- Reader tokens follow PAGEARC Figma nodes 16:156 / 16:227. -->
-                    <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="#ADFFFFFF"/>
-                    <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="#F5F9F9F9"/>
+                    <!-- Reader chrome follows the title-bar tone; only the document surface follows the reading theme. -->
+                    <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="#FFF6F6F6"/>
+                    <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="#FFF6F6F6"/>
                     <SolidColorBrush x:Key="PageArcReaderAreaBrush" Color="#FFF3F3F3"/>
                     <SolidColorBrush x:Key="PageArcReaderPageBrush" Color="#F5FFFFFF"/>
                     <SolidColorBrush x:Key="PageArcReaderFlyoutBrush" Color="#F7FBFBFB"/>
@@ -35,8 +35,8 @@
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00000000"/>
                     <SolidColorBrush x:Key="PageArcPaneBrush" Color="#202020"/>
                     <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00000000"/>
-                    <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="#B31F1F1F"/>
-                    <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="#F51F1F1F"/>
+                    <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="#FF202020"/>
+                    <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="#FF202020"/>
                     <SolidColorBrush x:Key="PageArcReaderAreaBrush" Color="#FF202020"/>
                     <SolidColorBrush x:Key="PageArcReaderPageBrush" Color="#FA1F1F1F"/>
                     <SolidColorBrush x:Key="PageArcReaderFlyoutBrush" Color="#F72B2B2B"/>
