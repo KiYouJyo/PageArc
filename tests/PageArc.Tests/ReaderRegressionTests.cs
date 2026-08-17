@@ -51,6 +51,24 @@ public sealed class ReaderRegressionTests
         Assert.DoesNotContain("new MainWindow", settingsCode, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BookmarkToolbarEntryOnlyOpensTheBookmarksPane()
+    {
+        var root = FindRepoRoot();
+        var figmaCode = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.Figma.cs"));
+
+        Assert.Contains("BookmarkButton.Click -= Bookmark_Click", figmaCode, StringComparison.Ordinal);
+        Assert.Contains("BookmarkButton.Click += OpenBookmarksPane_Click", figmaCode, StringComparison.Ordinal);
+        Assert.Contains("ShowSidebar(ReaderSidebarMode.Bookmarks)", figmaCode, StringComparison.Ordinal);
+
+        var start = figmaCode.IndexOf("private void OpenBookmarksPane_Click", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var end = figmaCode.IndexOf("private async void ReaderRootGrid_ActualThemeChanged", start, StringComparison.Ordinal);
+        Assert.True(end > start);
+        var handler = figmaCode[start..end];
+        Assert.DoesNotContain("ToggleBookmark", handler, StringComparison.Ordinal);
+    }
+
     private static string FindRepoRoot()
     {
         string? current = AppContext.BaseDirectory;
