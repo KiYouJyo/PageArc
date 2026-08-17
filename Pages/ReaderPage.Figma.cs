@@ -48,6 +48,12 @@ public sealed partial class ReaderPage
             _figmaReaderControlsReady = true;
         }
 
+        // The top-level bookmark entry is navigation only. Bookmark creation is a distinct
+        // content action and must never be coupled to merely opening the bookmarks pane.
+        BookmarkButton.Click -= Bookmark_Click;
+        BookmarkButton.Click -= OpenBookmarksPane_Click;
+        BookmarkButton.Click += OpenBookmarksPane_Click;
+
         BookmarkToolText.Text = ReaderText("书签", "しおり", "Bookmark");
         ReaderFontLabel.Text = ReaderText("字体", "フォント", "Font");
         ThemeLightText.Text = ReaderText("浅色", "ライト", "Light");
@@ -69,6 +75,12 @@ public sealed partial class ReaderPage
         ApplyFigmaReaderPageGeometry();
         ApplyFigmaReaderSurfaceTheme();
         ApplyProgressVisibility();
+    }
+
+    private void OpenBookmarksPane_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshBookmarks();
+        ShowSidebar(ReaderSidebarMode.Bookmarks);
     }
 
     private async void ReaderRootGrid_ActualThemeChanged(FrameworkElement sender, object args)
