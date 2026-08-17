@@ -38,11 +38,14 @@
                     <ToggleButton x:Name="FilterFavorites" x:Uid="Filter_Favorites" Tag="favorites" Click="Filter_Click"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                    <ComboBox x:Name="SortComboBox" Width="140" SelectedIndex="0" SelectionChanged="SortComboBox_SelectionChanged">
+                    <ComboBox x:Name="SortComboBox" Width="140" Height="32" SelectedIndex="0" SelectionChanged="SortComboBox_SelectionChanged">
                         <ComboBoxItem x:Uid="Sort_Recent"/><ComboBoxItem x:Uid="Sort_Title"/>
                     </ComboBox>
-                    <Button x:Uid="View_Grid">
-                        <StackPanel Orientation="Horizontal" Spacing="6"><SymbolIcon Symbol="ViewAll"/><TextBlock x:Uid="View_GridText"/></StackPanel>
+                    <Button x:Name="ViewModeButton" Width="88" Height="32" Click="ViewModeButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <SymbolIcon x:Name="ViewModeIcon" Symbol="ViewAll"/>
+                            <TextBlock x:Name="ViewModeText"/>
+                        </StackPanel>
                     </Button>
                 </StackPanel>
             </Grid>
@@ -62,48 +65,90 @@
             </StackPanel>
 
             <ScrollViewer x:Name="BooksScrollViewer" Visibility="Collapsed" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-                <ItemsRepeater x:Name="BooksRepeater">
-                    <ItemsRepeater.Layout>
-                        <UniformGridLayout MinItemWidth="240" MinItemHeight="300" MinColumnSpacing="26" MinRowSpacing="24" MaximumRowsOrColumns="4" ItemsStretch="None" ItemsJustification="Start" Orientation="Horizontal"/>
-                    </ItemsRepeater.Layout>
-                    <ItemsRepeater.ItemTemplate>
-                        <DataTemplate x:DataType="models:BookEntry">
-                            <Grid Width="240" Height="300" Tag="{x:Bind Id}" RightTapped="BookCard_RightTapped">
-                                <Button Tag="{x:Bind Id}" Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
-                                    <Border Style="{StaticResource PageArcCardStyle}" Padding="12" Width="240" Height="300">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="196"/>
-                                                <RowDefinition Height="36"/>
-                                                <RowDefinition Height="24"/>
-                                                <RowDefinition Height="20"/>
-                                            </Grid.RowDefinitions>
-                                            <Border Background="#245A99" CornerRadius="5" Clip="{x:Null}">
-                                                <Grid>
-                                                    <Border Width="7" HorizontalAlignment="Left" Background="#30FFFFFF"/>
-                                                    <StackPanel Margin="18,18,16,18" VerticalAlignment="Top">
-                                                        <TextBlock Text="{x:Bind CoverMonogram}" FontSize="22" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="4" LineHeight="29"/>
-                                                        <Rectangle Height="2" Width="112" Margin="0,10,0,0" HorizontalAlignment="Left" Fill="#70FFFFFF"/>
-                                                    </StackPanel>
-                                                    <Image Tag="{x:Bind Id}" Loaded="CoverImage_Loaded" Stretch="UniformToFill" Opacity="0"/>
+                <Grid>
+                    <ItemsRepeater x:Name="BooksGridRepeater">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout MinItemWidth="258" MinItemHeight="300" MinColumnSpacing="26" MinRowSpacing="24" MaximumRowsOrColumns="4" ItemsStretch="Fill" ItemsJustification="Start" Orientation="Horizontal"/>
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="models:BookEntry">
+                                <Grid MinWidth="258" Height="300" Tag="{x:Bind Id}" RightTapped="BookCard_RightTapped" HorizontalAlignment="Stretch">
+                                    <Button Tag="{x:Bind Id}" Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
+                                        <Border Style="{StaticResource PageArcCardStyle}" Padding="12" Height="300" HorizontalAlignment="Stretch">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="196"/>
+                                                    <RowDefinition Height="36"/>
+                                                    <RowDefinition Height="24"/>
+                                                    <RowDefinition Height="20"/>
+                                                </Grid.RowDefinitions>
+                                                <Border Background="#245A99" CornerRadius="5" Clip="{x:Null}" HorizontalAlignment="Stretch">
+                                                    <Grid>
+                                                        <Border Width="7" HorizontalAlignment="Left" Background="#30FFFFFF"/>
+                                                        <StackPanel Margin="18,18,16,18" VerticalAlignment="Top">
+                                                            <TextBlock Text="{x:Bind CoverMonogram}" FontSize="22" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="4" LineHeight="29"/>
+                                                            <Rectangle Height="2" Width="112" Margin="0,10,0,0" HorizontalAlignment="Left" Fill="#70FFFFFF"/>
+                                                        </StackPanel>
+                                                        <Image Tag="{x:Bind Id}" Loaded="CoverImage_Loaded" Stretch="UniformToFill" Opacity="0"/>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Grid.Row="1" Text="{x:Bind Title}" Margin="0,8,0,0" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Top"/>
+                                                <TextBlock Grid.Row="2" Text="{x:Bind DisplayAuthor}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"/>
+                                                <Grid Grid.Row="3">
+                                                    <ProgressBar Value="{x:Bind Progress}" Maximum="1" Height="3" Margin="0,0,42,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{x:Bind ProgressText}" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                                 </Grid>
-                                            </Border>
-                                            <TextBlock Grid.Row="1" Text="{x:Bind Title}" Margin="0,8,0,0" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Top"/>
-                                            <TextBlock Grid.Row="2" Text="{x:Bind DisplayAuthor}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"/>
-                                            <Grid Grid.Row="3">
-                                                <ProgressBar Value="{x:Bind Progress}" Maximum="1" Height="3" Margin="0,0,42,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{x:Bind ProgressText}" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                             </Grid>
-                                        </Grid>
-                                    </Border>
-                                </Button>
-                                <Button Tag="{x:Bind Id}" Click="Favorite_Click" Width="30" Height="30" Padding="0" Margin="0,12,12,0" HorizontalAlignment="Right" VerticalAlignment="Top" Background="{ThemeResource SubtleFillColorSecondaryBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6" Foreground="{ThemeResource TextFillColorPrimaryBrush}">
-                                    <FontIcon Glyph="{x:Bind FavoriteGlyph}" FontSize="14"/>
-                                </Button>
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsRepeater.ItemTemplate>
-                </ItemsRepeater>
+                                        </Border>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+
+                    <ItemsRepeater x:Name="BooksListRepeater" Visibility="Collapsed">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="8"/>
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="models:BookEntry">
+                                <Grid Height="104" Tag="{x:Bind Id}" RightTapped="BookCard_RightTapped" HorizontalAlignment="Stretch">
+                                    <Button Tag="{x:Bind Id}" Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
+                                        <Border Style="{StaticResource PageArcCardStyle}" Padding="12" Height="104" HorizontalAlignment="Stretch">
+                                            <Grid ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="96"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="220"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Background="#245A99" CornerRadius="5">
+                                                    <Grid>
+                                                        <Border Width="7" HorizontalAlignment="Left" Background="#30FFFFFF"/>
+                                                        <StackPanel Margin="14,12,10,10" VerticalAlignment="Top">
+                                                            <TextBlock Text="{x:Bind CoverMonogram}" FontSize="16" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" LineHeight="20"/>
+                                                            <Rectangle Height="2" Width="54" Margin="0,7,0,0" HorizontalAlignment="Left" Fill="#70FFFFFF"/>
+                                                        </StackPanel>
+                                                        <Image Tag="{x:Bind Id}" Loaded="CoverImage_Loaded" Stretch="UniformToFill" Opacity="0"/>
+                                                    </Grid>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                                                    <TextBlock Text="{x:Bind Title}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                                                    <TextBlock Text="{x:Bind DisplayAuthor}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                                                    <TextBlock Text="{x:Bind Format}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                </StackPanel>
+                                                <Grid Grid.Column="2" VerticalAlignment="Center">
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="14"/></Grid.RowDefinitions>
+                                                    <TextBlock Text="{x:Bind ProgressText}" FontSize="12" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    <ProgressBar Grid.Row="1" Value="{x:Bind Progress}" Maximum="1" Height="3" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </Grid>
             </ScrollViewer>
         </Grid>
 
