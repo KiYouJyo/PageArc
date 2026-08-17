@@ -4,6 +4,7 @@ public sealed class AppSettings
 {
     public string Language { get; set; } = "system";
     public string AppTheme { get; set; } = "system";
+    public string AccentSource { get; set; } = "windows";
     public string ReadingTheme { get; set; } = "light";
     public string DefaultFont { get; set; } = "book";
     public double FontScale { get; set; } = 1.0;
