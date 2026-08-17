@@ -16,6 +16,7 @@
     <Compile Include="../../Models/AppSettings.cs" Link="Models/AppSettings.cs" />
     <Compile Include="../../Models/BookEntry.cs" Link="Models/BookEntry.cs" />
     <Compile Include="../../Models/BookMetadataSnapshot.cs" Link="Models/BookMetadataSnapshot.cs" />
+    <Compile Include="../../Models/CategoryEntry.cs" Link="Models/CategoryEntry.cs" />
     <Compile Include="../../Models/LibraryImportModels.cs" Link="Models/LibraryImportModels.cs" />
     <Compile Include="../../Models/ImportFolderEntry.cs" Link="Models/ImportFolderEntry.cs" />
     <Compile Include="../../Models/AppActivationRequest.cs" Link="Models/AppActivationRequest.cs" />
