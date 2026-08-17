@@ -1,3 +1,4 @@
+using System.Globalization;
 using PageArc.Models;
 
 namespace PageArc.Services;
@@ -47,9 +48,11 @@ public sealed class FlowReaderEngine
             {
                 return await adapter.OpenAsync(book, cancellationToken);
             }
-            catch (DrmProtectedEbookException)
+            catch (DrmProtectedEbookException ex)
             {
-                throw;
+                throw new DrmProtectedEbookException(
+                    EbookOpenErrorFormatter.Format(ex, CultureInfo.CurrentUICulture.Name),
+                    ex);
             }
             catch (OperationCanceledException)
             {
@@ -62,7 +65,13 @@ public sealed class FlowReaderEngine
             }
         }
 
-        throw lastFailure ?? new InvalidDataException($"Unable to open {book.Format} with the registered flow adapters.");
+        if (lastFailure is not null)
+        {
+            throw new InvalidDataException(
+                EbookOpenErrorFormatter.Format(lastFailure, CultureInfo.CurrentUICulture.Name),
+                lastFailure);
+        }
+        throw new InvalidDataException($"Unable to open {book.Format} with the registered flow adapters.");
     }
 
     private static IEnumerable<IFlowBookAdapter> CreateDefaultAdapters()
