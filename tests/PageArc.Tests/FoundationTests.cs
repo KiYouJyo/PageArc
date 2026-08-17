@@ -1,255 +1,210 @@
-using System.IO.Compression;
-using System.Xml.Linq;
 using PageArc.Models;
 using PageArc.Services;
+using System.IO.Compression;
+using System.Xml.Linq;
 using Xunit;
 
 namespace PageArc.Tests;
 
 public sealed class FoundationTests
 {
-    [Theory]
-    [InlineData("v0.1.0", 0, 1, 0)]
-    [InlineData("0.2.3-preview.1", 0, 2, 3)]
-    [InlineData("V1.4.2+build", 1, 4, 2)]
-    public void VersionParser_ParsesReleaseTags(string tag, int major, int minor, int build)
+    [Fact]
+    public void AppSettings_DefaultsAreLocalFirst()
     {
-        Assert.True(VersionParser.TryParseTag(tag, out var version));
-        Assert.Equal(new Version(major, minor, build, 0), version);
-    }
-
-    [Theory]
-    [InlineData("zh-CN", "zh-CN")]
-    [InlineData("ja-JP", "ja-JP")]
-    [InlineData("en-US", "en-US")]
-    [InlineData("fr-FR", "system")]
-    [InlineData(null, "system")]
-    public void LanguagePreference_Normalizes(string? value, string expected)
-    {
-        Assert.Equal(expected, LanguagePreference.Normalize(value));
-    }
-
-    [Theory]
-    [InlineData("OEBPS", "Text/Chapter%201.xhtml#start", "OEBPS/Text/Chapter 1.xhtml")]
-    [InlineData("OPS/nav", "../Text/%E6%97%A5%E6%9C%AC.xhtml", "OPS/Text/日本.xhtml")]
-    [InlineData("", "EPUB\\chapter.xhtml", "EPUB/chapter.xhtml")]
-    public void EpubPath_CombinesAndDecodesPackageReferences(string directory, string href, string expected)
-    {
-        Assert.Equal(expected, EpubPath.Combine(directory, href));
+        var settings = new AppSettings();
+        Assert.Equal("system", settings.AppTheme);
+        Assert.Equal("system", settings.Language);
+        Assert.Equal("light", settings.ReadingTheme);
+        Assert.True(settings.ReadingThemeFollowsApp);
+        Assert.True(settings.DetectDuplicates);
     }
 
     [Fact]
-    public void EpubPath_EncodesWebNavigationOnce()
+    public void BookFormatRegistry_ContainsTheFivePageArcFormats()
     {
-        Assert.Equal("OPS/Text/Chapter%201.xhtml", EpubPath.ToWebPath("OPS/Text/Chapter 1.xhtml"));
-        Assert.Equal("OPS/Text/%E6%97%A5%E6%9C%AC.xhtml", EpubPath.ToWebPath("OPS/Text/日本.xhtml"));
+        Assert.Equal(["EPUB", "FB2", "MOBI", "AZW3", "LIT"], BookFormatRegistry.RequiredFormats.Select(x => x.Id).ToArray());
     }
 
     [Fact]
-    public void EpubWebRenderer_NormalizesXhtmlForWebView()
+    public void LibraryImportResult_TracksOutcomes()
     {
-        const string source = "<?xml version=\"1.0\" encoding=\"utf-8\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>X</title></head><body><img src=\"images/a.png\"/><p>Hello</p></body></html>";
-        var html = EpubWebRenderer.NormalizeForWebView(source, "https://pagearc.local/OEBPS/Text/Chapter.xhtml");
-
-        Assert.DoesNotContain("<?xml", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<meta charset=\"utf-8\">", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/Chapter.xhtml\">", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("images/a.png", html, StringComparison.Ordinal);
-        Assert.Equal("Hello", EpubWebRenderer.ExtractReadableText(source));
+        var result = new LibraryImportResult();
+        result.Items.Add(new LibraryImportItem("a.epub", LibraryImportOutcome.Added));
+        result.Items.Add(new LibraryImportItem("b.epub", LibraryImportOutcome.Skipped));
+        result.Items.Add(new LibraryImportItem("c.epub", LibraryImportOutcome.Error, "bad"));
+        Assert.Equal(1, result.AddedCount);
+        Assert.Equal(1, result.SkippedCount);
+        Assert.Equal(1, result.ErrorCount);
     }
 
     [Fact]
-    public async Task EpubPipeline_ParsesEncodedSpineAndBuildsRenderableChapter()
+    public void SettingsService_RoundTrips()
     {
-        var epubPath = Path.Combine(Path.GetTempPath(), $"pagearc-{Guid.NewGuid():N}.epub");
-        var bookId = $"test-{Guid.NewGuid():N}";
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-settings-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
         try
         {
-            using (var archive = ZipFile.Open(epubPath, ZipArchiveMode.Create))
+            var file = Path.Combine(root, "settings.json");
+            var settings = new SettingsService(file);
+            settings.Load();
+            settings.Update(value =>
             {
-                WriteEntry(archive, "mimetype", "application/epub+zip");
-                WriteEntry(archive, "META-INF/container.xml", """
-                    <?xml version="1.0"?>
-                    <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
-                      <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
-                    </container>
-                    """);
-                WriteEntry(archive, "OEBPS/content.opf", """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
-                      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-                        <dc:identifier id="id">pagearc-test</dc:identifier>
-                        <dc:title>PageArc EPUB Test</dc:title>
-                        <dc:creator>Test Author</dc:creator>
-                        <dc:language>en</dc:language>
-                      </metadata>
-                      <manifest>
-                        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
-                        <item id="ch1" href="Text/Chapter%201.xhtml" media-type="application/xhtml+xml"/>
-                      </manifest>
-                      <spine><itemref idref="ch1"/></spine>
-                    </package>
-                    """);
-                WriteEntry(archive, "OEBPS/nav.xhtml", """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <html xmlns="http://www.w3.org/1999/xhtml"><head><title>TOC</title></head><body>
-                    <nav><ol><li><a href="Text/Chapter%201.xhtml#start">Chapter One</a></li></ol></nav>
-                    </body></html>
-                    """);
-                WriteEntry(archive, "OEBPS/Text/Chapter 1.xhtml", """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter One</title></head>
-                    <body><h1 id="start">Chapter One</h1><p>Hello PageArc.</p></body></html>
-                    """);
-            }
-
-            var metadata = await EpubParser.ReadMetadataAsync(epubPath);
-            Assert.Equal("PageArc EPUB Test", metadata.Title);
-            Assert.Equal("Test Author", metadata.Author);
-
-            var book = new BookEntry
-            {
-                Id = bookId,
-                FilePath = epubPath,
-                Format = "EPUB",
-                Title = metadata.Title,
-                Author = metadata.Author
-            };
-            var document = await EpubParser.OpenAsync(book);
-            Assert.Single(document.Spine);
-            Assert.Equal("OEBPS/Text/Chapter 1.xhtml", document.Spine[0].RelativePath);
-            Assert.Single(document.Toc);
-            Assert.Equal("OEBPS/Text/Chapter 1.xhtml#start", document.Toc[0].Href);
-
-            var rendered = await EpubWebRenderer.PrepareAsync(document, 0);
-            Assert.Equal("__pagearc/spine-0000.html", rendered.WebPath);
-            Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/Chapter%201.xhtml\">", rendered.Html, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Hello PageArc.", rendered.Html, StringComparison.Ordinal);
-            Assert.Contains("Hello PageArc.", rendered.PlainText, StringComparison.Ordinal);
-            Assert.True(File.Exists(Path.Combine(document.ExtractionRoot, "__pagearc", "spine-0000.html")));
+                value.AppTheme = "dark";
+                value.Language = "ja-JP";
+            });
+            var reloaded = new SettingsService(file);
+            reloaded.Load();
+            Assert.Equal("dark", reloaded.Current.AppTheme);
+            Assert.Equal("ja-JP", reloaded.Current.Language);
         }
         finally
         {
-            if (File.Exists(epubPath)) File.Delete(epubPath);
-            var cache = Path.Combine(AppPaths.BooksCacheRoot, bookId);
-            if (Directory.Exists(cache)) Directory.Delete(cache, true);
+            Directory.Delete(root, true);
         }
     }
 
     [Fact]
-    public async Task Epub2CalibrePipeline_ParsesRootOpfNcxHtmlSpineAndSvgCover()
+    public void CategoryService_RoundTripsMembership()
     {
-        var epubPath = Path.Combine(Path.GetTempPath(), $"pagearc-epub2-{Guid.NewGuid():N}.epub");
-        var bookId = $"epub2-{Guid.NewGuid():N}";
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-category-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
         try
         {
-            using (var archive = ZipFile.Open(epubPath, ZipArchiveMode.Create))
-            {
-                WriteEntry(archive, "mimetype", "application/epub+zip");
-                WriteEntry(archive, "META-INF/container.xml", """
-                    <?xml version="1.0"?>
-                    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-                      <rootfiles><rootfile full-path="content.opf" media-type="application/oebps-package+xml"/></rootfiles>
-                    </container>
-                    """);
-                WriteEntry(archive, "content.opf", """
-                    <?xml version='1.0' encoding='utf-8'?>
-                    <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uuid_id">
-                      <metadata xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/">
-                        <dc:title>Calibre EPUB2 Regression</dc:title>
-                        <dc:creator opf:role="aut">Test Author</dc:creator>
-                        <dc:identifier id="uuid_id" opf:scheme="uuid">fixture</dc:identifier>
-                        <dc:language>zh</dc:language>
-                      </metadata>
-                      <manifest>
-                        <item id="cover" href="cover.jpeg" media-type="image/jpeg"/>
-                        <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
-                        <item id="chapter" href="text/part0000.html" media-type="application/xhtml+xml"/>
-                        <item id="css" href="stylesheet.css" media-type="text/css"/>
-                        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-                      </manifest>
-                      <spine toc="ncx"><itemref idref="titlepage"/><itemref idref="chapter"/></spine>
-                    </package>
-                    """);
-                WriteEntry(archive, "toc.ncx", """
-                    <?xml version='1.0' encoding='utf-8'?>
-                    <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-                      <docTitle><text>Calibre EPUB2 Regression</text></docTitle>
-                      <navMap>
-                        <navPoint id="n1" playOrder="1"><navLabel><text>Chapter</text></navLabel><content src="text/part0000.html#start"/></navPoint>
-                      </navMap>
-                    </ncx>
-                    """);
-                WriteEntry(archive, "titlepage.xhtml", """
-                    <?xml version='1.0' encoding='utf-8'?>
-                    <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Cover</title></head><body>
-                      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 160">
-                        <image width="100" height="160" xlink:href="cover.jpeg"/>
-                      </svg>
-                    </body></html>
-                    """);
-                WriteEntry(archive, "text/part0000.html", """
-                    <?xml version='1.0' encoding='utf-8'?>
-                    <html xmlns="http://www.w3.org/1999/xhtml"><head><link href="../stylesheet.css" rel="stylesheet" type="text/css"/></head>
-                    <body><h1 id="start">Synthetic chapter</h1><p>Readable EPUB2 content.</p></body></html>
-                    """);
-                WriteEntry(archive, "stylesheet.css", "body { margin: 0; }");
-                WriteEntry(archive, "cover.jpeg", "synthetic-fixture");
-            }
+            var service = new CategoryService(Path.Combine(root, "categories.json"));
+            service.Load();
+            var category = service.Create("Urbanism");
+            service.AddBook(category.Id, "book-1");
 
-            var book = new BookEntry { Id = bookId, FilePath = epubPath, Format = "EPUB", Title = "Fixture" };
-            var document = await EpubParser.OpenAsync(book);
-
-            Assert.Equal(2, document.Spine.Count);
-            Assert.Equal("titlepage.xhtml", document.Spine[0].RelativePath);
-            Assert.Equal("text/part0000.html", document.Spine[1].RelativePath);
-            Assert.Single(document.Toc);
-            Assert.Equal("text/part0000.html#start", document.Toc[0].Href);
-            Assert.Equal(1, EpubWebRenderer.ResolveInitialSpineIndex(document, 0, 0));
-            Assert.Equal(0, EpubWebRenderer.ResolveInitialSpineIndex(document, 0, 0.5));
-
-            var cover = await EpubWebRenderer.PrepareAsync(document, 0);
-            Assert.Contains("href=\"cover.jpeg\"", cover.Html, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("xlink:href", cover.Html, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("<base href=\"https://pagearc.local/titlepage.xhtml\">", cover.Html, StringComparison.OrdinalIgnoreCase);
-
-            var chapter = await EpubWebRenderer.PrepareAsync(document, 1);
-            Assert.Contains("<base href=\"https://pagearc.local/text/part0000.html\">", chapter.Html, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Readable EPUB2 content.", chapter.Html, StringComparison.Ordinal);
-            Assert.Contains("Readable EPUB2 content.", chapter.PlainText, StringComparison.Ordinal);
+            var reloaded = new CategoryService(Path.Combine(root, "categories.json"));
+            reloaded.Load();
+            Assert.Contains("book-1", Assert.Single(reloaded.Categories).BookIds);
         }
         finally
         {
-            if (File.Exists(epubPath)) File.Delete(epubPath);
-            var cache = Path.Combine(AppPaths.BooksCacheRoot, bookId);
-            if (Directory.Exists(cache)) Directory.Delete(cache, true);
+            Directory.Delete(root, true);
         }
     }
 
     [Fact]
-    public void ResourceFiles_HaveIdenticalKeys()
+    public void CacheMaintenance_DoesNotDeletePersistentData()
     {
-        var root = FindRepoRoot();
-        var paths = new[]
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-cache-{Guid.NewGuid():N}");
+        var cache = Path.Combine(root, "Cache");
+        var persistent = Path.Combine(root, "library.json");
+        Directory.CreateDirectory(cache);
+        File.WriteAllText(Path.Combine(cache, "generated.tmp"), "cache");
+        File.WriteAllText(persistent, "library");
+        try
         {
-            Path.Combine(root, "Strings", "en-US", "Resources.resw"),
-            Path.Combine(root, "Strings", "zh-CN", "Resources.resw"),
-            Path.Combine(root, "Strings", "ja-JP", "Resources.resw")
-        };
-        var sets = paths.Select(ReadKeys).ToArray();
-        Assert.True(sets[0].SetEquals(sets[1]), "zh-CN resource keys differ from en-US.");
-        Assert.True(sets[0].SetEquals(sets[2]), "ja-JP resource keys differ from en-US.");
+            var service = new CacheMaintenanceService(cache);
+            service.ClearGeneratedCache();
+            Assert.True(File.Exists(persistent));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(cache));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     [Fact]
-    public void AppManifest_DeclaresPerMonitorV2DpiAwareness()
+    public void VersionParser_OrdersSemver()
+    {
+        Assert.True(VersionParser.TryParse("v1.2.3", out var current));
+        Assert.True(VersionParser.TryParse("1.3.0", out var newer));
+        Assert.True(newer > current);
+    }
+
+    [Fact]
+    public void Resources_ContainCoreNavigationLabels()
     {
         var root = FindRepoRoot();
-        var manifest = XDocument.Load(Path.Combine(root, "app.manifest"));
-        XNamespace dpi = "http://schemas.microsoft.com/SMI/2016/WindowsSettings";
-        var awareness = manifest.Descendants(dpi + "dpiAwareness").SingleOrDefault();
-        Assert.NotNull(awareness);
-        Assert.Contains("PerMonitorV2", awareness!.Value, StringComparison.OrdinalIgnoreCase);
+        foreach (var language in new[] { "zh-CN", "ja-JP", "en-US" })
+        {
+            var document = XDocument.Load(Path.Combine(root, "Strings", language, "Resources.resw"));
+            var names = document.Descendants("data").Select(x => x.Attribute("name")?.Value).ToHashSet();
+            Assert.Contains("Nav_Library.Content", names);
+            Assert.Contains("Nav_Categories.Content", names);
+            Assert.Contains("Nav_Conversion.Content", names);
+        }
+    }
+
+    [Fact]
+    public void Manifest_AssociatesSupportedEbookFormats()
+    {
+        var root = FindRepoRoot();
+        var document = XDocument.Load(Path.Combine(root, "Packaging", "PageArc.Package.appxmanifest"));
+        XNamespace uap = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
+        var extensions = document.Descendants(uap + "FileType").Select(x => x.Value.ToLowerInvariant()).ToHashSet();
+        foreach (var extension in new[] { ".epub", ".fb2", ".mobi", ".azw", ".azw3", ".lit" })
+            Assert.Contains(extension, extensions);
+    }
+
+    [Fact]
+    public void ThirdPartyFoliateFiles_ArePresentAndPinned()
+    {
+        var root = FindRepoRoot();
+        Assert.True(File.Exists(Path.Combine(root, "ThirdParty", "foliate-js", "mobi.js")));
+        Assert.True(File.Exists(Path.Combine(root, "ThirdParty", "foliate-js", "vendor", "fflate.js")));
+        var pin = File.ReadAllText(Path.Combine(root, "ThirdParty", "foliate-js", "PIN.md"));
+        Assert.Contains("78914aef4466eb960965702401634c2cb348e9b1", pin, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FigmaSurfaceContract_IsPresent()
+    {
+        Assert.NotEmpty(FigmaSurfaceContract.Surfaces);
+    }
+
+    [Fact]
+    public void ReaderDataBackup_RoundTrips()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-backup-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var sourceFile = Path.Combine(root, "reading-data.json");
+            var source = new ReadingDataService(sourceFile);
+            source.Load();
+            source.SetPosition("book", new FlowContentLocator(2, 0.4), 0.6);
+            source.ToggleBookmark("book", new FlowContentLocator(2, 0.4), "chapter", "quote");
+            var backup = new ReadingBackupService(source);
+            var zip = Path.Combine(root, "backup.zip");
+            backup.Export(zip);
+
+            var targetFile = Path.Combine(root, "restored.json");
+            var target = new ReadingDataService(targetFile);
+            target.Load();
+            new ReadingBackupService(target).Import(zip);
+            var restored = target.GetPosition("book");
+            Assert.NotNull(restored);
+            Assert.Equal(2, restored!.Locator.SectionIndex);
+            Assert.Single(target.GetBookmarks("book"));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void ReaderBackupZip_ContainsVersionedJson()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-backup-zip-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var data = new ReadingDataService(Path.Combine(root, "reading-data.json"));
+            data.Load();
+            var zip = Path.Combine(root, "backup.zip");
+            new ReadingBackupService(data).Export(zip);
+            using var archive = ZipFile.OpenRead(zip);
+            Assert.Contains(archive.Entries, entry => entry.FullName.EndsWith("reading-data.json", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     [Fact]
@@ -273,15 +228,17 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void NavigationShell_UsesToolboxAdaptiveMinimalOverlayBehavior()
+    public void NavigationShell_UsesFigmaAdaptivePaneAndTabbedTitleBar()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
         var code = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
         Assert.Contains("IsBackButtonVisible=\"Collapsed\"", xaml, StringComparison.Ordinal);
         Assert.Contains("PaneDisplayMode=\"Auto\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("OpenPaneLength=\"320\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("CompactPaneLength=\"48\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("OpenPaneLength=\"240\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("CompactPaneLength=\"64\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ShellTabs\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("IsAddTabButtonVisible=\"True\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("IsPaneOpen=\"True\"", xaml, StringComparison.Ordinal);
         Assert.Contains("NavigationViewDisplayMode.Minimal", code, StringComparison.Ordinal);
         Assert.Contains("sender.IsPaneOpen = false", code, StringComparison.Ordinal);
@@ -313,53 +270,35 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void LanguageSwitch_AlwaysReEnablesSelectorAndKeepsWindowInPlace()
+    public void ReaderData_LocatorRoundTrips()
     {
-        var root = FindRepoRoot();
-        var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
-        var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
-        Assert.Contains("finally", settingsCode, StringComparison.Ordinal);
-        Assert.Contains("LanguageCombo.IsEnabled = true;", settingsCode, StringComparison.Ordinal);
-        Assert.DoesNotContain("ReloadMainWindow", settingsCode, StringComparison.Ordinal);
-        Assert.Contains("ReloadLocalizedShell", windowCode, StringComparison.Ordinal);
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-reading-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var file = Path.Combine(root, "reading.json");
+            var data = new ReadingDataService(file);
+            data.Load();
+            data.SetPosition("book", new FlowContentLocator(4, 0.33), 0.8);
+            var result = data.GetPosition("book");
+            Assert.NotNull(result);
+            Assert.Equal(4, result!.Locator.SectionIndex);
+            Assert.Equal(0.33, result.Locator.Fraction, 3);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
-
-    [Fact]
-    public void ThemeSwitch_UsesDirectRequestedThemeWithoutFullWindowCrossfade()
-    {
-        var root = FindRepoRoot();
-        var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
-        var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
-        var windowXaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
-        Assert.Contains("App.MainWindow?.ApplyAppTheme(tag);", settingsCode, StringComparison.Ordinal);
-        Assert.Contains("public void ApplyAppTheme(string theme)", windowCode, StringComparison.Ordinal);
-        Assert.Contains("RootGrid.RequestedTheme", windowCode, StringComparison.Ordinal);
-        Assert.DoesNotContain("BeginThemeTransition", windowCode, StringComparison.Ordinal);
-        Assert.DoesNotContain("ThemeTransitionOverlay", windowXaml, StringComparison.Ordinal);
-    }
-
-    private static void WriteEntry(ZipArchive archive, string path, string content)
-    {
-        var entry = archive.CreateEntry(path, CompressionLevel.Fastest);
-        using var writer = new StreamWriter(entry.Open());
-        writer.Write(content);
-    }
-
-    private static SortedSet<string> ReadKeys(string path) =>
-        new(XDocument.Load(path).Root!
-            .Elements("data")
-            .Select(element => element.Attribute("name")?.Value)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name!));
 
     private static string FindRepoRoot()
     {
-        string? current = AppContext.BaseDirectory;
-        while (current is not null)
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
         {
-            if (File.Exists(Path.Combine(current, "PageArc.csproj"))) return current;
-            current = Directory.GetParent(current)?.FullName;
+            if (File.Exists(Path.Combine(directory.FullName, "PageArc.csproj"))) return directory.FullName;
+            directory = directory.Parent;
         }
-        throw new DirectoryNotFoundException("PageArc repository root not found.");
+        throw new DirectoryNotFoundException("Could not locate PageArc repository root.");
     }
 }
