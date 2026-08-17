@@ -101,7 +101,7 @@ public sealed partial class ReaderPage
             MinWidth = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Padding = new Thickness(10, 0),
+            Padding = new Thickness(10, 0, 10, 0),
             CornerRadius = new CornerRadius(4),
             Content = content
         };
@@ -238,7 +238,7 @@ public sealed partial class ReaderPage
         HighlightGreenButton.Visibility = Visibility.Collapsed;
         AnnotationHintText.Visibility = Visibility.Collapsed;
         SelectionAnnotationCard.Width = 404;
-        SelectionAnnotationCard.Padding = new Thickness(14, 12);
+        SelectionAnnotationCard.Padding = new Thickness(14, 12, 14, 12);
         SelectionAnnotationTextBox.MinHeight = 76;
         SelectionAnnotationTextBox.PlaceholderText = ReaderText(
             "为所选文字添加笔记…",
@@ -317,7 +317,7 @@ public sealed partial class ReaderPage
     {
         if (_readerInputMessagesHooked || ReaderWebView.CoreWebView2 is null) return;
         _readerInputMessagesHooked = true;
-        ReaderWebView.CoreWebView2.WebMessageReceived += (_, args) =>
+        ReaderWebView.CoreWebView2.WebMessageReceived += (core, args) =>
         {
             var message = args.TryGetWebMessageAsString();
             if (!message.StartsWith("pagearc-turn:", StringComparison.Ordinal)) return;
