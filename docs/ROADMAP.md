@@ -66,3 +66,32 @@
 - [x] Repair the major v0.6 library layout, cover extraction, localization, category navigation and non-EPUB normalization regressions found during signed manual acceptance
 - [x] Signed x64 install/launch acceptance and ordinary CI green
 - [x] Accept the repaired build as the functional baseline for v0.7; remaining visual/experience polish is intentionally deferred while v0.7-v0.9 functional completion proceeds
+
+## v0.7.0 — Reader interaction completion
+
+- [ ] Complete the Figma reading-settings contract: theme, font family, font size, line spacing, page width, continuous scrolling, reading-progress visibility and restore defaults
+- [ ] Persist and immediately apply every reader setting without reopening the book
+- [ ] Complete search navigation/highlighting and preserve correct section-relative progress after jumping to a match
+- [ ] Complete bookmark and annotation navigation against the shared flow locator contract
+- [ ] Make saved highlights visible again when their section is rendered, without modifying the source ebook
+- [ ] Add a lightweight annotation capture path for selected text using the existing reader tool surface and native Fluent controls
+- [ ] Add regression coverage for reader-setting persistence, annotation state and search/highlight behavior
+
+## v0.8.0 — Settings, data and library control completion
+
+- [ ] Complete every control already present in the Figma Settings screen: Windows accent source, default reader font/size/spacing/page width, default library sort, recent-books visibility, watched folders and duplicate detection
+- [ ] Implement the Figma “Backup reading data” action for bookmarks, highlights, notes and reading progress
+- [ ] Make cache clearing remove generated parser/cover/normalization data only and keep library/settings/reading records intact
+- [ ] Keep category search/new-category/open-category behavior persistent and consistent with the Figma Categories surface
+- [ ] Add migration/default-value coverage for newly persisted settings and backup schema
+
+## v0.9.0 — Planned-surface integration completion
+
+- [ ] Finish the About/Update surface with live version reporting, GitHub Release checking and concrete third-party license information
+- [ ] Remove stale placeholder/pending copy from already-implemented conversion and format features
+- [ ] Audit all 19 canonical Figma screens so every visible action is wired or intentionally read-only
+- [ ] Audit zh-CN / ja-JP / en-US runtime-created text for feature-complete localization
+- [ ] Run end-to-end regression coverage across library → import → categories → reader → annotations → backup → conversion → Windows activation
+- [ ] Produce a signed x64 acceptance build only after v0.7-v0.9 functional gates are green
+
+> UI/experience polish that is not required to make a planned control functional remains deferred until after the v0.9 functional-completion pass. New visible surfaces must continue to derive from the PAGEARC Figma file rather than introducing an unrelated design language.
