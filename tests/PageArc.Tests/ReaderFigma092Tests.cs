@@ -46,12 +46,12 @@ public sealed class ReaderFigma092Tests
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
+        var refined = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.RefinedView.cs"));
 
         Assert.Contains("<RowDefinition Height=\"48\"/>", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ContentsColumn\" Width=\"260\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"SettingsColumn\" Width=\"0\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"SidebarToggleButton\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("Width=\"86\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ContentsModeButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"SearchModeButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"BookmarksModeButton\"", xaml, StringComparison.Ordinal);
@@ -61,27 +61,30 @@ public sealed class ReaderFigma092Tests
         Assert.Contains("MaxWidth=\"760\"", xaml, StringComparison.Ordinal);
         Assert.Contains("MaxHeight=\"704\"", xaml, StringComparison.Ordinal);
         Assert.Contains("Margin=\"60,28,60,76\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("Margin=\"0,338,0,0\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ReaderProgress\" Grid.Column=\"2\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PageJumpBox\" Grid.Column=\"5\" Width=\"64\" Height=\"30\"", xaml, StringComparison.Ordinal);
         Assert.Contains("TextTrimming=\"CharacterEllipsis\" MaxLines=\"1\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("PreviousPageButton.Visibility = Visibility.Collapsed", refined, StringComparison.Ordinal);
+        Assert.Contains("NextPageButton.Visibility = Visibility.Collapsed", refined, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Name=\"BackButton\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("x:Name=\"BookmarkButton\"", xaml, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ReaderSettings_UsesFullHeightRightPaneInsteadOfFlyout()
+    public void ReaderSettings_UsesAnimatedFullHeightRightPaneInsteadOfFlyout()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
         var code = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.Figma.cs"));
+        var refined = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.RefinedView.cs"));
 
         Assert.Contains("x:Name=\"ReaderSettingsPane\"", xaml, StringComparison.Ordinal);
         Assert.Contains("Width=\"260\"", xaml, StringComparison.Ordinal);
         Assert.Contains("BorderThickness=\"1,0,0,0\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("<Button.Flyout>", xaml, StringComparison.Ordinal);
         Assert.Contains("Click=\"AppearanceButton_Click\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("SettingsColumn.Width = open ? new GridLength(260)", code, StringComparison.Ordinal);
+        Assert.Contains("AnimateRightSidebarAsync(open)", code, StringComparison.Ordinal);
+        Assert.Contains("AnimateReaderColumnAsync", refined, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ThemeLightButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ThemeSepiaButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ThemeDarkButton\"", xaml, StringComparison.Ordinal);
@@ -95,7 +98,7 @@ public sealed class ReaderFigma092Tests
     }
 
     [Fact]
-    public void SelectionAnnotations_UseContextualPopupInsteadOfTopMenuCommands()
+    public void SelectionAnnotations_UseContextualNoteOnlyPopupInsteadOfTopMenuCommands()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
@@ -103,9 +106,10 @@ public sealed class ReaderFigma092Tests
 
         Assert.Contains("x:Name=\"SelectionAnnotationPopup\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"SelectionAnnotationTextBox\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"HighlightYellowButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("window.getSelection", selectionCode, StringComparison.Ordinal);
+        Assert.Contains("HighlightYellowButton.Visibility = Visibility.Collapsed", selectionCode, StringComparison.Ordinal);
         Assert.Contains("SaveSelectedAnnotationAsync", selectionCode, StringComparison.Ordinal);
+        Assert.Contains("note-red", selectionCode, StringComparison.Ordinal);
         Assert.Contains("MoreButton.Flyout = null", selectionCode, StringComparison.Ordinal);
     }
 
