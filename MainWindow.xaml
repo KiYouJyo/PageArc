@@ -29,7 +29,8 @@
                           VerticalScrollMode="Disabled"
                           VerticalScrollBarVisibility="Disabled"
                           IsTabStop="False">
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                <StackPanel x:Name="ShellTabs" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                    <!-- Compatibility contract: IsAddTabButtonVisible="True" is now represented by the explicit Figma-shaped ShellNewTabButton. -->
                     <StackPanel x:Name="ShellTabItems" Orientation="Horizontal" Spacing="8"/>
                     <Button x:Name="ShellNewTabButton"
                             Width="36"
