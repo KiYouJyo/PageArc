@@ -68,6 +68,7 @@ public sealed partial class MainWindow : Window
         var item = new TabViewItem
         {
             Header = HomeTabTitle(),
+            IconSource = new SymbolIconSource { Symbol = Symbol.Home },
             IsClosable = true,
             Tag = session.Id,
             MinWidth = 150,
@@ -109,7 +110,12 @@ public sealed partial class MainWindow : Window
         return _tabSessions.Find(id);
     }
 
-    private void ShellTabs_AddTabButtonClick(TabView sender, object args) => CreateHomeTab(select: true);
+    private void ShellTabs_AddTabButtonClick(TabView sender, object args)
+    {
+        CreateHomeTab(select: true);
+        NavigateTo("library", suppressTransition: true);
+        ContentFrame.BackStack.Clear();
+    }
 
     private void ShellTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -137,6 +143,8 @@ public sealed partial class MainWindow : Window
         if (ShellTabs.TabItems.Count == 0)
         {
             CreateHomeTab(select: true);
+            NavigateTo("library", suppressTransition: true);
+            ContentFrame.BackStack.Clear();
             return;
         }
 
@@ -408,6 +416,7 @@ public sealed partial class MainWindow : Window
             var item = new TabViewItem
             {
                 Header = string.IsNullOrWhiteSpace(book.Title) ? Path.GetFileNameWithoutExtension(book.FilePath) : book.Title,
+                IconSource = new SymbolIconSource { Symbol = Symbol.Library },
                 IsClosable = true,
                 Tag = session.Id,
                 MinWidth = 190,
@@ -431,8 +440,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    // Retained as a compatibility route for older callers. The reader toolbar no longer exposes
-    // a back-to-library action; selecting a Home tab is now the navigation model.
     public void ExitReader()
     {
         EnsureHomeTabSelected();
