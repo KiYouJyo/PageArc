@@ -13,6 +13,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2"><PrivateAssets>all</PrivateAssets></PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../Models/AppSettings.cs" Link="Models/AppSettings.cs" />
     <Compile Include="../../Models/BookEntry.cs" Link="Models/BookEntry.cs" />
     <Compile Include="../../Models/BookMetadataSnapshot.cs" Link="Models/BookMetadataSnapshot.cs" />
     <Compile Include="../../Models/LibraryImportModels.cs" Link="Models/LibraryImportModels.cs" />
