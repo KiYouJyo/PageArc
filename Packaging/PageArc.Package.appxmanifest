@@ -6,7 +6,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap rescap">
 
-  <Identity Name="KiYouJyo.PageArc" Publisher="CN=AppPublisher" Version="0.9.0.0" />
+  <Identity Name="KiYouJyo.PageArc" Publisher="CN=AppPublisher" Version="0.9.1.0" />
   <mp:PhoneIdentity PhoneProductId="2efbd068-554e-49c0-8508-0a86a7522914" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
