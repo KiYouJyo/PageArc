@@ -89,7 +89,7 @@ public sealed partial class MainWindow : Window
         var content = new Grid { ColumnSpacing = 8 };
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        content.Children.Add(new SymbolIcon { Symbol = symbol, FontSize = 14, Opacity = 0.68 });
+        content.Children.Add(new SymbolIcon { Symbol = symbol, Opacity = 0.68 });
         Grid.SetColumn(headerText, 1);
         content.Children.Add(headerText);
 
