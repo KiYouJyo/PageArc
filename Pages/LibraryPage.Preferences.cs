@@ -23,6 +23,8 @@ public sealed partial class LibraryPage
                 button.IsChecked = string.Equals(button.Tag as string, _filterTag, StringComparison.Ordinal);
 
             SortComboBox.SelectedIndex = string.Equals(App.Settings.Current.LibrarySort, "title", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+            _libraryView = string.Equals(App.Settings.Current.LibraryView, "list", StringComparison.OrdinalIgnoreCase) ? "list" : "grid";
+            ApplyLibraryViewMode();
         }
         finally
         {
@@ -41,5 +43,11 @@ public sealed partial class LibraryPage
         if (_restoringLibraryPreferences) return;
         var value = SortComboBox.SelectedIndex == 1 ? "title" : "recent";
         App.Settings.Update(settings => settings.LibrarySort = value);
+    }
+
+    private void PersistLibraryViewPreference()
+    {
+        if (_restoringLibraryPreferences) return;
+        App.Settings.Update(settings => settings.LibraryView = _libraryView);
     }
 }
