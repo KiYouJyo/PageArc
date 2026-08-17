@@ -73,12 +73,11 @@ public sealed class NormalizedFlowAdapterTests
     {
         var normalized = Path.Combine(AppPaths.NormalizedBooksRoot, bookId);
         if (Directory.Exists(normalized)) Directory.Delete(normalized, true);
-        foreach (var extraction in Directory.Exists(AppPaths.BooksCacheRoot)
-                     ? Directory.EnumerateDirectories(AppPaths.BooksCacheRoot, bookId + "*")
-                     : [])
-        {
+        var extractionDirectories = Directory.Exists(AppPaths.BooksCacheRoot)
+            ? Directory.EnumerateDirectories(AppPaths.BooksCacheRoot, bookId + "*")
+            : Array.Empty<string>();
+        foreach (var extraction in extractionDirectories)
             Directory.Delete(extraction, true);
-        }
         var temp = Path.Combine(Path.GetTempPath(), "PageArc", "Normalize", bookId);
         if (Directory.Exists(temp)) Directory.Delete(temp, true);
     }
