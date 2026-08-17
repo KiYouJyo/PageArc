@@ -11,7 +11,11 @@ namespace PageArc;
 
 public sealed partial class MainWindow : Window
 {
+    private readonly ShellTabSessionManager _tabSessions = new();
+    private readonly Dictionary<string, TabViewItem> _tabItems = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Frame> _readerFrames = new(StringComparer.Ordinal);
     private bool _navigating;
+    private bool _tabShellReady;
     private bool _isWindowActive = true;
     private SplitView? _navigationSplitView;
 
@@ -39,7 +43,8 @@ public sealed partial class MainWindow : Window
 
             StartupDiagnostics.Log("Custom title bar configured.");
             ApplyAppTheme(App.Settings.Current.AppTheme);
-            StartupDiagnostics.Log("MainWindow theme applied; navigating to initial page.");
+            InitializeTabShell();
+            StartupDiagnostics.Log("MainWindow theme and tab shell applied; navigating to initial page.");
             NavigateTo(App.PendingNavigationTag);
             StartupDiagnostics.Log("MainWindow initial navigation completed.");
         }
@@ -48,6 +53,109 @@ public sealed partial class MainWindow : Window
             StartupDiagnostics.Log("MainWindow constructor failed", ex);
             throw;
         }
+    }
+
+    private void InitializeTabShell()
+    {
+        if (_tabShellReady) return;
+        _tabShellReady = true;
+        CreateHomeTab(select: true);
+    }
+
+    private ShellTabSession CreateHomeTab(bool select)
+    {
+        var session = _tabSessions.CreateHome();
+        var item = new TabViewItem
+        {
+            Header = HomeTabTitle(),
+            IsClosable = true,
+            Tag = session.Id,
+            MinWidth = 150,
+            MaxWidth = 220
+        };
+        _tabItems[session.Id] = item;
+        ShellTabs.TabItems.Add(item);
+        if (select) ShellTabs.SelectedItem = item;
+        return session;
+    }
+
+    private string HomeTabTitle() => RuntimeText.Current("主页", "ホーム", "Home");
+
+    private void UpdateTabHeaders()
+    {
+        foreach (var session in _tabSessions.Tabs)
+        {
+            if (!_tabItems.TryGetValue(session.Id, out var item)) continue;
+            if (session.Kind == ShellTabKind.Home)
+                item.Header = HomeTabTitle();
+        }
+    }
+
+    private ShellTabSession EnsureHomeTabSelected()
+    {
+        var selected = SelectedSession();
+        if (selected?.Kind == ShellTabKind.Home) return selected;
+
+        var home = _tabSessions.Tabs.FirstOrDefault(tab => tab.Kind == ShellTabKind.Home)
+                   ?? CreateHomeTab(select: false);
+        if (_tabItems.TryGetValue(home.Id, out var item)) ShellTabs.SelectedItem = item;
+        ShowSelectedTabSurface();
+        return home;
+    }
+
+    private ShellTabSession? SelectedSession()
+    {
+        if (ShellTabs.SelectedItem is not TabViewItem { Tag: string id }) return null;
+        return _tabSessions.Find(id);
+    }
+
+    private void ShellTabs_AddTabButtonClick(TabView sender, object args) => CreateHomeTab(select: true);
+
+    private void ShellTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_tabShellReady) return;
+        ShowSelectedTabSurface();
+    }
+
+    private void ShellTabs_TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
+    {
+        if (args.Tab is not TabViewItem { Tag: string id } item) return;
+        var session = _tabSessions.Find(id);
+        if (session is null) return;
+
+        var index = ShellTabs.TabItems.IndexOf(item);
+        if (session.Kind == ShellTabKind.Reader && _readerFrames.Remove(id, out var frame))
+        {
+            if (frame.Content is ReaderPage reader) reader.PrepareForClose();
+            ReaderHost.Children.Remove(frame);
+        }
+
+        _tabSessions.Close(id);
+        _tabItems.Remove(id);
+        ShellTabs.TabItems.Remove(item);
+
+        if (ShellTabs.TabItems.Count == 0)
+        {
+            CreateHomeTab(select: true);
+            return;
+        }
+
+        if (ShellTabs.SelectedItem is null)
+            ShellTabs.SelectedItem = ShellTabs.TabItems[Math.Clamp(index, 0, ShellTabs.TabItems.Count - 1)];
+        ShowSelectedTabSurface();
+    }
+
+    private void ShowSelectedTabSurface()
+    {
+        var session = SelectedSession();
+        var readerSelected = session?.Kind == ShellTabKind.Reader;
+        AppNavigation.Visibility = readerSelected ? Visibility.Collapsed : Visibility.Visible;
+        ReaderHost.Visibility = readerSelected ? Visibility.Visible : Visibility.Collapsed;
+
+        foreach (var pair in _readerFrames)
+            pair.Value.Visibility = readerSelected && string.Equals(pair.Key, session?.Id, StringComparison.Ordinal)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
     }
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -60,6 +168,11 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        foreach (var frame in _readerFrames.Values)
+        {
+            if (frame.Content is ReaderPage reader) reader.PrepareForClose();
+        }
+        _readerFrames.Clear();
         Activated -= MainWindow_Activated;
         App.Localization.LanguageChanged -= OnLanguageChanged;
         Closed -= MainWindow_Closed;
@@ -77,8 +190,9 @@ public sealed partial class MainWindow : Window
         var displayMode = AppNavigation.DisplayMode;
 
         ApplyLocalizedNavigation();
+        UpdateTabHeaders();
 
-        if (ReaderFrame.Visibility == Visibility.Visible)
+        if (SelectedSession()?.Kind == ShellTabKind.Reader)
         {
             AppNavigation.IsPaneOpen = wasPaneOpen && displayMode != NavigationViewDisplayMode.Minimal;
             ApplyNavigationPaneBackground();
@@ -146,8 +260,7 @@ public sealed partial class MainWindow : Window
         ApplyNavigationPaneBackground();
     }
 
-    private void QueueNavigationPaneBackgroundUpdate() =>
-        DispatcherQueue.TryEnqueue(ApplyNavigationPaneBackground);
+    private void QueueNavigationPaneBackgroundUpdate() => DispatcherQueue.TryEnqueue(ApplyNavigationPaneBackground);
 
     private void ApplyNavigationPaneBackground()
     {
@@ -198,8 +311,7 @@ public sealed partial class MainWindow : Window
         _navigating = true;
         try
         {
-            ReaderFrame.Visibility = Visibility.Collapsed;
-            AppNavigation.Visibility = Visibility.Visible;
+            EnsureHomeTabSelected();
             tag = tag switch
             {
                 "recent" or "favorites" or "collections" => "library",
@@ -255,8 +367,7 @@ public sealed partial class MainWindow : Window
         _navigating = true;
         try
         {
-            ReaderFrame.Visibility = Visibility.Collapsed;
-            AppNavigation.Visibility = Visibility.Visible;
+            EnsureHomeTabSelected();
             var target = EnumerateNavigationItems()
                 .FirstOrDefault(item => string.Equals(item.Tag as string, "categories", StringComparison.Ordinal));
             if (target is not null) AppNavigation.SelectedItem = target;
@@ -277,17 +388,37 @@ public sealed partial class MainWindow : Window
         StartupDiagnostics.Log($"MainWindow.OpenBook entered: {book.FilePath}.");
         try
         {
-            AppNavigation.Visibility = Visibility.Collapsed;
-            ReaderFrame.Visibility = Visibility.Visible;
-            ReaderFrame.BackStack.Clear();
-            var navigated = ReaderFrame.Navigate(typeof(ReaderPage), book, new SuppressNavigationTransitionInfo());
-            StartupDiagnostics.Log($"ReaderFrame.Navigate returned {navigated}.");
+            var (session, created) = _tabSessions.OpenReader(book.Id);
+            if (!created)
+            {
+                if (_tabItems.TryGetValue(session.Id, out var existingItem)) ShellTabs.SelectedItem = existingItem;
+                ShowSelectedTabSurface();
+                return true;
+            }
+
+            var frame = new Frame { Visibility = Visibility.Collapsed };
+            var navigated = frame.Navigate(typeof(ReaderPage), book, new SuppressNavigationTransitionInfo());
+            StartupDiagnostics.Log($"Reader tab Frame.Navigate returned {navigated}.");
             if (!navigated)
             {
-                ReaderFrame.Visibility = Visibility.Collapsed;
-                AppNavigation.Visibility = Visibility.Visible;
+                _tabSessions.Close(session.Id);
                 return false;
             }
+
+            var item = new TabViewItem
+            {
+                Header = string.IsNullOrWhiteSpace(book.Title) ? Path.GetFileNameWithoutExtension(book.FilePath) : book.Title,
+                IsClosable = true,
+                Tag = session.Id,
+                MinWidth = 190,
+                MaxWidth = 260
+            };
+            _readerFrames[session.Id] = frame;
+            _tabItems[session.Id] = item;
+            ReaderHost.Children.Add(frame);
+            ShellTabs.TabItems.Add(item);
+            ShellTabs.SelectedItem = item;
+            ShowSelectedTabSurface();
 
             App.Library.MarkOpened(book);
             _ = App.JumpLists.RecordRecentBookAsync(book);
@@ -296,17 +427,15 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             StartupDiagnostics.Log("MainWindow.OpenBook failed", ex);
-            ReaderFrame.Visibility = Visibility.Collapsed;
-            AppNavigation.Visibility = Visibility.Visible;
             throw;
         }
     }
 
+    // Retained as a compatibility route for older callers. The reader toolbar no longer exposes
+    // a back-to-library action; selecting a Home tab is now the navigation model.
     public void ExitReader()
     {
-        ReaderFrame.Visibility = Visibility.Collapsed;
-        AppNavigation.Visibility = Visibility.Visible;
-        ReaderFrame.BackStack.Clear();
-        NavigateTo("library");
+        EnsureHomeTabSelected();
+        ShowSelectedTabSurface();
     }
 }
