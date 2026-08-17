@@ -14,8 +14,6 @@ namespace PageArc.Pages;
 
 public sealed partial class ReaderPage
 {
-    // Compatibility-only controls retained in code while v0.9.3 removes their visible toolbar
-    // counterparts. Older partials still reference these names during the staged shell refactor.
     private readonly Button ContentsButton = new();
     private readonly Button SearchButton = new();
     private readonly Button BookmarkButton = new();
@@ -26,6 +24,7 @@ public sealed partial class ReaderPage
     private CancellationTokenSource? _progressSeekCts;
     private bool _readerSessionClosed;
     private bool _chromeInitialized;
+    private bool _moreMenuHooked;
 
     private void InitializeTabbedReaderChrome()
     {
@@ -50,6 +49,17 @@ public sealed partial class ReaderPage
         {
             if (args.IsSuccess) DispatcherQueue.TryEnqueue(UpdatePageJumpUi);
         };
+        // ReaderPage_NotesLoaded constructs the ••• flyout later in the same Loaded turn.
+        DispatcherQueue.TryEnqueue(HookMoreMenuToUnifiedSidebar);
+    }
+
+    private void HookMoreMenuToUnifiedSidebar()
+    {
+        if (_moreMenuHooked || MoreButton.Flyout is not MenuFlyout menu) return;
+        var notesItem = menu.Items.OfType<MenuFlyoutItem>().FirstOrDefault();
+        if (notesItem is null) return;
+        notesItem.Click += (_, _) => ShowUnifiedSidebar("notes");
+        _moreMenuHooked = true;
     }
 
     private void ApplyTabbedProgressVisibility() =>
