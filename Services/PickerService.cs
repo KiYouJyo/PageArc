@@ -32,4 +32,20 @@ public static class PickerService
         WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
         return (await picker.PickSingleFolderAsync())?.Path;
     }
+
+    public static async Task<string?> PickReadingBackupSavePathAsync()
+    {
+        if (App.MainWindow is null) return null;
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            SuggestedFileName = $"PageArc-reading-backup-{DateTime.Now:yyyyMMdd-HHmm}"
+        };
+        picker.FileTypeChoices.Add("PageArc reading backup", new List<string> { ".json" });
+        picker.DefaultFileExtension = ".json";
+
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+        return (await picker.PickSaveFileAsync())?.Path;
+    }
 }

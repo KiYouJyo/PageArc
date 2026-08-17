@@ -66,6 +66,18 @@ public sealed class ReadingDataService
         }
     }
 
+    public ReadingDataState CreateSnapshot()
+    {
+        lock (_gate)
+        {
+            return new ReadingDataState
+            {
+                Bookmarks = _state.Bookmarks.Select(Clone).ToList(),
+                Annotations = _state.Annotations.Select(Clone).ToList()
+            };
+        }
+    }
+
     public bool HasBookmark(string bookId, FlowContentLocator locator, double tolerance = 0.01)
     {
         lock (_gate)

@@ -16,6 +16,7 @@
     <Compile Include="../../Models/AppSettings.cs" Link="Models/AppSettings.cs" />
     <Compile Include="../../Models/BookEntry.cs" Link="Models/BookEntry.cs" />
     <Compile Include="../../Models/BookMetadataSnapshot.cs" Link="Models/BookMetadataSnapshot.cs" />
+    <Compile Include="../../Models/CategoryEntry.cs" Link="Models/CategoryEntry.cs" />
     <Compile Include="../../Models/LibraryImportModels.cs" Link="Models/LibraryImportModels.cs" />
     <Compile Include="../../Models/ImportFolderEntry.cs" Link="Models/ImportFolderEntry.cs" />
     <Compile Include="../../Models/AppActivationRequest.cs" Link="Models/AppActivationRequest.cs" />
@@ -26,8 +27,12 @@
     <Compile Include="../../Models/FlowDocument.cs" Link="Models/FlowDocument.cs" />
     <Compile Include="../../Models/KindleRuntimeModels.cs" Link="Models/KindleRuntimeModels.cs" />
     <Compile Include="../../Models/ReadingData.cs" Link="Models/ReadingData.cs" />
+    <Compile Include="../../Models/ReadingBackup.cs" Link="Models/ReadingBackup.cs" />
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
     <Compile Include="../../Services/SettingsService.cs" Link="Services/SettingsService.cs" />
+    <Compile Include="../../Services/CategoryService.cs" Link="Services/CategoryService.cs" />
+    <Compile Include="../../Services/ReadingBackupService.cs" Link="Services/ReadingBackupService.cs" />
+    <Compile Include="../../Services/CacheMaintenanceService.cs" Link="Services/CacheMaintenanceService.cs" />
     <Compile Include="../../Services/BookFormatRegistry.cs" Link="Services/BookFormatRegistry.cs" />
     <Compile Include="../../Services/AppActivationRequestParser.cs" Link="Services/AppActivationRequestParser.cs" />
     <Compile Include="../../Services/BookMetadataService.cs" Link="Services/BookMetadataService.cs" />
