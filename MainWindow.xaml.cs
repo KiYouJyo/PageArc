@@ -1,4 +1,5 @@
 using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -11,9 +12,12 @@ namespace PageArc;
 
 public sealed partial class MainWindow : Window
 {
+    private sealed record ShellTabVisual(Border Container, TextBlock HeaderText);
+
     private readonly ShellTabSessionManager _tabSessions = new();
-    private readonly Dictionary<string, TabViewItem> _tabItems = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ShellTabVisual> _tabItems = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Frame> _readerFrames = new(StringComparer.Ordinal);
+    private string? _selectedTabId;
     private bool _navigating;
     private bool _tabShellReady;
     private bool _isWindowActive = true;
@@ -35,6 +39,7 @@ public sealed partial class MainWindow : Window
                 ConfigureTitleBar();
                 ApplyNavigationPaneBackground();
                 ApplyLocalizedNavigation();
+                RefreshTabVisuals();
             };
             RootGrid.ActualThemeChanged += RootGrid_ActualThemeChanged;
             Activated += MainWindow_Activated;
@@ -65,19 +70,76 @@ public sealed partial class MainWindow : Window
     private ShellTabSession CreateHomeTab(bool select)
     {
         var session = _tabSessions.CreateHome();
-        var item = new TabViewItem
-        {
-            Header = HomeTabTitle(),
-            IconSource = new SymbolIconSource { Symbol = Symbol.Home },
-            IsClosable = true,
-            Tag = session.Id,
-            MinWidth = 150,
-            MaxWidth = 220
-        };
-        _tabItems[session.Id] = item;
-        ShellTabs.TabItems.Add(item);
-        if (select) ShellTabs.SelectedItem = item;
+        _tabItems[session.Id] = CreateTabVisual(session.Id, HomeTabTitle(), Symbol.Home, 220);
+        if (select) SelectTab(session.Id);
         return session;
+    }
+
+    private ShellTabVisual CreateTabVisual(string id, string title, Symbol symbol, double width)
+    {
+        var headerText = new TextBlock
+        {
+            Text = title,
+            FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxLines = 1
+        };
+
+        var content = new Grid { ColumnSpacing = 8 };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.Children.Add(new SymbolIcon { Symbol = symbol, FontSize = 14, Opacity = 0.68 });
+        Grid.SetColumn(headerText, 1);
+        content.Children.Add(headerText);
+
+        var selectButton = new Button
+        {
+            Tag = id,
+            Padding = new Thickness(12, 0, 42, 0),
+            Background = new SolidColorBrush(Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(8),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Content = content
+        };
+        selectButton.Click += ShellTabSelect_Click;
+
+        var closeButton = new Button
+        {
+            Tag = id,
+            Width = 32,
+            Height = 32,
+            MinWidth = 32,
+            Margin = new Thickness(0, 2, 4, 2),
+            Padding = new Thickness(0),
+            Background = new SolidColorBrush(Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(6),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Content = new TextBlock { Text = "×", FontSize = 13, Opacity = 0.68 }
+        };
+        closeButton.Click += ShellTabClose_Click;
+
+        var layer = new Grid();
+        layer.Children.Add(selectButton);
+        layer.Children.Add(closeButton);
+
+        var container = new Border
+        {
+            Tag = id,
+            Width = width,
+            Height = 36,
+            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(0),
+            Child = layer
+        };
+        ShellTabItems.Children.Add(container);
+        return new ShellTabVisual(container, headerText);
     }
 
     private string HomeTabTitle() => RuntimeText.Current("主页", "ホーム", "Home");
@@ -88,7 +150,89 @@ public sealed partial class MainWindow : Window
         {
             if (!_tabItems.TryGetValue(session.Id, out var item)) continue;
             if (session.Kind == ShellTabKind.Home)
-                item.Header = HomeTabTitle();
+                item.HeaderText.Text = HomeTabTitle();
+        }
+    }
+
+    private void ShellNewTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        CreateHomeTab(select: true);
+        NavigateTo("library", suppressTransition: true);
+        ContentFrame.BackStack.Clear();
+    }
+
+    private void ShellTabSelect_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string id }) SelectTab(id);
+    }
+
+    private void ShellTabClose_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string id }) CloseTab(id);
+    }
+
+    private void SelectTab(string id)
+    {
+        if (_tabSessions.Find(id) is null) return;
+        _selectedTabId = id;
+        RefreshTabVisuals();
+        ShowSelectedTabSurface();
+    }
+
+    private void CloseTab(string id)
+    {
+        var session = _tabSessions.Find(id);
+        if (session is null) return;
+        var tabs = _tabSessions.Tabs.ToList();
+        var index = tabs.FindIndex(tab => string.Equals(tab.Id, id, StringComparison.Ordinal));
+        var wasSelected = string.Equals(_selectedTabId, id, StringComparison.Ordinal);
+
+        if (session.Kind == ShellTabKind.Reader && _readerFrames.Remove(id, out var frame))
+        {
+            if (frame.Content is ReaderPage reader) reader.PrepareForClose();
+            ReaderHost.Children.Remove(frame);
+        }
+
+        _tabSessions.Close(id);
+        if (_tabItems.Remove(id, out var visual)) ShellTabItems.Children.Remove(visual.Container);
+
+        if (_tabSessions.Tabs.Count == 0)
+        {
+            CreateHomeTab(select: true);
+            NavigateTo("library", suppressTransition: true);
+            ContentFrame.BackStack.Clear();
+            return;
+        }
+
+        if (wasSelected)
+        {
+            var remaining = _tabSessions.Tabs;
+            var next = remaining[Math.Clamp(index, 0, remaining.Count - 1)];
+            SelectTab(next.Id);
+        }
+        else
+        {
+            RefreshTabVisuals();
+            ShowSelectedTabSurface();
+        }
+    }
+
+    private void RefreshTabVisuals()
+    {
+        var dark = RootGrid.ActualTheme == ElementTheme.Dark;
+        foreach (var pair in _tabItems)
+        {
+            var selected = string.Equals(pair.Key, _selectedTabId, StringComparison.Ordinal);
+            var visual = pair.Value;
+            visual.Container.Background = new SolidColorBrush(selected
+                ? (dark ? ColorHelper.FromArgb(30, 255, 255, 255) : ColorHelper.FromArgb(214, 255, 255, 255))
+                : (dark ? ColorHelper.FromArgb(10, 255, 255, 255) : ColorHelper.FromArgb(8, 0, 0, 0)));
+            visual.Container.BorderThickness = new Thickness(selected ? 1 : 0);
+            visual.Container.BorderBrush = new SolidColorBrush(dark
+                ? ColorHelper.FromArgb(38, 255, 255, 255)
+                : ColorHelper.FromArgb(51, 117, 117, 117));
+            visual.HeaderText.FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal;
+            visual.HeaderText.Opacity = selected ? 0.9 : 0.68;
         }
     }
 
@@ -99,59 +243,12 @@ public sealed partial class MainWindow : Window
 
         var home = _tabSessions.Tabs.FirstOrDefault(tab => tab.Kind == ShellTabKind.Home)
                    ?? CreateHomeTab(select: false);
-        if (_tabItems.TryGetValue(home.Id, out var item)) ShellTabs.SelectedItem = item;
-        ShowSelectedTabSurface();
+        SelectTab(home.Id);
         return home;
     }
 
-    private ShellTabSession? SelectedSession()
-    {
-        if (ShellTabs.SelectedItem is not TabViewItem { Tag: string id }) return null;
-        return _tabSessions.Find(id);
-    }
-
-    private void ShellTabs_AddTabButtonClick(TabView sender, object args)
-    {
-        CreateHomeTab(select: true);
-        NavigateTo("library", suppressTransition: true);
-        ContentFrame.BackStack.Clear();
-    }
-
-    private void ShellTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_tabShellReady) return;
-        ShowSelectedTabSurface();
-    }
-
-    private void ShellTabs_TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
-    {
-        if (args.Tab is not TabViewItem { Tag: string id } item) return;
-        var session = _tabSessions.Find(id);
-        if (session is null) return;
-
-        var index = ShellTabs.TabItems.IndexOf(item);
-        if (session.Kind == ShellTabKind.Reader && _readerFrames.Remove(id, out var frame))
-        {
-            if (frame.Content is ReaderPage reader) reader.PrepareForClose();
-            ReaderHost.Children.Remove(frame);
-        }
-
-        _tabSessions.Close(id);
-        _tabItems.Remove(id);
-        ShellTabs.TabItems.Remove(item);
-
-        if (ShellTabs.TabItems.Count == 0)
-        {
-            CreateHomeTab(select: true);
-            NavigateTo("library", suppressTransition: true);
-            ContentFrame.BackStack.Clear();
-            return;
-        }
-
-        if (ShellTabs.SelectedItem is null)
-            ShellTabs.SelectedItem = ShellTabs.TabItems[Math.Clamp(index, 0, ShellTabs.TabItems.Count - 1)];
-        ShowSelectedTabSurface();
-    }
+    private ShellTabSession? SelectedSession() =>
+        string.IsNullOrWhiteSpace(_selectedTabId) ? null : _tabSessions.Find(_selectedTabId);
 
     private void ShowSelectedTabSurface()
     {
@@ -238,6 +335,7 @@ public sealed partial class MainWindow : Window
     {
         ConfigureTitleBar();
         QueueNavigationPaneBackgroundUpdate();
+        RefreshTabVisuals();
     }
 
     private void ConfigureTitleBar()
@@ -259,6 +357,7 @@ public sealed partial class MainWindow : Window
         };
         ConfigureTitleBar();
         QueueNavigationPaneBackgroundUpdate();
+        RefreshTabVisuals();
     }
 
     private void AppNavigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
@@ -399,8 +498,7 @@ public sealed partial class MainWindow : Window
             var (session, created) = _tabSessions.OpenReader(book.Id);
             if (!created)
             {
-                if (_tabItems.TryGetValue(session.Id, out var existingItem)) ShellTabs.SelectedItem = existingItem;
-                ShowSelectedTabSurface();
+                SelectTab(session.Id);
                 return true;
             }
 
@@ -413,21 +511,13 @@ public sealed partial class MainWindow : Window
                 return false;
             }
 
-            var item = new TabViewItem
-            {
-                Header = string.IsNullOrWhiteSpace(book.Title) ? Path.GetFileNameWithoutExtension(book.FilePath) : book.Title,
-                IconSource = new SymbolIconSource { Symbol = Symbol.Library },
-                IsClosable = true,
-                Tag = session.Id,
-                MinWidth = 190,
-                MaxWidth = 260
-            };
+            var title = string.IsNullOrWhiteSpace(book.Title)
+                ? Path.GetFileNameWithoutExtension(book.FilePath)
+                : book.Title;
             _readerFrames[session.Id] = frame;
-            _tabItems[session.Id] = item;
+            _tabItems[session.Id] = CreateTabVisual(session.Id, title, Symbol.Library, 300);
             ReaderHost.Children.Add(frame);
-            ShellTabs.TabItems.Add(item);
-            ShellTabs.SelectedItem = item;
-            ShowSelectedTabSurface();
+            SelectTab(session.Id);
 
             App.Library.MarkOpened(book);
             _ = App.JumpLists.RecordRecentBookAsync(book);
