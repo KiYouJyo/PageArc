@@ -34,6 +34,7 @@
     <Compile Include="../../Services/LibraryService.cs" Link="Services/LibraryService.cs" />
     <Compile Include="../../Services/ImportFolderService.cs" Link="Services/ImportFolderService.cs" />
     <Compile Include="../../Services/EbookOpenExceptions.cs" Link="Services/EbookOpenExceptions.cs" />
+    <Compile Include="../../Services/EbookOpenErrorFormatter.cs" Link="Services/EbookOpenErrorFormatter.cs" />
     <Compile Include="../../Services/IFlowBookAdapter.cs" Link="Services/IFlowBookAdapter.cs" />
     <Compile Include="../../Services/IKindleParserRuntime.cs" Link="Services/IKindleParserRuntime.cs" />
     <Compile Include="../../Services/KindleFileProbe.cs" Link="Services/KindleFileProbe.cs" />
