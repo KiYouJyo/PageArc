@@ -13,8 +13,32 @@ public sealed class SettingsDataCompletionTests
         Assert.Equal("windows", settings.AccentSource);
         Assert.Equal("medium", settings.PageWidth);
         Assert.Equal("recent", settings.LibrarySort);
+        Assert.Equal("grid", settings.LibraryView);
         Assert.True(settings.ShowRecentBooks);
         Assert.True(settings.DuplicateDetection);
+    }
+
+    [Fact]
+    public void LibraryView_RoundTripsThroughSettingsService()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-library-view-{Guid.NewGuid():N}");
+        var file = Path.Combine(root, "settings.json");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var settings = new SettingsService(file);
+            settings.Load();
+            settings.Update(value => value.LibraryView = "list");
+
+            var reloaded = new SettingsService(file);
+            reloaded.Load();
+            Assert.Equal("list", reloaded.Current.LibraryView);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
     }
 
     [Fact]
