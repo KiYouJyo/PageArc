@@ -114,12 +114,13 @@ public sealed partial class ImportFoldersPage : Page
         EmptyFoldersCard.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private string FormatBookCount(int count) => App.Settings.Current.Language switch
+    private string FormatBookCount(int count)
     {
-        "zh-CN" => $"{count} 本",
-        "ja-JP" => $"{count} 冊",
-        _ => count == 1 ? "1 book" : $"{count} books"
-    };
+        var language = App.Localization.CurrentLanguage;
+        if (language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)) return $"{count} 本";
+        if (language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return $"{count} 冊";
+        return count == 1 ? "1 book" : $"{count} books";
+    }
 
     private string FormatScanStatus(ImportFolderEntry folder)
     {
@@ -133,32 +134,29 @@ public sealed partial class ImportFoldersPage : Page
         if (age.TotalHours < 1)
         {
             var minutes = Math.Max(1, (int)Math.Round(age.TotalMinutes));
-            return App.Settings.Current.Language switch
-            {
-                "zh-CN" => $"{minutes} 分钟前扫描",
-                "ja-JP" => $"{minutes} 分前にスキャン",
-                _ => $"Scanned {minutes} min ago"
-            };
+            var language = App.Localization.CurrentLanguage;
+            if (language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)) return $"{minutes} 分钟前扫描";
+            if (language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return $"{minutes} 分前にスキャン";
+            return $"Scanned {minutes} min ago";
         }
         if (age.TotalDays < 1)
         {
             var hours = Math.Max(1, (int)Math.Round(age.TotalHours));
-            return App.Settings.Current.Language switch
-            {
-                "zh-CN" => $"{hours} 小时前扫描",
-                "ja-JP" => $"{hours} 時間前にスキャン",
-                _ => $"Scanned {hours} h ago"
-            };
+            var language = App.Localization.CurrentLanguage;
+            if (language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)) return $"{hours} 小时前扫描";
+            if (language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return $"{hours} 時間前にスキャン";
+            return $"Scanned {hours} h ago";
         }
         return folder.LastScannedAt.Value.ToLocalTime().ToString("g");
     }
 
-    private static string LocalText(string zh, string ja, string en) => App.Settings.Current.Language switch
+    private static string LocalText(string zh, string ja, string en)
     {
-        "zh-CN" => zh,
-        "ja-JP" => ja,
-        _ => en
-    };
+        var language = App.Localization.CurrentLanguage;
+        if (language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)) return zh;
+        if (language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return ja;
+        return en;
+    }
 
     private sealed record FolderRow(
         string Id,
