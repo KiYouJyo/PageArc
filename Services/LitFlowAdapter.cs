@@ -48,23 +48,10 @@ public sealed class LitFlowAdapter : IFlowBookAdapter
             || !string.Equals(cachedStamp, expectedStamp, StringComparison.Ordinal);
 
         if (needsRefresh)
-        {
-            if (File.Exists(normalizedPath)) File.Delete(normalizedPath);
-            var result = await _conversionService.ConvertAsync(
-                new EbookConversionRequest(
-                    book.FilePath,
-                    "EPUB",
-                    normalizedPath,
-                    new EbookConversionOptions(true, true, true)),
-                cancellationToken);
+            await NormalizeAsync(book, normalizedPath, stampPath, expectedStamp, cancellationToken);
 
-            if (result.IsDrmProtected)
-                throw new DrmProtectedEbookException(result.ErrorMessage ?? "This LIT ebook is DRM-protected and cannot be opened by PageArc.");
-            if (!result.Success || string.IsNullOrWhiteSpace(result.OutputPath) || !File.Exists(result.OutputPath))
-                throw new InvalidDataException(result.ErrorMessage ?? "Failed to normalize LIT to EPUB.");
-
-            await File.WriteAllTextAsync(stampPath, expectedStamp, cancellationToken);
-        }
+        if (!File.Exists(normalizedPath) || new FileInfo(normalizedPath).Length == 0)
+            throw new InvalidDataException("PageArc could not prepare a readable copy of this LIT ebook.");
 
         var normalizedBook = new BookEntry
         {
@@ -96,6 +83,55 @@ public sealed class LitFlowAdapter : IFlowBookAdapter
 
         var inner = await new EpubFlowAdapter().OpenAsync(normalizedBook, cancellationToken);
         return new Source(inner);
+    }
+
+    private async Task NormalizeAsync(
+        BookEntry book,
+        string normalizedPath,
+        string stampPath,
+        string expectedStamp,
+        CancellationToken cancellationToken)
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "PageArc", "Normalize", book.Id);
+        Directory.CreateDirectory(tempRoot);
+        var tempPath = Path.Combine(tempRoot, $"lit-{Guid.NewGuid():N}.epub");
+        try
+        {
+            var result = await _conversionService.ConvertAsync(
+                new EbookConversionRequest(
+                    book.FilePath,
+                    "EPUB",
+                    tempPath,
+                    new EbookConversionOptions(true, true, true)),
+                cancellationToken);
+
+            if (result.IsDrmProtected)
+                throw new DrmProtectedEbookException("This LIT ebook is DRM-protected and cannot be opened by PageArc.");
+
+            if (!result.Success || !File.Exists(tempPath) || new FileInfo(tempPath).Length == 0)
+            {
+                if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+                    StartupDiagnostics.Log($"LIT normalization provider failed for '{book.FilePath}': {result.ErrorMessage}");
+                throw new InvalidDataException("PageArc could not convert this LIT ebook into a readable local copy.");
+            }
+
+            var targetDirectory = Path.GetDirectoryName(normalizedPath)!;
+            Directory.CreateDirectory(targetDirectory);
+            File.Move(tempPath, normalizedPath, overwrite: true);
+            await File.WriteAllTextAsync(stampPath, expectedStamp, cancellationToken);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempPath)) File.Delete(tempPath);
+                if (Directory.Exists(tempRoot) && !Directory.EnumerateFileSystemEntries(tempRoot).Any()) Directory.Delete(tempRoot);
+            }
+            catch
+            {
+                // Temporary normalization cleanup is best-effort.
+            }
+        }
     }
 
     private static string ResolveFormat(BookEntry book)
