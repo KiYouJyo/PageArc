@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using PageArc.Models;
 using PageArc.Services;
 using Windows.System;
 
@@ -37,16 +38,22 @@ public sealed partial class ReaderPage
         NotesModeLabel.Text = ReaderText("笔记", "ノート", "Notes");
         SearchHeading.Text = SearchModeLabel.Text;
         BookmarksHeading.Text = BookmarksModeLabel.Text;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BookmarkButton, BookmarksModeLabel.Text);
         AddCurrentBookmarkButton.Content = ReaderText("＋ 添加当前页书签", "＋ 現在位置をしおりに追加", "+ Bookmark current page");
         PageJumpLabel.Text = ReaderText("页", "ページ", "Page");
         UpdateUnifiedSidebarVisuals();
         UpdatePageJumpUi();
+        ApplyTabbedProgressVisibility();
 
+        FigmaShowProgressToggle.Toggled += (_, _) => ApplyTabbedProgressVisibility();
         ReaderWebView.NavigationCompleted += (_, args) =>
         {
             if (args.IsSuccess) DispatcherQueue.TryEnqueue(UpdatePageJumpUi);
         };
     }
+
+    private void ApplyTabbedProgressVisibility() =>
+        ReaderProgressStrip.Visibility = App.Settings.Current.ShowReadingProgress ? Visibility.Visible : Visibility.Collapsed;
 
     public void PrepareForClose()
     {
@@ -117,7 +124,7 @@ public sealed partial class ReaderPage
     {
         if (_book is null || _document is null) return;
         var snippet = BuildCurrentSnippet();
-        var locator = new Models.FlowContentLocator(_sectionIndex, _sectionFraction, TextQuote: snippet);
+        var locator = new FlowContentLocator(_sectionIndex, _sectionFraction, TextQuote: snippet);
         var chapterTitle = FlowSearchService.ResolveChapterTitle(_document, _sectionIndex);
         var bookmark = App.ReadingData.ToggleBookmark(_book.Id, locator, chapterTitle, snippet);
         RefreshBookmarks();
