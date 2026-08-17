@@ -1,9 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using PageArc.Services;
 using Windows.Foundation;
 
@@ -32,20 +30,22 @@ public sealed partial class ReaderPage
     private bool _selectionAnnotationUiReady;
     private bool _selectionMessageHooked;
     private string _selectionQuote = string.Empty;
-    private string _selectionAnnotationColor = "yellow";
 
     private void InitializeSelectionAnnotationUi()
     {
         if (_selectionAnnotationUiReady) return;
         _selectionAnnotationUiReady = true;
 
-        // Notes/highlights are created from a text selection now, not from the top ••• menu.
+        // v0.9.3 refined contract: notes are created directly from a text selection.
+        // Custom highlight colors are intentionally deferred; saved notes use one muted-red mark.
         MoreButton.Flyout = null;
-        AnnotationHighlightLabel.Text = ReaderText("高亮", "ハイライト", "Highlight");
+        AnnotationHighlightLabel.Visibility = Visibility.Collapsed;
+        HighlightYellowButton.Visibility = Visibility.Collapsed;
+        HighlightBlueButton.Visibility = Visibility.Collapsed;
+        HighlightGreenButton.Visibility = Visibility.Collapsed;
+        AnnotationHintText.Visibility = Visibility.Collapsed;
         SelectionAnnotationTextBox.PlaceholderText = ReaderText("为所选文字添加笔记…", "選択したテキストにノートを追加…", "Add a note to the selection…");
-        AnnotationHintText.Text = ReaderText("选择高亮颜色并直接输入批注", "色を選び、必要ならノートを入力", "Choose a highlight color and optionally add a note");
         SaveSelectionAnnotationButton.Content = ReaderText("保存", "保存", "Save");
-        UpdateSelectionAnnotationColorVisuals();
 
         ReaderWebView.NavigationCompleted += async (_, args) =>
         {
@@ -128,13 +128,11 @@ public sealed partial class ReaderPage
     private void ShowSelectionAnnotationPopup(SelectionPopupPayload payload)
     {
         _selectionQuote = payload.Text.Trim();
-        _selectionAnnotationColor = "yellow";
         SelectionAnnotationTextBox.Text = string.Empty;
-        UpdateSelectionAnnotationColorVisuals();
 
         var origin = ReaderWebView.TransformToVisual(ReaderRootGrid).TransformPoint(new Point(0, 0));
         const double popupWidth = 404;
-        const double popupHeight = 174;
+        const double popupHeight = 168;
         var maxX = Math.Max(12, ReaderRootGrid.ActualWidth - popupWidth - 12);
         var x = Math.Clamp(origin.X + payload.X + payload.Width / 2 - popupWidth / 2, 12, maxX);
         var below = origin.Y + payload.Y + payload.Height + 10;
@@ -144,35 +142,29 @@ public sealed partial class ReaderPage
         SelectionAnnotationPopup.HorizontalOffset = x;
         SelectionAnnotationPopup.VerticalOffset = y;
         SelectionAnnotationPopup.IsOpen = true;
+        SelectionAnnotationTextBox.Focus(FocusState.Programmatic);
     }
 
+    // Retained only because the pre-refinement XAML still has the old click bindings.
+    // The controls are collapsed and this method is intentionally inert.
     private void AnnotationColor_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: string color }) return;
-        _selectionAnnotationColor = color is "blue" or "green" ? color : "yellow";
-        UpdateSelectionAnnotationColorVisuals();
-    }
-
-    private void UpdateSelectionAnnotationColorVisuals()
-    {
-        SetAnnotationColorState(HighlightYellowButton, "yellow", ColorHelper.FromArgb(255, 250, 194, 46));
-        SetAnnotationColorState(HighlightBlueButton, "blue", ColorHelper.FromArgb(255, 107, 184, 235));
-        SetAnnotationColorState(HighlightGreenButton, "green", ColorHelper.FromArgb(255, 140, 199, 128));
-    }
-
-    private void SetAnnotationColorState(Button button, string color, Windows.UI.Color accent)
-    {
-        var selected = string.Equals(_selectionAnnotationColor, color, StringComparison.Ordinal);
-        button.BorderBrush = new SolidColorBrush(accent);
-        button.BorderThickness = new Thickness(selected ? 2 : 1);
-        button.Background = new SolidColorBrush(ColorHelper.FromArgb(selected ? (byte)42 : (byte)18, accent.R, accent.G, accent.B));
     }
 
     private async void SaveSelectionAnnotation_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_selectionQuote)) return;
         var note = SelectionAnnotationTextBox.Text.Trim();
-        await SaveSelectedAnnotationAsync(_selectionQuote, string.IsNullOrWhiteSpace(note) ? null : note, _selectionAnnotationColor);
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            ReaderInfoBar.Severity = InfoBarSeverity.Informational;
+            ReaderInfoBar.Message = ReaderText("请输入笔记内容。", "ノートを入力してください。", "Write a note before saving.");
+            ReaderInfoBar.IsOpen = true;
+            return;
+        }
+
+        await SaveSelectedAnnotationAsync(_selectionQuote, note, "note-red");
+        await ApplyNoteOnlyHighlightsAsync();
         SelectionAnnotationPopup.IsOpen = false;
         if (ReaderWebView.CoreWebView2 is not null)
         {
