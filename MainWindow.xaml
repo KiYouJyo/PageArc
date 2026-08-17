@@ -20,30 +20,30 @@
             </Grid.ColumnDefinitions>
             <TextBlock Text="PageArc" Margin="16,0,0,0" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"/>
 
-            <!-- Figma 44:2 / 43:* — detached, fully rounded title-bar tabs. -->
+            <!-- Figma 44:2 / 43:* — compact detached title-bar tabs aligned with the PageArc wordmark. -->
             <ScrollViewer Grid.Column="1"
-                          Height="40"
-                          Margin="0,4,12,4"
+                          Height="32"
+                          Margin="0,8,12,8"
                           HorizontalScrollMode="Auto"
                           HorizontalScrollBarVisibility="Hidden"
                           VerticalScrollMode="Disabled"
                           VerticalScrollBarVisibility="Disabled"
                           IsTabStop="False">
                 <StackPanel x:Name="ShellTabs" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-                    <!-- Compatibility contract: IsAddTabButtonVisible="True" is now represented by the explicit Figma-shaped ShellNewTabButton. -->
+                    <!-- Compatibility contract: IsAddTabButtonVisible="True" is represented by the explicit Figma-shaped ShellNewTabButton. -->
                     <StackPanel x:Name="ShellTabItems" Orientation="Horizontal" Spacing="8"/>
                     <Button x:Name="ShellNewTabButton"
-                            Width="36"
-                            Height="36"
-                            MinWidth="36"
+                            Width="32"
+                            Height="32"
+                            MinWidth="32"
                             Padding="0"
                             Background="Transparent"
                             BorderThickness="0"
-                            CornerRadius="8"
+                            CornerRadius="7"
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             Click="ShellNewTabButton_Click">
-                        <TextBlock Text="+" FontSize="20" Opacity="0.68"/>
+                        <TextBlock Text="+" FontSize="17" Opacity="0.68"/>
                     </Button>
                 </StackPanel>
             </ScrollViewer>
