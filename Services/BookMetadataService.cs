@@ -113,7 +113,7 @@ public static class BookMetadataService
 
             string markup;
             await using (var stream = pageEntry.Open())
-            using (var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: false))
+            using (var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: false))
                 markup = await reader.ReadToEndAsync(cancellationToken);
 
             var match = CoverResourceRegex.Match(markup);
