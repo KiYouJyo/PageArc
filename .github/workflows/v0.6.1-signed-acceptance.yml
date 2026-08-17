@@ -1,0 +1,187 @@
+name: v0.6.1 Signed Hotfix Acceptance
+
+on:
+  push:
+    branches: [ agent/v0.6.1-hotfix ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pagearc-v0.6.1-signed-hotfix-acceptance
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: Validate, sign, install, and launch-test x64
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate source and regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$project = Get-Content -Raw PageArc.csproj
+          $version = @($project.Project.PropertyGroup | ForEach-Object Version | Where-Object { $_ })[0]
+          if ($version -ne '0.6.1') { throw "Project version mismatch: $version" }
+          dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build PageArc.csproj -c Debug -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Load configured publisher certificate
+        shell: pwsh
+        env:
+          RELEASE_CERTIFICATE_BASE64: ${{ secrets.GH_RELEASE_CERTIFICATE_BASE64 }}
+          RELEASE_CERTIFICATE_PASSWORD: ${{ secrets.GH_RELEASE_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_BASE64) -or [string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_PASSWORD)) { throw 'Release signing secrets are missing.' }
+          $root = Join-Path $env:RUNNER_TEMP 'PageArc-v0.6.1-signed-acceptance'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $pfx = Join-Path $root 'release-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:RELEASE_CERTIFICATE_BASE64))
+          $password = ConvertTo-SecureString $env:RELEASE_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          if (-not $cert -or -not $cert.HasPrivateKey) { throw 'Configured certificate could not be imported.' }
+          if ($cert.Subject -cne 'CN=AppPublisher' -or $cert.Thumbprint -cne 'BD85AD77A651C86CA01A480C8E9BC64952993F98') { throw "Unexpected signing certificate: $($cert.Subject) / $($cert.Thumbprint)" }
+          $cer = Join-Path $root 'PageArc-v0.6.1-acceptance.cer'
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+          "ACCEPTANCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CERTIFICATE_PATH=$cer" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Prepare standard packaged build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $text = Get-Content -Raw PageArc.csproj
+          $text = $text -replace '(?m)^\s*<WindowsPackageType>None</WindowsPackageType>\s*\r?\n', ''
+          $text = $text -replace '(?m)^\s*<PublishProfile>.*?</PublishProfile>\s*\r?\n', ''
+          Set-Content -LiteralPath PageArc.csproj -Value $text -Encoding utf8
+
+          $manifest = Get-Content -Raw Packaging\PageArc.Package.appxmanifest
+          $manifest = $manifest -replace 'Name="KiYouJyo.PageArc"', 'Name="KiYouJyo.PageArc.Acceptance"'
+          Set-Content -LiteralPath Package.appxmanifest -Value $manifest -Encoding utf8
+
+          $assets = Join-Path (Get-Location) 'Assets'
+          New-Item -ItemType Directory -Force -Path $assets | Out-Null
+          Add-Type -AssemblyName System.Drawing
+          function New-Logo([string]$Path, [int]$Width, [int]$Height) {
+            $bmp = New-Object System.Drawing.Bitmap($Width,$Height)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.Clear([System.Drawing.Color]::FromArgb(255,36,90,153))
+            $size = [Math]::Max(12,[Math]::Floor([Math]::Min($Width,$Height)*0.32))
+            $font = New-Object System.Drawing.Font('Segoe UI',$size,[System.Drawing.FontStyle]::Bold,[System.Drawing.GraphicsUnit]::Pixel)
+            $fmt = New-Object System.Drawing.StringFormat
+            $fmt.Alignment = [System.Drawing.StringAlignment]::Center
+            $fmt.LineAlignment = [System.Drawing.StringAlignment]::Center
+            $g.DrawString('PA',$font,[System.Drawing.Brushes]::White,(New-Object System.Drawing.RectangleF(0,0,$Width,$Height)),$fmt)
+            $bmp.Save($Path,[System.Drawing.Imaging.ImageFormat]::Png)
+            $fmt.Dispose(); $font.Dispose(); $g.Dispose(); $bmp.Dispose()
+          }
+          New-Logo (Join-Path $assets 'Square44x44Logo.png') 44 44
+          New-Logo (Join-Path $assets 'Square150x150Logo.png') 150 150
+          New-Logo (Join-Path $assets 'Wide310x150Logo.png') 310 150
+          New-Logo (Join-Path $assets 'StoreLogo.png') 50 50
+
+      - name: Build and sign v0.6.1 MSIX
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:RUNNER_TEMP 'PageArc-AppPackages'
+          dotnet restore PageArc.csproj -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw "Packaged restore failed: $LASTEXITCODE" }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxPackageSigningEnabled=false `
+            -p:AppxBundle=Never `
+            -p:UapAppxPackageBuildMode=SideloadOnly `
+            -p:AppxPackageDir="$output\"
+          if ($LASTEXITCODE -ne 0) { throw "Packaged build failed: $LASTEXITCODE" }
+          $built = @(Get-ChildItem $output -Recurse -Filter '*.msix' | Where-Object Name -notmatch 'Dependencies' | Sort-Object LastWriteTime -Descending) | Select-Object -First 1
+          if (-not $built) { throw 'No MSIX was produced.' }
+          $msix = Join-Path $env:ACCEPTANCE_ROOT 'PageArc_0.6.1.0_x64.msix'
+          Copy-Item $built.FullName $msix -Force
+          $kits = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $signtool = Get-ChildItem (Join-Path $kits 'Windows Kits\10\bin') -Recurse -Filter signtool.exe | Where-Object FullName -match '\\x64\\signtool.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'signtool.exe was not found.' }
+          & $signtool.FullName sign /fd SHA256 /sha1 $env:CERT_THUMBPRINT /tr http://timestamp.digicert.com /td SHA256 $msix
+          if ($LASTEXITCODE -ne 0) { throw "Signing failed: $LASTEXITCODE" }
+          $sig = Get-AuthenticodeSignature $msix
+          if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -cne $env:CERT_THUMBPRINT) { throw 'Signer verification failed.' }
+          "MSIX_PATH=$msix" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install and validate package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $env:CERT_THUMBPRINT)) {
+            Import-Certificate -FilePath $env:CERTIFICATE_PATH -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          }
+          Get-AppxPackage -Name KiYouJyo.PageArc.Acceptance | Remove-AppxPackage -ErrorAction SilentlyContinue
+          Add-AppxPackage -Path $env:MSIX_PATH -ForceApplicationShutdown
+          $pkg = Get-AppxPackage -Name KiYouJyo.PageArc.Acceptance
+          if (-not $pkg) { throw 'Package registration failed.' }
+          if ($pkg.Version -ne '0.6.1.0') { throw "Installed package version mismatch: $($pkg.Version)" }
+          "PACKAGE_FULL_NAME=$($pkg.PackageFullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "PACKAGE_FAMILY_NAME=$($pkg.PackageFamilyName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Launch and single-instance smoke test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-Process PageArc -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          $aumid = "$env:PACKAGE_FAMILY_NAME!App"
+          Start-Process explorer.exe -ArgumentList "shell:AppsFolder\$aumid"
+          Start-Sleep -Seconds 8
+          $first = Get-Process PageArc -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $first) { throw 'Initial packaged launch failed.' }
+          $firstPid = $first.Id
+          Start-Process 'pagearc://open?book=does-not-exist'
+          Start-Sleep -Seconds 4
+          $afterProtocol = @(Get-Process PageArc -ErrorAction SilentlyContinue)
+          if ($afterProtocol.Count -ne 1 -or $afterProtocol[0].Id -ne $firstPid) { throw 'Single-instance protocol activation failed.' }
+          Stop-Process -Id $firstPid -Force
+          Remove-AppxPackage -Package $env:PACKAGE_FULL_NAME -ErrorAction SilentlyContinue
+
+      - name: Build acceptance ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.6.1-x64-signed-acceptance'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item $env:MSIX_PATH $dir
+          Copy-Item $env:CERTIFICATE_PATH $dir
+          Copy-Item Packaging\PageArc.Package.appxmanifest (Join-Path $dir 'PageArc.Package.appxmanifest')
+          @(
+            'PageArc v0.6.1 x64 Signed Hotfix Acceptance',
+            "Build: $env:GITHUB_SHA",
+            "Signer: CN=AppPublisher / $env:CERT_THUMBPRINT",
+            'Validated: v0.6.1 regression tests, Debug/Release builds, signed install, launch and single-instance protocol smoke test',
+            'Manual focus: multi-book layout, covers, localization, categories, conversion visuals, FB2/MOBI/AZW3/LIT opening with the user corpus'
+          ) | Set-Content (Join-Path $dir 'ACCEPTANCE.txt') -Encoding utf8
+          Compress-Archive -Path (Join-Path $dir '*') -DestinationPath (Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.6.1-x64-signed-acceptance.zip') -Force
+          "ACCEPTANCE_ZIP=$(Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.6.1-x64-signed-acceptance.zip')" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload signed hotfix acceptance package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PageArc-v0.6.1-x64-signed-acceptance
+          path: ${{ env.ACCEPTANCE_ZIP }}
+          if-no-files-found: error
+          retention-days: 14
