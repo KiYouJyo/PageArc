@@ -23,8 +23,9 @@ public sealed class ReaderRefinedInteractionTests
         Assert.Contains("MoreButton.Visibility = Visibility.Collapsed", readerCode, StringComparison.Ordinal);
         Assert.Contains("PreviousPageButton.Visibility = Visibility.Collapsed", readerCode, StringComparison.Ordinal);
         Assert.Contains("NextPageButton.Visibility = Visibility.Collapsed", readerCode, StringComparison.Ordinal);
-        Assert.Contains("PageArcReaderToolbarBrush\" Color=\"#FFF6F6F6", appXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("PageArcReaderPaneBrush\" Color=\"#FFF6F6F6", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PageArcReaderToolbarBrush\" Color=\"#00000000", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PageArcReaderPaneBrush\" Color=\"#00000000", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PageArcReaderAreaBrush\" Color=\"#00000000", appXaml, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -46,7 +47,8 @@ public sealed class ReaderRefinedInteractionTests
         Assert.Contains("zoom:fit-width", code, StringComparison.Ordinal);
         Assert.Contains("zoom:fit-height", code, StringComparison.Ordinal);
         Assert.Contains("rgba(185,111,111,.30)", code, StringComparison.Ordinal);
-        Assert.Contains("Write a note before saving", selection, StringComparison.Ordinal);
+        Assert.Contains("SelectionAnnotationTextBox.TextChanged", selection, StringComparison.Ordinal);
+        Assert.Contains("Task.Delay(400", selection, StringComparison.Ordinal);
         Assert.Contains("note-red", selection, StringComparison.Ordinal);
     }
 
