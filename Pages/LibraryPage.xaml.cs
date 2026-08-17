@@ -282,13 +282,13 @@ public sealed partial class LibraryPage : Page
         }
     }
 
-    private static string LocalText(string zh, string ja, string en) =>
-        App.Settings.Current.Language switch
-        {
-            "zh-CN" => zh,
-            "ja-JP" => ja,
-            _ => en
-        };
+    private static string LocalText(string zh, string ja, string en)
+    {
+        var language = App.Localization.CurrentLanguage;
+        if (language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)) return zh;
+        if (language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return ja;
+        return en;
+    }
 
     private async void ImportBook_Click(object sender, RoutedEventArgs e)
     {
@@ -345,7 +345,7 @@ public sealed partial class LibraryPage : Page
         {
             StartupDiagnostics.Log("Library OpenBook failed", ex);
             ImportInfoBar.Severity = InfoBarSeverity.Error;
-            ImportInfoBar.Message = ex.Message;
+            ImportInfoBar.Message = EbookOpenErrorFormatter.Format(ex, App.Localization.CurrentLanguage);
             ImportInfoBar.IsOpen = true;
         }
     }
