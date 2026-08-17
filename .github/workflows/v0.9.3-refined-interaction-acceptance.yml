@@ -1,0 +1,205 @@
+name: v0.9.3 Refined Interaction Acceptance
+
+on:
+  push:
+    branches: [ agent/v0.9.3-tabbed-shell ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pagearc-v0.9.3-refined-interaction-acceptance
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: Validate, sign, install, and launch refined v0.9.3
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate refined Figma and interaction contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$project = Get-Content -Raw PageArc.csproj
+          $version = @($project.Project.PropertyGroup | ForEach-Object Version | Where-Object { $_ })[0]
+          if ($version -ne '0.9.3') { throw "Project version mismatch: $version" }
+
+          [xml]$manifest = Get-Content -Raw Packaging\PageArc.Package.appxmanifest
+          $identity = $manifest.Package.Identity
+          if ($identity.Version -ne '0.9.3.0') { throw "Package version mismatch: $($identity.Version)" }
+          if ($identity.Publisher -cne 'CN=AppPublisher') { throw "Package publisher mismatch: $($identity.Publisher)" }
+
+          $shell = Get-Content -Raw MainWindow.xaml
+          $shellCode = Get-Content -Raw MainWindow.xaml.cs
+          $app = Get-Content -Raw App.xaml
+          $reader = Get-Content -Raw Pages\ReaderPage.xaml
+          $readerFigma = Get-Content -Raw Pages\ReaderPage.Figma.cs
+          $refined = Get-Content -Raw Pages\ReaderPage.RefinedView.cs
+          $selection = Get-Content -Raw Pages\ReaderPage.SelectionAnnotations.cs
+
+          if ($shell -notmatch 'Height="32"' -or $shell -notmatch 'Margin="0,8,12,8"' -or $shell -match '<TabView') { throw 'Compact detached title-tab contract is missing.' }
+          if ($shellCode -notmatch 'FontSize = 12' -or $shellCode -notmatch 'new FontIcon' -or $shellCode -notmatch 'Height = 32') { throw 'Compact title-tab typography/icon contract is missing.' }
+          if ($app -notmatch 'PageArcReaderToolbarBrush" Color="#FFF6F6F6"' -or $app -notmatch 'PageArcReaderPaneBrush" Color="#FFF6F6F6"') { throw 'Reader chrome/title-bar color contract is missing.' }
+          if ($reader -notmatch 'x:Name="SettingsColumn" Width="0"' -or $reader -notmatch 'x:Name="ReaderSettingsPane"') { throw 'Right settings pane contract is missing.' }
+          if ($readerFigma -notmatch 'AnimateRightSidebarAsync\(open\)' -or $refined -notmatch 'AnimateReaderColumnAsync') { throw 'Smooth reader pane animation contract is missing.' }
+          if ($refined -notmatch 'MoreButton.Visibility = Visibility.Collapsed' -or $refined -notmatch 'PreviousPageButton.Visibility = Visibility.Collapsed' -or $refined -notmatch 'NextPageButton.Visibility = Visibility.Collapsed') { throw 'Obsolete reader chrome is still visible.' }
+          if ($refined -notmatch "document.addEventListener\('wheel'" -or $refined -notmatch "document.addEventListener\('click'") { throw 'Wheel/half-page paging contract is missing.' }
+          foreach ($token in @('view:vertical','view:horizontal','view:wrapped','spread:single','spread:odd','spread:even','zoom:in','zoom:out','zoom:auto','zoom:fit-width','zoom:fit-height')) {
+            if ($refined -notmatch [regex]::Escape($token)) { throw "Reader view mode missing: $token" }
+          }
+          if ($selection -notmatch 'HighlightYellowButton.Visibility = Visibility.Collapsed' -or $selection -notmatch 'note-red' -or $refined -notmatch 'rgba\(185,111,111,.30\)') { throw 'Note-only muted-red annotation contract is missing.' }
+
+          dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Load and trust configured publisher certificate
+        shell: pwsh
+        env:
+          RELEASE_CERTIFICATE_BASE64: ${{ secrets.GH_RELEASE_CERTIFICATE_BASE64 }}
+          RELEASE_CERTIFICATE_PASSWORD: ${{ secrets.GH_RELEASE_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_BASE64) -or [string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_PASSWORD)) { throw 'Release signing secrets are missing.' }
+          $root = Join-Path $env:RUNNER_TEMP 'PageArc-v0.9.3-refined-interaction-acceptance'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $pfx = Join-Path $root 'release-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:RELEASE_CERTIFICATE_BASE64))
+          $password = ConvertTo-SecureString $env:RELEASE_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          if (-not $cert -or -not $cert.HasPrivateKey) { throw 'Configured certificate could not be imported.' }
+          if ($cert.Subject -cne 'CN=AppPublisher' -or $cert.Thumbprint -cne 'BD85AD77A651C86CA01A480C8E9BC64952993F98') { throw "Unexpected signing certificate: $($cert.Subject) / $($cert.Thumbprint)" }
+          $cer = Join-Path $root 'PageArc-v0.9.3-acceptance.cer'
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $cert.Thumbprint)) {
+            Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          }
+          Remove-Item $pfx -Force
+          "ACCEPTANCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CERTIFICATE_PATH=$cer" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Prepare standard packaged build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $text = Get-Content -Raw PageArc.csproj
+          $text = $text -replace '(?m)^\s*<WindowsPackageType>None</WindowsPackageType>\s*\r?\n', ''
+          $text = $text -replace '(?m)^\s*<PublishProfile>.*?</PublishProfile>\s*\r?\n', ''
+          Set-Content -LiteralPath PageArc.csproj -Value $text -Encoding utf8
+
+          $manifest = Get-Content -Raw Packaging\PageArc.Package.appxmanifest
+          $manifest = $manifest -replace 'Name="KiYouJyo.PageArc"', 'Name="KiYouJyo.PageArc.RefinedInteractionAcceptance"'
+          Set-Content -LiteralPath Package.appxmanifest -Value $manifest -Encoding utf8
+
+          $assets = Join-Path (Get-Location) 'Assets'
+          New-Item -ItemType Directory -Force -Path $assets | Out-Null
+          Add-Type -AssemblyName System.Drawing
+          function New-Logo([string]$Path, [int]$Width, [int]$Height) {
+            $bmp = New-Object System.Drawing.Bitmap($Width,$Height)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.Clear([System.Drawing.Color]::FromArgb(255,36,90,153))
+            $size = [Math]::Max(12,[Math]::Floor([Math]::Min($Width,$Height)*0.32))
+            $font = New-Object System.Drawing.Font('Segoe UI',$size,[System.Drawing.FontStyle]::Bold,[System.Drawing.GraphicsUnit]::Pixel)
+            $fmt = New-Object System.Drawing.StringFormat
+            $fmt.Alignment = [System.Drawing.StringAlignment]::Center
+            $fmt.LineAlignment = [System.Drawing.StringAlignment]::Center
+            $g.DrawString('PA',$font,[System.Drawing.Brushes]::White,(New-Object System.Drawing.RectangleF(0,0,$Width,$Height)),$fmt)
+            $bmp.Save($Path,[System.Drawing.Imaging.ImageFormat]::Png)
+            $fmt.Dispose(); $font.Dispose(); $g.Dispose(); $bmp.Dispose()
+          }
+          New-Logo (Join-Path $assets 'Square44x44Logo.png') 44 44
+          New-Logo (Join-Path $assets 'Square150x150Logo.png') 150 150
+          New-Logo (Join-Path $assets 'Wide310x150Logo.png') 310 150
+          New-Logo (Join-Path $assets 'StoreLogo.png') 50 50
+
+      - name: Build, sign, and verify v0.9.3 MSIX
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:RUNNER_TEMP 'PageArc-AppPackages'
+          dotnet restore PageArc.csproj -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw "Packaged restore failed: $LASTEXITCODE" }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxPackageSigningEnabled=false `
+            -p:AppxBundle=Never `
+            -p:UapAppxPackageBuildMode=SideloadOnly `
+            -p:AppxPackageDir="$output\"
+          if ($LASTEXITCODE -ne 0) { throw "Packaged build failed: $LASTEXITCODE" }
+          $built = @(Get-ChildItem $output -Recurse -Filter '*.msix' | Where-Object Name -notmatch 'Dependencies' | Sort-Object LastWriteTime -Descending) | Select-Object -First 1
+          if (-not $built) { throw 'No MSIX was produced.' }
+          $msix = Join-Path $env:ACCEPTANCE_ROOT 'PageArc_0.9.3.0_x64.msix'
+          Copy-Item $built.FullName $msix -Force
+          $kits = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $signtool = Get-ChildItem (Join-Path $kits 'Windows Kits\10\bin') -Recurse -Filter signtool.exe | Where-Object FullName -match '\\x64\\signtool.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'signtool.exe was not found.' }
+          & $signtool.FullName sign /fd SHA256 /sha1 $env:CERT_THUMBPRINT /tr http://timestamp.digicert.com /td SHA256 $msix
+          if ($LASTEXITCODE -ne 0) { throw "Signing failed: $LASTEXITCODE" }
+          & $signtool.FullName verify /pa /v $msix
+          if ($LASTEXITCODE -ne 0) { throw "Signature verification failed: $LASTEXITCODE" }
+          $sig = Get-AuthenticodeSignature $msix
+          if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -cne $env:CERT_THUMBPRINT) { throw 'Signer verification failed.' }
+          "MSIX_PATH=$msix" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install and launch smoke test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-AppxPackage -Name KiYouJyo.PageArc.RefinedInteractionAcceptance | Remove-AppxPackage -ErrorAction SilentlyContinue
+          Add-AppxPackage -Path $env:MSIX_PATH -ForceApplicationShutdown
+          $pkg = Get-AppxPackage -Name KiYouJyo.PageArc.RefinedInteractionAcceptance
+          if (-not $pkg) { throw 'Package registration failed.' }
+          if ($pkg.Version -ne '0.9.3.0') { throw "Installed package version mismatch: $($pkg.Version)" }
+          $aumid = "$($pkg.PackageFamilyName)!App"
+          Start-Process explorer.exe -ArgumentList "shell:AppsFolder\$aumid"
+          Start-Sleep -Seconds 8
+          $process = Get-Process PageArc -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $process) { throw 'Packaged PageArc did not remain running after launch.' }
+          Stop-Process -Id $process.Id -Force
+          Remove-AppxPackage -Package $pkg.PackageFullName -ErrorAction SilentlyContinue
+
+      - name: Build refined interaction acceptance ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.9.3-x64-refined-interaction-signed-acceptance'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item $env:MSIX_PATH $dir
+          Copy-Item $env:CERTIFICATE_PATH $dir
+          Copy-Item docs\TABBED_SHELL_0.9.3.md $dir
+          $hash = (Get-FileHash $env:MSIX_PATH -Algorithm SHA256).Hash.ToLowerInvariant()
+          @(
+            'PageArc v0.9.3 x64 Refined Interaction Signed Acceptance',
+            "Build: $env:GITHUB_SHA",
+            "Signer: CN=AppPublisher / $env:CERT_THUMBPRINT",
+            "MSIX SHA-256: $hash",
+            'Validated: 113-test suite, Release x64 build, publisher signature, trust verification, MSIX install, version check, and packaged launch',
+            'Acceptance focus: compact title tabs/icons; title-colored reader chrome; no obsolete reader more/page-arrow buttons; wheel and half-page paging; smooth side panes; view-mode menu; note-only muted-red annotations.',
+            'Figma references: 16:156, 16:227, 16:1025, 16:1088, 16:1149, 53:109, and expanded view-mode state 60:6.',
+            'Install: trust the included .cer under Trusted People if this publisher certificate is not already trusted, then install the .msix.'
+          ) | Set-Content (Join-Path $dir 'ACCEPTANCE.txt') -Encoding utf8
+          Compress-Archive -Path (Join-Path $dir '*') -DestinationPath (Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.9.3-x64-refined-interaction-signed-acceptance.zip') -Force
+          "ACCEPTANCE_ZIP=$(Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.9.3-x64-refined-interaction-signed-acceptance.zip')" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload refined interaction signed acceptance package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PageArc-v0.9.3-x64-refined-interaction-signed-acceptance
+          path: ${{ env.ACCEPTANCE_ZIP }}
+          if-no-files-found: error
+          retention-days: 14
