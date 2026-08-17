@@ -52,9 +52,18 @@ Slider seeking is debounced so dragging does not repeatedly rebuild sections.
 
 Reflowable formats do not contain stable printed page numbers, so PageArc exposes **logical reflow pages** for direct page input. `FlowPageMap` derives a stable per-section logical-page count from the source section sizes and maps each logical page back to the existing `section index + fraction` locator. The canonical persisted position remains the flow locator, not the displayed logical page number.
 
-## Regression contract
+## Regression and signed acceptance
 
-The refinement pass adds source-level regression checks for detached Figma-shaped tabs, the full-height right settings pane, the non-overlapping progress grid, the enlarged four-mode strip and selection-triggered annotation popup. Normal CI must pass tests, Debug x64, Release x64 and whitespace checks before a signed acceptance package is produced.
+The refinement pass adds source-level regression checks for detached Figma-shaped tabs, the full-height right settings pane, the non-overlapping progress grid, the enlarged four-mode strip and selection-triggered annotation popup.
+
+Final validation for this pass:
+
+- normal CI run `32003070916`: green — 110/110 tests, Debug x64, Release x64 and whitespace checks;
+- signed acceptance run `32002795948`: green — Release tests/build, publisher signing and trust verification, MSIX installation/version validation, and real packaged launch;
+- signed artifact: `PageArc-v0.9.3-x64-refined-signed-acceptance` (`9279026175`), artifact digest `sha256:d2d719b012efa663faa6c6d2562e34aae00d7b5e907b679dbd288fda3dc5f081`;
+- packaged MSIX SHA-256: `314697abb1229361d63c2bf05b1c7fc0c5a2151c654a16932fedb31cfcd8e77d`.
+
+The one-time acceptance workflow is removed after the successful build.
 
 ## Non-goals
 
