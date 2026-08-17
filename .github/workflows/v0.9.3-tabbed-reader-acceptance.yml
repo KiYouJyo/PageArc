@@ -137,8 +137,11 @@ jobs:
           if (-not $signtool) { throw 'signtool.exe was not found.' }
           & $signtool.FullName sign /fd SHA256 /sha1 $env:CERT_THUMBPRINT /tr http://timestamp.digicert.com /td SHA256 $msix
           if ($LASTEXITCODE -ne 0) { throw "Signing failed: $LASTEXITCODE" }
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $env:CERT_THUMBPRINT)) {
+            Import-Certificate -FilePath $env:CERTIFICATE_PATH -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          }
           & $signtool.FullName verify /pa /v $msix
-          if ($LASTEXITCODE -ne 0) { throw "Signature verification failed: $LASTEXITCODE" }
+          if ($LASTEXITCODE -ne 0) { throw "Signature verification failed after trusting the acceptance publisher: $LASTEXITCODE" }
           $sig = Get-AuthenticodeSignature $msix
           if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -cne $env:CERT_THUMBPRINT) { throw 'Signer verification failed.' }
           "MSIX_PATH=$msix" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
@@ -178,7 +181,7 @@ jobs:
             "Build: $env:GITHUB_SHA",
             "Signer: CN=AppPublisher / $env:CERT_THUMBPRINT",
             "MSIX SHA-256: $hash",
-            'Validated: 108-test suite, Release x64 build, publisher signature, signature verification, MSIX install, version check, and packaged launch',
+            'Validated: 108-test suite, Release x64 build, publisher signature and trust verification, MSIX install, version check, and packaged launch',
             'Acceptance focus: multi-tab shell, independent live reader tabs, unified reader sidebar, interactive global progress, and logical page jump',
             'Install: trust the included .cer under Trusted People if this publisher certificate is not already trusted, then install the .msix.'
           ) | Set-Content (Join-Path $dir 'ACCEPTANCE.txt') -Encoding utf8
