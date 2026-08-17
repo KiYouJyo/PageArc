@@ -46,6 +46,22 @@ public sealed class TabbedShell093Tests
     }
 
     [Fact]
+    public void TitleBarUsesDetachedRoundedFigmaTabsInsteadOfNativeBrowserTabShape()
+    {
+        var root = FindRepoRoot();
+        var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
+        var code = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
+
+        Assert.Contains("x:Name=\"ShellTabItems\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ShellNewTabButton\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<TabView", xaml, StringComparison.Ordinal);
+        Assert.Contains("CornerRadius = new CornerRadius(8)", code, StringComparison.Ordinal);
+        Assert.Contains("CreateTabVisual(session.Id, HomeTabTitle(), Symbol.Home, 220)", code, StringComparison.Ordinal);
+        Assert.Contains("CreateTabVisual(session.Id, title, Symbol.Library, 300)", code, StringComparison.Ordinal);
+        Assert.Contains("RefreshTabVisuals", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FlowPageMapProvidesStableOneBasedNavigation()
     {
         var document = new FlowDocument
@@ -93,5 +109,16 @@ public sealed class TabbedShell093Tests
         Assert.Equal(4, map.TotalPages);
         Assert.Equal(1, nearEnd.SectionIndex);
         Assert.InRange(nearEnd.Fraction, 0.6, 0.8);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "PageArc.csproj"))) return directory.FullName;
+            directory = directory.Parent;
+        }
+        throw new DirectoryNotFoundException("Could not locate PageArc repository root.");
     }
 }
