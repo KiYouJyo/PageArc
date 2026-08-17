@@ -24,8 +24,8 @@
                 IsBackButtonVisible="Collapsed"
                 IsPaneToggleButtonVisible="True"
                 PaneDisplayMode="Auto"
-                OpenPaneLength="320"
-                CompactPaneLength="48"
+                OpenPaneLength="240"
+                CompactPaneLength="64"
                 DisplayModeChanged="AppNavigation_DisplayModeChanged"
                 SelectionChanged="AppNavigation_SelectionChanged">
                 <NavigationView.MenuItems>
