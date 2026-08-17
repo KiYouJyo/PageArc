@@ -8,18 +8,24 @@ public sealed class CategoryService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly object _gate = new();
+    private readonly string _categoriesFile;
+
+    public CategoryService(string? categoriesFile = null)
+    {
+        _categoriesFile = string.IsNullOrWhiteSpace(categoriesFile) ? AppPaths.CategoriesFile : Path.GetFullPath(categoriesFile);
+    }
 
     public ObservableCollection<CategoryEntry> Categories { get; } = [];
 
     public void Load(IEnumerable<BookEntry> books)
     {
-        AppPaths.Ensure();
+        EnsureStorage();
         Categories.Clear();
         try
         {
-            if (File.Exists(AppPaths.CategoriesFile))
+            if (File.Exists(_categoriesFile))
             {
-                var items = JsonSerializer.Deserialize<List<CategoryEntry>>(File.ReadAllText(AppPaths.CategoriesFile)) ?? [];
+                var items = JsonSerializer.Deserialize<List<CategoryEntry>>(File.ReadAllText(_categoriesFile)) ?? [];
                 foreach (var item in items.Where(x => !string.IsNullOrWhiteSpace(x.Name))) Categories.Add(item);
             }
         }
@@ -55,10 +61,18 @@ public sealed class CategoryService
     {
         lock (_gate)
         {
-            AppPaths.Ensure();
-            var temp = AppPaths.CategoriesFile + ".tmp";
+            EnsureStorage();
+            var temp = _categoriesFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(Categories.ToList(), JsonOptions));
-            File.Move(temp, AppPaths.CategoriesFile, true);
+            File.Move(temp, _categoriesFile, true);
         }
+    }
+
+    private void EnsureStorage()
+    {
+        if (string.Equals(_categoriesFile, AppPaths.CategoriesFile, StringComparison.OrdinalIgnoreCase))
+            AppPaths.Ensure();
+        var directory = Path.GetDirectoryName(_categoriesFile);
+        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
     }
 }
