@@ -49,13 +49,20 @@ public sealed class ReaderFigma092Tests
 
         Assert.Contains("<RowDefinition Height=\"48\"/>", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ContentsColumn\" Width=\"260\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("Width=\"332\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("Width=\"76\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SidebarToggleButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Width=\"86\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ContentsModeButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SearchModeButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"BookmarksModeButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"NotesModeButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("MaxWidth=\"760\"", xaml, StringComparison.Ordinal);
         Assert.Contains("MaxHeight=\"704\"", xaml, StringComparison.Ordinal);
         Assert.Contains("Margin=\"60,28,60,72\"", xaml, StringComparison.Ordinal);
         Assert.Contains("Margin=\"0,338,0,0\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("Height=\"38\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ReaderProgress\" Width=\"420\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PageJumpBox\" Width=\"50\" Height=\"28\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Name=\"BackButton\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Name=\"BookmarkButton\"", xaml, StringComparison.Ordinal);
     }
 
     [Fact]
