@@ -24,7 +24,6 @@ public sealed partial class ReaderPage
     private CancellationTokenSource? _progressSeekCts;
     private bool _readerSessionClosed;
     private bool _chromeInitialized;
-    private bool _moreMenuHooked;
 
     private void InitializeTabbedReaderChrome()
     {
@@ -49,17 +48,6 @@ public sealed partial class ReaderPage
         {
             if (args.IsSuccess) DispatcherQueue.TryEnqueue(UpdatePageJumpUi);
         };
-        // ReaderPage_NotesLoaded constructs the ••• flyout later in the same Loaded turn.
-        DispatcherQueue.TryEnqueue(HookMoreMenuToUnifiedSidebar);
-    }
-
-    private void HookMoreMenuToUnifiedSidebar()
-    {
-        if (_moreMenuHooked || MoreButton.Flyout is not MenuFlyout menu) return;
-        var notesItem = menu.Items.OfType<MenuFlyoutItem>().FirstOrDefault();
-        if (notesItem is null) return;
-        notesItem.Click += (_, _) => ShowUnifiedSidebar("notes");
-        _moreMenuHooked = true;
     }
 
     private void ApplyTabbedProgressVisibility() =>
@@ -75,6 +63,8 @@ public sealed partial class ReaderPage
         _progressSeekCts?.Cancel();
         _progressSeekCts?.Dispose();
         _progressSeekCts = null;
+        _leftPaneAnimationCts?.Cancel();
+        _rightPaneAnimationCts?.Cancel();
         SaveReadingPosition(force: true);
         var source = _source;
         _source = null;
@@ -83,7 +73,8 @@ public sealed partial class ReaderPage
 
     private void SidebarToggle_Click(object sender, RoutedEventArgs e)
     {
-        ContentsColumn.Width = ContentsColumn.Width.Value > 0 ? new GridLength(0) : new GridLength(260);
+        var open = ContentsColumn.Width.GridUnitType != GridUnitType.Pixel || ContentsColumn.Width.Value <= 0.5;
+        _ = AnimateLeftSidebarAsync(open);
     }
 
     private void SidebarModeButton_Click(object sender, RoutedEventArgs e)
@@ -96,7 +87,6 @@ public sealed partial class ReaderPage
     {
         mode = mode is "search" or "bookmarks" or "notes" ? mode : "contents";
         _unifiedSidebarMode = mode;
-        ContentsColumn.Width = new GridLength(260);
         ContentsMode.Visibility = mode == "contents" ? Visibility.Visible : Visibility.Collapsed;
         SearchMode.Visibility = mode == "search" ? Visibility.Visible : Visibility.Collapsed;
         BookmarksMode.Visibility = mode == "bookmarks" ? Visibility.Visible : Visibility.Collapsed;
@@ -110,6 +100,7 @@ public sealed partial class ReaderPage
         if (mode == "notes") RefreshAnnotations();
         if (mode == "search") ReaderSearchBox.Focus(FocusState.Programmatic);
         UpdateUnifiedSidebarVisuals();
+        _ = AnimateLeftSidebarAsync(true);
     }
 
     private void UpdateUnifiedSidebarVisuals()
