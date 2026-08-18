@@ -62,7 +62,7 @@ public sealed class SurfaceIntegrationTests
                 }
             ]);
 
-            Assert.Equal(1, backup.SchemaVersion);
+            Assert.Equal(2, backup.SchemaVersion);
             Assert.Single(backup.Bookmarks);
             Assert.Single(backup.Annotations);
             Assert.Single(backup.Progress);
