@@ -1,0 +1,292 @@
+name: v0.9.5 Signed Acceptance
+
+on:
+  push:
+    branches: [ agent/v0.9.5-reader-data-runtime ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pagearc-v0.9.5-signed-acceptance
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: Validate bundled runtime, sign, install, and smoke-test v0.9.5
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 75
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate v0.9.5 source and ordinary release build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$project = Get-Content -Raw PageArc.csproj
+          $version = @($project.Project.PropertyGroup | ForEach-Object Version | Where-Object { $_ })[0]
+          if ($version -ne '0.9.5') { throw "Project version mismatch: $version" }
+
+          [xml]$manifest = Get-Content -Raw Packaging\PageArc.Package.appxmanifest
+          if ($manifest.Package.Identity.Name -cne 'KiYouJyo.PageArc') { throw "Package identity mismatch: $($manifest.Package.Identity.Name)" }
+          if ($manifest.Package.Identity.Publisher -cne 'CN=AppPublisher') { throw "Package publisher mismatch: $($manifest.Package.Identity.Publisher)" }
+          if ($manifest.Package.Identity.Version -ne '0.9.5.0') { throw "Package version mismatch: $($manifest.Package.Identity.Version)" }
+
+          dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Prepare pinned bundled conversion runtime and matching source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'PageArc-v0.9.5-acceptance'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $source = Join-Path $root 'calibre-9.13.0.tar.xz'
+          .\eng\prepare-calibre-runtime.ps1 -Version '9.13.0' -DownloadSource -SourceDestination $source
+          $converter = Resolve-Path 'ThirdParty\calibre\runtime\ebook-convert.exe'
+          & $converter --version
+          if ($LASTEXITCODE -ne 0) { throw "Bundled ebook-convert runtime failed to start: $LASTEXITCODE" }
+          if (-not (Test-Path $source) -or (Get-Item $source).Length -lt 1MB) { throw 'Matching calibre source archive is missing.' }
+          "ACCEPTANCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "BUNDLED_CONVERTER=$converter" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CALIBRE_SOURCE=$source" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Execute all 20 directed conversion pairs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $matrixRoot = Join-Path $env:RUNNER_TEMP 'PageArc-v0.9.5-conversion-matrix'
+          Remove-Item $matrixRoot -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $matrixRoot | Out-Null
+          $seedHtml = Join-Path $matrixRoot 'seed.html'
+          @'
+          <!doctype html>
+          <html lang="ja"><head><meta charset="utf-8"><title>PageArc v0.9.5 acceptance</title></head>
+          <body><h1>PageArc v0.9.5</h1><p>EPUB / FB2 / MOBI / AZW3 / LIT conversion acceptance.</p><p>日本語の本文と<ruby>漢字<rt>かんじ</rt></ruby>。</p></body></html>
+          '@ | ForEach-Object { $_ -replace '(?m)^          ', '' } | Set-Content $seedHtml -Encoding utf8
+
+          $ext = @{ EPUB='epub'; FB2='fb2'; MOBI='mobi'; AZW3='azw3'; LIT='lit' }
+          $seedEpub = Join-Path $matrixRoot 'seed.epub'
+          & $env:BUNDLED_CONVERTER $seedHtml $seedEpub --title 'PageArc v0.9.5 acceptance'
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $seedEpub)) { throw 'Could not create the seed EPUB.' }
+
+          foreach ($format in @('FB2','MOBI','AZW3','LIT')) {
+            $output = Join-Path $matrixRoot ("seed." + $ext[$format])
+            & $env:BUNDLED_CONVERTER $seedEpub $output
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output) -or (Get-Item $output).Length -eq 0) {
+              throw "Could not create the $format conversion seed."
+            }
+          }
+
+          $formats = @('EPUB','FB2','MOBI','AZW3','LIT')
+          $completed = 0
+          foreach ($input in $formats) {
+            foreach ($outputFormat in $formats) {
+              if ($input -eq $outputFormat) { continue }
+              $source = Join-Path $matrixRoot ("seed." + $ext[$input])
+              $target = Join-Path $matrixRoot ("matrix-$input-to-$outputFormat." + $ext[$outputFormat])
+              Write-Host "Validating $input -> $outputFormat"
+              & $env:BUNDLED_CONVERTER $source $target
+              if ($LASTEXITCODE -ne 0 -or -not (Test-Path $target) -or (Get-Item $target).Length -eq 0) {
+                throw "Bundled conversion failed: $input -> $outputFormat"
+              }
+              $completed++
+            }
+          }
+          if ($completed -ne 20) { throw "Expected 20 directed conversions, completed $completed." }
+          Write-Host 'All 20 directed PageArc conversion pairs completed successfully.' -ForegroundColor Green
+
+      - name: Load configured PageArc publisher certificate
+        shell: pwsh
+        env:
+          RELEASE_CERTIFICATE_BASE64: ${{ secrets.GH_RELEASE_CERTIFICATE_BASE64 }}
+          RELEASE_CERTIFICATE_PASSWORD: ${{ secrets.GH_RELEASE_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_BASE64) -or [string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_PASSWORD)) {
+            throw 'Release signing secrets are missing.'
+          }
+          $pfx = Join-Path $env:ACCEPTANCE_ROOT 'release-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:RELEASE_CERTIFICATE_BASE64))
+          $password = ConvertTo-SecureString $env:RELEASE_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          if (-not $cert -or -not $cert.HasPrivateKey) { throw 'Configured certificate could not be imported.' }
+          if ($cert.Subject -cne 'CN=AppPublisher' -or $cert.Thumbprint -cne 'BD85AD77A651C86CA01A480C8E9BC64952993F98') {
+            throw "Unexpected signing certificate: $($cert.Subject) / $($cert.Thumbprint)"
+          }
+          $cer = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-AppPublisher.cer'
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $cert.Thumbprint)) {
+            Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          }
+          Remove-Item $pfx -Force
+          "CERTIFICATE_PATH=$cer" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Prepare packaged WinUI source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $text = Get-Content -Raw PageArc.csproj
+          $text = $text -replace '(?m)^\s*<WindowsPackageType>None</WindowsPackageType>\s*\r?\n', ''
+          $text = $text -replace '(?m)^\s*<PublishProfile>.*?</PublishProfile>\s*\r?\n', ''
+          Set-Content -LiteralPath PageArc.csproj -Value $text -Encoding utf8
+          Copy-Item Packaging\PageArc.Package.appxmanifest Package.appxmanifest -Force
+
+          $assets = Join-Path (Get-Location) 'Assets'
+          New-Item -ItemType Directory -Force -Path $assets | Out-Null
+          Add-Type -AssemblyName System.Drawing
+          function New-Logo([string]$Path, [int]$Width, [int]$Height) {
+            $bmp = New-Object System.Drawing.Bitmap($Width,$Height)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.Clear([System.Drawing.Color]::FromArgb(255,36,90,153))
+            $size = [Math]::Max(12,[Math]::Floor([Math]::Min($Width,$Height)*0.32))
+            $font = New-Object System.Drawing.Font('Segoe UI',$size,[System.Drawing.FontStyle]::Bold,[System.Drawing.GraphicsUnit]::Pixel)
+            $fmt = New-Object System.Drawing.StringFormat
+            $fmt.Alignment = [System.Drawing.StringAlignment]::Center
+            $fmt.LineAlignment = [System.Drawing.StringAlignment]::Center
+            $g.DrawString('PA',$font,[System.Drawing.Brushes]::White,(New-Object System.Drawing.RectangleF(0,0,$Width,$Height)),$fmt)
+            $bmp.Save($Path,[System.Drawing.Imaging.ImageFormat]::Png)
+            $fmt.Dispose(); $font.Dispose(); $g.Dispose(); $bmp.Dispose()
+          }
+          New-Logo (Join-Path $assets 'Square44x44Logo.png') 44 44
+          New-Logo (Join-Path $assets 'Square150x150Logo.png') 150 150
+          New-Logo (Join-Path $assets 'Wide310x150Logo.png') 310 150
+          New-Logo (Join-Path $assets 'StoreLogo.png') 50 50
+
+      - name: Build official unsigned x64 MSIX with bundled runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:RUNNER_TEMP 'PageArc-v0.9.5-AppPackages'
+          dotnet restore PageArc.csproj -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw "Packaged restore failed: $LASTEXITCODE" }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxPackageSigningEnabled=false `
+            -p:AppxBundle=Never `
+            -p:UapAppxPackageBuildMode=SideloadOnly `
+            -p:AppxPackageDir="$output\"
+          if ($LASTEXITCODE -ne 0) { throw "Packaged build failed: $LASTEXITCODE" }
+
+          $built = @(Get-ChildItem $output -Recurse -Filter '*.msix' | Where-Object Name -notmatch 'Dependencies' | Sort-Object LastWriteTime -Descending) | Select-Object -First 1
+          if (-not $built) { throw 'No MSIX was produced.' }
+          $msix = Join-Path $env:ACCEPTANCE_ROOT 'PageArc_0.9.5.0_x64.msix'
+          Copy-Item $built.FullName $msix -Force
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($msix)
+          try {
+            $runtimeEntry = $zip.Entries | Where-Object { $_.FullName -match 'ThirdParty/calibre/runtime/ebook-convert\.exe$' } | Select-Object -First 1
+            if (-not $runtimeEntry -or $runtimeEntry.Length -eq 0) { throw 'MSIX does not contain the bundled ebook-convert runtime.' }
+          } finally { $zip.Dispose() }
+          "MSIX_PATH=$msix" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Sign and verify x64 MSIX
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $kits = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $signtool = Get-ChildItem (Join-Path $kits 'Windows Kits\10\bin') -Recurse -Filter signtool.exe | Where-Object FullName -match '\\x64\\signtool.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'signtool.exe was not found.' }
+          & $signtool.FullName sign /fd SHA256 /sha1 $env:CERT_THUMBPRINT /tr http://timestamp.digicert.com /td SHA256 $env:MSIX_PATH
+          if ($LASTEXITCODE -ne 0) { throw "Signing failed: $LASTEXITCODE" }
+          & $signtool.FullName verify /pa /v $env:MSIX_PATH
+          if ($LASTEXITCODE -ne 0) { throw "Signature verification failed: $LASTEXITCODE" }
+          $sig = Get-AuthenticodeSignature $env:MSIX_PATH
+          if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -cne $env:CERT_THUMBPRINT) { throw 'Signer verification failed.' }
+          $hash = (Get-FileHash $env:MSIX_PATH -Algorithm SHA256).Hash.ToLowerInvariant()
+          "MSIX_SHA256=$hash" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install and launch packaged v0.9.5
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-AppxPackage -Name KiYouJyo.PageArc | Remove-AppxPackage -ErrorAction SilentlyContinue
+          Add-AppxPackage -Path $env:MSIX_PATH -ForceApplicationShutdown
+          $pkg = Get-AppxPackage -Name KiYouJyo.PageArc
+          if (-not $pkg) { throw 'Package registration failed.' }
+          if ($pkg.Version -ne '0.9.5.0') { throw "Installed package version mismatch: $($pkg.Version)" }
+          $aumid = "$($pkg.PackageFamilyName)!App"
+          Start-Process explorer.exe -ArgumentList "shell:AppsFolder\$aumid"
+          Start-Sleep -Seconds 10
+          $process = Get-Process PageArc -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $process) { throw 'Packaged PageArc did not remain running after launch.' }
+          Stop-Process -Id $process.Id -Force
+          Remove-AppxPackage -Package $pkg.PackageFullName -ErrorAction SilentlyContinue
+
+      - name: Assemble signed acceptance installer artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v0.9.5-x64-signed-acceptance'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item $env:MSIX_PATH $dir
+          Copy-Item $env:CERTIFICATE_PATH $dir
+          Copy-Item $env:CALIBRE_SOURCE $dir
+          Copy-Item ThirdParty\calibre\PIN.md (Join-Path $dir 'calibre-PIN.md')
+          Copy-Item THIRD_PARTY_NOTICES.md $dir
+
+          @'
+          $ErrorActionPreference = 'Stop'
+          function IsAdmin { ([Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
+          if (-not (IsAdmin)) {
+            $p = Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"") -Verb RunAs -Wait -PassThru
+            exit $p.ExitCode
+          }
+          $root = Split-Path -Parent $PSCommandPath
+          $cert = Join-Path $root 'PageArc-AppPublisher.cer'
+          $msix = Join-Path $root 'PageArc_0.9.5.0_x64.msix'
+          $c = [Security.Cryptography.X509Certificates.X509Certificate2]::new($cert)
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $c.Thumbprint)) {
+            Import-Certificate $cert -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          }
+          Get-AppxPackage -Name KiYouJyo.PageArc | Remove-AppxPackage -ErrorAction SilentlyContinue
+          Add-AppxPackage -Path $msix -ForceApplicationShutdown
+          Write-Host 'PageArc v0.9.5 installed.' -ForegroundColor Green
+          '@ | ForEach-Object { $_ -replace '(?m)^          ', '' } | Set-Content (Join-Path $dir 'Install.ps1') -Encoding utf8
+
+          Set-Content (Join-Path $dir 'Install.cmd') -Value @(
+            '@echo off',
+            'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1"',
+            'if errorlevel 1 pause'
+          ) -Encoding ascii
+
+          @(
+            'PageArc v0.9.5 x64 signed acceptance',
+            "Build: $env:GITHUB_SHA",
+            "Signer: CN=AppPublisher / $env:CERT_THUMBPRINT",
+            "MSIX SHA-256: $env:MSIX_SHA256",
+            'Bundled conversion runtime: calibre 9.13.0; all 20 directed EPUB/FB2/MOBI/AZW3/LIT conversion pairs passed.',
+            'Validated: 121 tests, Release build, runtime packaging, package signing, signature verification, MSIX install/version check, and packaged launch smoke test.',
+            'The corresponding calibre-9.13.0 source archive is included for the bundled GPLv3 runtime.',
+            'Install: extract the artifact and run Install.cmd; Windows may request administrator permission to trust the included publisher certificate.'
+          ) | Set-Content (Join-Path $dir 'ACCEPTANCE.txt') -Encoding utf8
+
+          $checksums = @()
+          foreach ($file in Get-ChildItem $dir -File) {
+            $checksums += "$((Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($file.Name)"
+          }
+          $checksums | Set-Content (Join-Path $dir 'SHA256SUMS.txt') -Encoding ascii
+          "ARTIFACT_DIR=$dir" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload signed v0.9.5 acceptance package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PageArc-v0.9.5-x64-signed-acceptance
+          path: ${{ env.ARTIFACT_DIR }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
