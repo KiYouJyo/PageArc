@@ -2,28 +2,28 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-0.9.3-005fb8)
+![Version](https://img.shields.io/badge/version-0.9.5-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
 ![Offline First](https://img.shields.io/badge/offline-first-2E7D32)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-**PageArc** 是一个专注于流式电子书格式的 Windows 阅读器，采用 WinUI 3 / Windows App SDK 构建。界面以 PAGEARC Figma 为设计基准，优先保持本地、轻量、原文件不修改的阅读体验。
+**PageArc** 是一个专注于流式电子书格式的 Windows 阅读器，采用 WinUI 3 / Windows App SDK 构建。界面以 PAGEARC Figma 为设计基准，优先保持本地、原文件不修改的阅读体验。
 
-## v0.9.3
+## v0.9.5
 
-v0.9.3 在已经完成的格式引擎、书库与 Windows 集成基础上，完成了当前阶段的桌面阅读体验收束：
+v0.9.5 在 v0.9.3 多标签阅读基础上补齐数据恢复、内置转换运行时与正文兼容交互：
 
-- EPUB 2 / EPUB 3、FB2 使用内置解析器；MOBI / KF8 / AZW3 使用固定版本的本地解析运行时；LIT 通过独立 Flow Adapter 与本地转换 Provider 接入统一阅读器；
-- 标题栏采用多标签页结构，启动与 `+` 按钮可创建 Home/书库标签，多本电子书可以同时保持独立 Reader 标签并快速切换；
-- 书库支持 Grid/List 切换、真实封面与元数据、批量导入、重复检测、监视文件夹、分类/收藏、详情侧栏、缺失文件处理以及大书库迁移；
-- Reader 左侧统一目录 / 搜索 / 书签 / 笔记侧栏，右侧 `Aa` 面板提供垂直、水平、折行阅读，单页/奇数页/偶数页展开，以及缩放、自动尺寸、适合宽度和适合高度等视图模式；
-- 阅读器工具栏、左右侧栏和阅读区域使用与自定义标题栏一致的 Mica 背景，实际文档页单独遵循阅读主题；
-- 选中文本当前采用“笔记优先”交互：输入自动保存，关闭/取消选择前会刷新待保存内容，并使用低饱和红色标记带笔记文本；
-- 阅读进度、全文搜索、书签、笔记、阅读设置及视图模式均持久化；
-- Windows 打包版本注册 EPUB / FB2 / MOBI / AZW / AZW3 / LIT 文件关联，支持单实例激活、`pagearc:` 深链和 Jump List 最近书籍；
-- 格式转换层显式建模 EPUB / FB2 / MOBI / AZW3 / LIT 之间的 20 个有向互转组合，并根据本机实际 Provider 报告可用能力。
+- 阅读数据备份升级到 schema v2，并提供“合并 / 覆盖”恢复；换机后可按 PageArc ID、内容指纹或唯一书籍身份重新匹配阅读进度、书签和笔记；
+- 官方 x64 包内置固定版本的 calibre 9.13.0 本地转换运行时，PageArc 默认直接提供 EPUB / FB2 / MOBI / AZW3 / LIT 的 20 个有向互转组合，用户无需另装转换软件；外部 calibre 仅保留为开发/兼容后备；
+- EPUB / CJK 正文层增加严格中日文换行、Ruby/振假名、纵排 writing-mode、MathML/SVG 自适应和宽表格横向滚动兼容；该能力针对 reflow 文档，不宣称完整 Fixed-layout EPUB 支持；
+- Home / Reader 标签顺序、身份和当前选中标签持久化，重启后自动恢复仍然有效的阅读会话；
+- 同文档脚注链接可直接弹出轻量阅读层，并保留跳转到原脚注的入口；
+- 点击正文图片可进入阅读器内图片查看器，支持缩放、拖动、适合窗口、100% 与安全保存；
+- EPUB 2 / EPUB 3、FB2 使用内置解析器；MOBI / KF8 / AZW3 使用固定版本本地解析运行时；LIT 通过独立 Flow Adapter 与随包转换运行时接入统一阅读器；
+- 书库继续支持 Grid/List、真实封面与元数据、批量导入、重复检测、监视文件夹、分类/收藏、缺失文件处理；Reader 保留目录 / 搜索 / 书签 / 笔记、阅读主题及多种流式视图模式；
+- Windows 打包版本继续注册 EPUB / FB2 / MOBI / AZW / AZW3 / LIT 文件关联，并支持单实例、`pagearc:` 深链和 Jump List。
 
 > **原文件安全**：PageArc 的阅读缓存、封面缓存、解析工作区和转换输出均使用副本或新文件，书库移除也不会删除原电子书。DRM 去除不属于项目范围。
 
@@ -37,7 +37,7 @@ PageArc 的 UI SSOT 为 Figma `PAGEARC` 文件。新增或改变可见 UI 前必
 
 ## 隐私与联网
 
-PageArc 不要求账户，书库、缓存、阅读进度、书签、笔记与设置均保存在本机。正常阅读和内置解析不需要联网。网络仅用于用户主动执行的更新检查；若用户选择安装并配置外部转换 Provider，其调用仍在本机完成。
+PageArc 不要求账户，书库、缓存、阅读进度、书签、笔记、标签会话与设置均保存在本机。正常阅读、解析和转换均在本地进行。正式安装包不会为了转换电子书而联网；网络仅用于用户主动执行的更新检查。构建官方安装包时下载的第三方转换运行时不属于应用运行期联网行为。
 
 ## 开发环境
 
@@ -55,6 +55,7 @@ dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 ## 文档
 
 - [路线图](docs/ROADMAP.md)
+- [v0.9.5 功能记录](docs/V095_FEATURES.md)
 - [架构](docs/ARCHITECTURE.md)
 - [流式引擎架构](docs/ENGINE_ARCHITECTURE.md)
 - [Windows 集成](docs/WINDOWS_INTEGRATION.md)
@@ -69,4 +70,4 @@ dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 
 ## License
 
-PageArc 主项目采用 MIT License。捆绑的第三方解析组件保留各自的许可证与来源说明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+PageArc 主项目采用 MIT License。捆绑的第三方组件保留各自许可证与来源说明；官方 x64 包内的 calibre 转换运行时继续受 GPLv3 约束，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
