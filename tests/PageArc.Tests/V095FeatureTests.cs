@@ -101,7 +101,7 @@ public sealed class V095FeatureTests
         Assert.Contains("pagearc-footnote-layer", script, StringComparison.Ordinal);
         Assert.Contains("pagearc-image-viewer", script, StringComparison.Ordinal);
         Assert.Contains("pagearc-image-save", script, StringComparison.Ordinal);
-        Assert.Contains("ウィンドウに合わせる", script, StringComparison.Ordinal);
+        Assert.Contains("\"fit\"", script, StringComparison.Ordinal);
     }
 
     private static string NewTempDirectory()
