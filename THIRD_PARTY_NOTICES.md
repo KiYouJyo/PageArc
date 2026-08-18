@@ -20,6 +20,16 @@ PageArc vendors the pinned parser source into the application package so ebook p
 - License: MIT
 - License text: `ThirdParty/fflate/LICENSE`
 
-## calibre — optional external conversion provider
+## calibre 9.13.0 — bundled conversion runtime in official x64 packages
 
-PageArc does **not** bundle calibre. If a user already has calibre installed, PageArc can invoke its `ebook-convert` executable as an optional provider for DRM-free format conversion and legacy-format normalization fallback. PageArc never modifies the source ebook and does not attempt DRM removal.
+PageArc v0.9.5 official x64 signed packages bundle a fixed calibre **9.13.0** runtime and invoke its `ebook-convert.exe` as a separate local process through PageArc's conversion-provider boundary. This makes EPUB / FB2 / MOBI / AZW3 / LIT conversion and LIT normalization available without requiring a separate calibre installation.
+
+- Project: calibre
+- Version: 9.13.0
+- License: GNU General Public License v3 (GPLv3)
+- Runtime pin / provenance: `ThirdParty/calibre/PIN.md`
+- Corresponding source archive: distributed beside the signed v0.9.5 acceptance/release package as `calibre-9.13.0.tar.xz`
+
+calibre and its bundled dependencies retain their own copyrights and licenses. PageArc itself remains MIT licensed. The source ebook is never modified and PageArc does not attempt DRM removal.
+
+Development/source builds that have not prepared the bundled runtime can still use an already installed calibre copy as a compatibility fallback.

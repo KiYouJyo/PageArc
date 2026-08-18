@@ -78,6 +78,41 @@ public sealed class ReadingDataService
         }
     }
 
+    public void RestoreSnapshot(ReadingDataState snapshot, ReadingBackupRestoreMode mode)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        lock (_gate)
+        {
+            var importedBookmarks = (snapshot.Bookmarks ?? []).Select(Clone).ToList();
+            var importedAnnotations = (snapshot.Annotations ?? []).Select(Clone).ToList();
+
+            if (mode == ReadingBackupRestoreMode.Replace)
+            {
+                _state = new ReadingDataState
+                {
+                    Bookmarks = importedBookmarks,
+                    Annotations = importedAnnotations
+                };
+                SaveLocked();
+                return;
+            }
+
+            foreach (var bookmark in importedBookmarks)
+            {
+                if (string.IsNullOrWhiteSpace(bookmark.Id)) bookmark.Id = Guid.NewGuid().ToString("N");
+                _state.Bookmarks.RemoveAll(existing => string.Equals(existing.Id, bookmark.Id, StringComparison.Ordinal));
+                _state.Bookmarks.Add(bookmark);
+            }
+            foreach (var annotation in importedAnnotations)
+            {
+                if (string.IsNullOrWhiteSpace(annotation.Id)) annotation.Id = Guid.NewGuid().ToString("N");
+                _state.Annotations.RemoveAll(existing => string.Equals(existing.Id, annotation.Id, StringComparison.Ordinal));
+                _state.Annotations.Add(annotation);
+            }
+            SaveLocked();
+        }
+    }
+
     public bool HasBookmark(string bookId, FlowContentLocator locator, double tolerance = 0.01)
     {
         lock (_gate)
@@ -86,12 +121,7 @@ public sealed class ReadingDataService
         }
     }
 
-    public ReaderBookmark? ToggleBookmark(
-        string bookId,
-        FlowContentLocator locator,
-        string chapterTitle,
-        string snippet,
-        double tolerance = 0.01)
+    public ReaderBookmark? ToggleBookmark(string bookId, FlowContentLocator locator, string chapterTitle, string snippet, double tolerance = 0.01)
     {
         lock (_gate)
         {

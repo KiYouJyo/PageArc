@@ -16,4 +16,5 @@ TestResults/
 *.appx
 *.appxbundle
 artifacts/
+ThirdParty/calibre/runtime/
 .DS_Store

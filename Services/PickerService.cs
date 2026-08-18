@@ -48,4 +48,41 @@ public static class PickerService
         WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
         return (await picker.PickSaveFileAsync())?.Path;
     }
+
+    public static async Task<string?> PickReadingBackupOpenPathAsync()
+    {
+        if (App.MainWindow is null) return null;
+        var picker = new FileOpenPicker
+        {
+            ViewMode = PickerViewMode.List,
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+        };
+        picker.FileTypeFilter.Add(".json");
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+        return (await picker.PickSingleFileAsync())?.Path;
+    }
+
+    public static async Task<string?> PickImageSavePathAsync(string suggestedFileName, string extension)
+    {
+        if (App.MainWindow is null) return null;
+        extension = NormalizeImageExtension(extension);
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.PicturesLibrary,
+            SuggestedFileName = string.IsNullOrWhiteSpace(suggestedFileName) ? "ebook-image" : suggestedFileName
+        };
+        picker.FileTypeChoices.Add("Image", new List<string> { extension });
+        picker.DefaultFileExtension = extension;
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+        return (await picker.PickSaveFileAsync())?.Path;
+    }
+
+    private static string NormalizeImageExtension(string? extension)
+    {
+        var value = string.IsNullOrWhiteSpace(extension) ? ".png" : extension.Trim().ToLowerInvariant();
+        if (!value.StartsWith('.')) value = "." + value;
+        return value is ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" or ".svg" or ".bmp" ? value : ".png";
+    }
 }

@@ -8,20 +8,18 @@ public sealed class EbookConversionService
 
     public EbookConversionService(IEnumerable<IEbookConversionProvider>? providers = null)
     {
-        _providers = (providers ?? [new CalibreConversionProvider()]).ToArray();
+        _providers = (providers ?? [new PageArcBundledConversionProvider(), new CalibreConversionProvider()]).ToArray();
     }
 
     public IReadOnlyList<IEbookConversionProvider> Providers => _providers;
 
-    public bool CanConvert(string inputFormat, string outputFormat) =>
-        FindProvider(inputFormat, outputFormat) is not null;
+    public bool CanConvert(string inputFormat, string outputFormat) => FindProvider(inputFormat, outputFormat) is not null;
 
     public IEbookConversionProvider? FindProvider(string inputFormat, string outputFormat)
     {
         var input = BookFormatRegistry.Normalize(inputFormat);
         var output = BookFormatRegistry.Normalize(outputFormat);
-        return _providers.FirstOrDefault(provider =>
-            provider.IsAvailable && provider.CanConvert(input, output));
+        return _providers.FirstOrDefault(provider => provider.IsAvailable && provider.CanConvert(input, output));
     }
 
     public IReadOnlyList<EbookConversionCapability> GetRequiredCapabilityMatrix()
@@ -43,22 +41,17 @@ public sealed class EbookConversionService
     public async Task<EbookConversionResult> ConvertAsync(EbookConversionRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (!File.Exists(request.InputPath))
-            return EbookConversionResult.Failed("The source ebook does not exist.");
+        if (!File.Exists(request.InputPath)) return EbookConversionResult.Failed("The source ebook does not exist.");
 
         var inputFormat = BookFormatRegistry.FormatFromPath(request.InputPath);
-        if (string.IsNullOrWhiteSpace(inputFormat))
-            return EbookConversionResult.Failed("The source ebook format is not supported by PageArc.");
+        if (string.IsNullOrWhiteSpace(inputFormat)) return EbookConversionResult.Failed("The source ebook format is not supported by PageArc.");
 
         var outputFormat = BookFormatRegistry.Normalize(request.OutputFormat);
-        if (!BookFormatRegistry.IsRequired(outputFormat))
-            return EbookConversionResult.Failed($"The output ebook format is not supported: {request.OutputFormat}.");
-        if (string.Equals(inputFormat, outputFormat, StringComparison.OrdinalIgnoreCase))
-            return EbookConversionResult.Failed("Source and output formats are the same.");
+        if (!BookFormatRegistry.IsRequired(outputFormat)) return EbookConversionResult.Failed($"The output ebook format is not supported: {request.OutputFormat}.");
+        if (string.Equals(inputFormat, outputFormat, StringComparison.OrdinalIgnoreCase)) return EbookConversionResult.Failed("Source and output formats are the same.");
 
         var provider = FindProvider(inputFormat, outputFormat);
-        if (provider is null)
-            return EbookConversionResult.Failed($"No installed conversion provider can convert {inputFormat} to {outputFormat}.");
+        if (provider is null) return EbookConversionResult.Failed($"No PageArc conversion runtime can convert {inputFormat} to {outputFormat}.");
 
         var outputPath = string.IsNullOrWhiteSpace(request.OutputPath)
             ? CreateOutputPath(request.InputPath, outputFormat)
