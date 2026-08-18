@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-0.9.3-005fb8)
+![Version](https://img.shields.io/badge/version-0.9.5-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -11,19 +11,18 @@
 
 **PageArc** is a WinUI 3 / Windows App SDK ebook reader for Windows focused on reflowable formats. The UI follows the PAGEARC Figma source of truth while keeping reading local-first and leaving original ebook files untouched.
 
-## v0.9.3
+## v0.9.5
 
-v0.9.3 completes the current desktop reading-experience convergence on top of the format engine, library, and Windows integration foundations:
+v0.9.5 completes the requested data/runtime/reading-interaction pass on top of the v0.9.3 multi-tab reader:
 
-- built-in EPUB 2 / EPUB 3 and FB2 parsing; pinned local MOBI / KF8 / AZW3 parsing; dedicated LIT flow integration through a local conversion-provider boundary;
-- a multi-tab title-bar shell where startup and `+` create Home/library tabs and multiple books can remain open in independent Reader tabs;
-- a completed library workflow with Grid/List switching, real covers and metadata, batch import, duplicate detection, watched folders, categories/favorites, details, missing-file handling and large-library migration coverage;
-- one Reader sidebar for Contents / Search / Bookmarks / Notes plus an `Aa` pane with vertical, horizontal and wrapped reading, single/odd/even spread modes, zoom controls, automatic sizing, fit-width and fit-height;
-- Reader chrome, side panes and surrounding reading area reveal the same Mica backdrop as the custom title bar while the document page itself follows the selected reading theme;
-- text selection currently uses a note-first flow: typing autosaves, dismissal flushes pending text, and note-bearing text uses a muted low-saturation red mark;
-- reading progress, search, bookmarks, notes, reading settings and view modes persist across sessions;
-- packaged Windows file associations for EPUB / FB2 / MOBI / AZW / AZW3 / LIT, plus single-instance activation, `pagearc:` deep links and Jump List recent-book entries;
-- an explicit 20-pair ordered conversion capability matrix for EPUB / FB2 / MOBI / AZW3 / LIT, gated by providers actually available on the machine.
+- reading backups move to schema v2 and can now be restored in Merge or Replace mode; PageArc remaps progress, bookmarks and notes after a device/path change using exact IDs, content fingerprints and unique book identity;
+- official x64 packages bundle a pinned local calibre 9.13.0 conversion runtime, making all 20 directed EPUB / FB2 / MOBI / AZW3 / LIT conversion pairs available without a separate calibre installation; external calibre remains a development/compatibility fallback;
+- the reflow document layer adds strict Chinese/Japanese line breaking, ruby support, vertical writing-mode preservation, responsive MathML/SVG and horizontal overflow for wide tables; this does not claim a complete fixed-layout EPUB engine;
+- Home/Reader tab order, identity and selected tab persist and valid Reader sessions are restored after restart;
+- same-document note references open in a lightweight reading-surface footnote popover with an explicit jump action;
+- document images open in an in-reader viewer with zoom, pan, fit, 100% and safe Save through the Windows picker;
+- EPUB 2/3 and FB2 retain built-in parsing, MOBI/KF8/AZW3 retain the pinned local parser path, and LIT uses the dedicated flow adapter plus the bundled local conversion runtime;
+- the completed library, Contents/Search/Bookmarks/Notes panes, persisted reader settings/view modes, Windows file associations, single-instance activation, `pagearc:` links and Jump List integration remain in place.
 
 **Source safety:** reading caches, cover caches, parser workspaces and conversions use copies or new files. Removing a book from PageArc never deletes the original ebook. DRM removal is out of scope.
 
@@ -37,7 +36,7 @@ Visible UI changes must be checked against the PAGEARC Figma design before XAML 
 
 ## Privacy
 
-No account is required. Library metadata, settings, progress, bookmarks and notes stay on the device. Normal reading and built-in parsing are offline. Network access is limited to user-invoked update checks; optional external conversion providers are invoked locally.
+No account is required. Library metadata, settings, progress, bookmarks, notes and tab-session state stay on the device. Normal reading, parsing and ebook conversion run locally. Official installed builds do not need network access to convert books; network access is limited to user-invoked update checks. The packaging workflow downloads the pinned third-party runtime before the installer is produced.
 
 ## Build
 
@@ -47,8 +46,8 @@ dotnet build PageArc.slnx -c Debug -p:Platform=x64
 dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 ```
 
-See [docs/ROADMAP.md](docs/ROADMAP.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ENGINE_ARCHITECTURE.md](docs/ENGINE_ARCHITECTURE.md), [docs/WINDOWS_INTEGRATION.md](docs/WINDOWS_INTEGRATION.md), [docs/FORMAT_SUPPORT.md](docs/FORMAT_SUPPORT.md), [docs/TABBED_SHELL_0.9.3.md](docs/TABBED_SHELL_0.9.3.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [PRIVACY.md](PRIVACY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [CHANGELOG.md](CHANGELOG.md).
+See [docs/ROADMAP.md](docs/ROADMAP.md), [docs/V095_FEATURES.md](docs/V095_FEATURES.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ENGINE_ARCHITECTURE.md](docs/ENGINE_ARCHITECTURE.md), [docs/WINDOWS_INTEGRATION.md](docs/WINDOWS_INTEGRATION.md), [docs/FORMAT_SUPPORT.md](docs/FORMAT_SUPPORT.md), [docs/TABBED_SHELL_0.9.3.md](docs/TABBED_SHELL_0.9.3.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [PRIVACY.md](PRIVACY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-PageArc itself is MIT-licensed. Vendored parser components retain their own licenses and provenance; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+PageArc itself is MIT-licensed. Bundled third-party components retain their own licenses and provenance; the calibre runtime in official x64 packages remains GPLv3-licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
