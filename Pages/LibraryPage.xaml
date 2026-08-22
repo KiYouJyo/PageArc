@@ -5,39 +5,73 @@
     xmlns:models="using:PageArc.Models"
     Background="Transparent">
 
-    <Grid Padding="24">
+    <Grid x:Name="LibraryLayoutRoot" Padding="24">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="LibraryWidthStates">
+                <VisualState x:Name="NarrowLibrary">
+                    <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="HeaderActions.(Grid.Row)" Value="1"/>
+                        <Setter Target="HeaderActions.(Grid.Column)" Value="0"/>
+                        <Setter Target="HeaderActions.(Grid.ColumnSpan)" Value="2"/>
+                        <Setter Target="HeaderActions.Width" Value="Auto"/>
+                        <Setter Target="HeaderFiltersRight.(Grid.Row)" Value="1"/>
+                        <Setter Target="HeaderFiltersRight.(Grid.Column)" Value="0"/>
+                        <Setter Target="HeaderFiltersRight.HorizontalAlignment" Value="Left"/>
+                        <Setter Target="PageTitle.FontSize" Value="24"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="WideLibrary">
+                    <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1200"/></VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="HeaderActions.(Grid.Row)" Value="0"/>
+                        <Setter Target="HeaderActions.(Grid.Column)" Value="1"/>
+                        <Setter Target="HeaderActions.(Grid.ColumnSpan)" Value="1"/>
+                        <Setter Target="HeaderActions.Width" Value="520"/>
+                        <Setter Target="HeaderFiltersRight.(Grid.Row)" Value="0"/>
+                        <Setter Target="HeaderFiltersRight.(Grid.Column)" Value="1"/>
+                        <Setter Target="HeaderFiltersRight.HorizontalAlignment" Value="Right"/>
+                        <Setter Target="PageTitle.FontSize" Value="28"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
         <Grid.RowDefinitions>
-            <RowDefinition Height="132"/>
-            <RowDefinition Height="28"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
-            <Grid.RowDefinitions><RowDefinition Height="68"/><RowDefinition Height="64"/></Grid.RowDefinitions>
-            <Grid>
-                <StackPanel>
-                    <TextBlock x:Name="PageTitle" FontSize="28" FontWeight="SemiBold"/>
+        <Grid x:Name="LibraryHeader" Grid.Row="0" RowSpacing="12">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel Grid.Row="0" Grid.Column="0" MinWidth="0" Margin="0,0,20,0">
+                    <TextBlock x:Name="PageTitle" FontSize="28" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1"/>
                     <TextBlock x:Name="PageSubtitle" Margin="0,4,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right" VerticalAlignment="Top">
-                    <AutoSuggestBox x:Name="SearchBox" x:Uid="Library_Search" Width="320" TextChanged="SearchBox_TextChanged">
+            </StackPanel>
+            <Grid x:Name="HeaderActions" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="12" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <AutoSuggestBox x:Name="SearchBox" x:Uid="Library_Search" Grid.Column="0" MinWidth="0" HorizontalAlignment="Stretch" TextChanged="SearchBox_TextChanged">
                         <AutoSuggestBox.QueryIcon><SymbolIcon Symbol="Find"/></AutoSuggestBox.QueryIcon>
                     </AutoSuggestBox>
-                    <Button x:Uid="Library_ImportBook" Click="ImportBook_Click">
+                    <Button x:Uid="Library_ImportBook" Grid.Column="1" Click="ImportBook_Click">
                         <StackPanel Orientation="Horizontal" Spacing="8"><SymbolIcon Symbol="Add"/><TextBlock x:Uid="Library_ImportBookText"/></StackPanel>
                     </Button>
-                </StackPanel>
             </Grid>
 
-            <Grid Grid.Row="1" VerticalAlignment="Bottom">
-                <StackPanel Orientation="Horizontal" Spacing="4">
+            <Grid x:Name="HeaderFilters" Grid.Row="2" Grid.ColumnSpan="2" RowSpacing="8">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <ScrollViewer Grid.Row="0" Grid.Column="0" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
                     <ToggleButton x:Name="FilterAll" x:Uid="Filter_All" Tag="all" IsChecked="True" Click="Filter_Click"/>
                     <ToggleButton x:Name="FilterRecentlyAdded" x:Uid="Filter_RecentlyAdded" Tag="recent" Click="Filter_Click"/>
                     <ToggleButton x:Name="FilterInProgress" x:Uid="Filter_InProgress" Tag="progress" Click="Filter_Click"/>
                     <ToggleButton x:Name="FilterFinished" x:Uid="Filter_Finished" Tag="finished" Click="Filter_Click"/>
                     <ToggleButton x:Name="FilterFavorites" x:Uid="Filter_Favorites" Tag="favorites" Click="Filter_Click"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                  </StackPanel>
+                </ScrollViewer>
+                <StackPanel x:Name="HeaderFiltersRight" Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
                     <ComboBox x:Name="SortComboBox" Width="140" Height="32" SelectedIndex="0" SelectionChanged="SortComboBox_SelectionChanged">
                         <ComboBoxItem x:Uid="Sort_Recent"/><ComboBoxItem x:Uid="Sort_Title"/>
                     </ComboBox>
@@ -64,8 +98,8 @@
                 </StackPanel>
             </StackPanel>
 
-            <ScrollViewer x:Name="BooksScrollViewer" Visibility="Collapsed" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-                <Grid>
+            <ScrollViewer x:Name="BooksScrollViewer" Visibility="Collapsed" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top">
+                <Grid x:Name="BooksContentHost" HorizontalAlignment="Stretch">
                     <ItemsRepeater x:Name="BooksGridRepeater">
                         <ItemsRepeater.Layout>
                             <UniformGridLayout MinItemWidth="258" MinItemHeight="300" MinColumnSpacing="26" MinRowSpacing="24" MaximumRowsOrColumns="4" ItemsStretch="Fill" ItemsJustification="Start" Orientation="Horizontal"/>
@@ -73,7 +107,7 @@
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="models:BookEntry">
                                 <Grid MinWidth="258" Height="300" Tag="{x:Bind Id}" RightTapped="BookCard_RightTapped" HorizontalAlignment="Stretch">
-                                    <Button Tag="{x:Bind Id}" Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
+                                    <Button Tag="{x:Bind Id}" Click="BookCard_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
                                         <Border Style="{StaticResource PageArcCardStyle}" Padding="12" Height="300" HorizontalAlignment="Stretch">
                                             <Grid>
                                                 <Grid.RowDefinitions>
@@ -106,14 +140,14 @@
                         </ItemsRepeater.ItemTemplate>
                     </ItemsRepeater>
 
-                    <ItemsRepeater x:Name="BooksListRepeater" Visibility="Collapsed">
+                    <ItemsRepeater x:Name="BooksListRepeater" Visibility="Collapsed" HorizontalAlignment="Stretch">
                         <ItemsRepeater.Layout>
                             <StackLayout Spacing="8"/>
                         </ItemsRepeater.Layout>
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="models:BookEntry">
                                 <Grid Height="104" Tag="{x:Bind Id}" RightTapped="BookCard_RightTapped" HorizontalAlignment="Stretch">
-                                    <Button Tag="{x:Bind Id}" Click="BookCard_Click" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
+                                    <Button Tag="{x:Bind Id}" Click="BookCard_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
                                         <Border Style="{StaticResource PageArcCardStyle}" Padding="12" Height="104" HorizontalAlignment="Stretch">
                                             <Grid ColumnSpacing="16">
                                                 <Grid.ColumnDefinitions>

@@ -13,7 +13,6 @@ public sealed partial class ReaderPage
     private bool _readerInputMessagesHooked;
     private CancellationTokenSource? _leftPaneAnimationCts;
     private CancellationTokenSource? _rightPaneAnimationCts;
-    private TextBlock? _readerViewModeValueText;
 
     private void InitializeRefinedReaderUi()
     {
@@ -38,17 +37,12 @@ public sealed partial class ReaderPage
         NextPageButton.Visibility = Visibility.Collapsed;
         NextPageButton.IsHitTestVisible = false;
 
-        // Keep the old toggle as an invisible migration bridge because older settings files store it,
-        // while the new View mode selector becomes the only visible scrolling control.
-        if (ContinuousScrollLabel.Parent is FrameworkElement legacyContinuousRow)
-            legacyContinuousRow.Visibility = Visibility.Collapsed;
-
-        BuildReaderViewModeControls();
         SimplifySelectionNoteEditor();
 
         ReaderWebView.NavigationCompleted += async (_, args) =>
         {
             if (!args.IsSuccess || ReaderWebView.CoreWebView2 is null) return;
+            if (_pageMeasurementInProgress) return;
             HookReaderInputMessages();
             await InstallReaderInputBridgeAsync();
             await ApplyReaderViewEnhancementsAsync();
@@ -59,156 +53,50 @@ public sealed partial class ReaderPage
         };
     }
 
-    private void BuildReaderViewModeControls()
+    private async void ReaderViewOption_Click(object sender, RoutedEventArgs e)
     {
-        if (ReaderBehaviorLabel.Parent is not StackPanel settingsPanel) return;
+        if (sender is not Button { Tag: string tag }) return;
 
-        ReaderBehaviorLabel.Text = ReaderText("阅读选项", "読書オプション", "Reading options");
-        ReaderBehaviorLabel.Margin = new Thickness(0, 8, 0, 0);
-
-        var viewLabel = new TextBlock
+        var reloadReaderUnit = false;
+        var frameOnlyChange = false;
+        if (tag is "spread:single" or "spread:odd" or "spread:even")
         {
-            Text = ReaderText("查看方式", "表示方法", "View mode"),
-            Margin = new Thickness(0, 4, 0, 0),
-            FontSize = 12,
-            FontWeight = FontWeights.SemiBold,
-            Opacity = 0.72
-        };
-        _readerViewModeValueText = new TextBlock
-        {
-            FontSize = 13,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis
-        };
-        var chevron = new FontIcon
-        {
-            Glyph = "\uE70D",
-            FontSize = 10,
-            Opacity = 0.7,
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Right
-        };
-        var content = new Grid { ColumnSpacing = 8 };
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        content.Children.Add(_readerViewModeValueText);
-        Grid.SetColumn(chevron, 1);
-        content.Children.Add(chevron);
-
-        var button = new Button
-        {
-            Height = 34,
-            MinWidth = 0,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Padding = new Thickness(10, 0, 10, 0),
-            CornerRadius = new CornerRadius(4),
-            Content = content
-        };
-        var menu = new MenuFlyout();
-        AddViewMenuItem(menu, ReaderText("垂直滚动", "垂直スクロール", "Vertical scrolling"), "view:vertical");
-        AddViewMenuItem(menu, ReaderText("水平滚动", "水平スクロール", "Horizontal scrolling"), "view:horizontal");
-        AddViewMenuItem(menu, ReaderText("覆盖滚动", "折り返しスクロール", "Wrapped scrolling"), "view:wrapped");
-        menu.Items.Add(new MenuFlyoutSeparator());
-        AddViewMenuItem(menu, ReaderText("不平铺", "単ページ", "No spread"), "spread:single");
-        AddViewMenuItem(menu, ReaderText("奇数页起始（无封面）", "奇数ページ開始（表紙なし）", "Odd-page start (no cover)"), "spread:odd");
-        AddViewMenuItem(menu, ReaderText("偶数页起始（有封面）", "偶数ページ開始（表紙あり）", "Even-page start (with cover)"), "spread:even");
-        menu.Items.Add(new MenuFlyoutSeparator());
-        AddViewMenuItem(menu, ReaderText("放大", "拡大", "Zoom in"), "zoom:in");
-        AddViewMenuItem(menu, ReaderText("缩小", "縮小", "Zoom out"), "zoom:out");
-        AddViewMenuItem(menu, ReaderText("自动调整大小", "自動調整", "Automatic sizing"), "zoom:auto");
-        AddViewMenuItem(menu, ReaderText("适应页面宽度", "ページ幅に合わせる", "Fit page width"), "zoom:fit-width");
-        AddViewMenuItem(menu, ReaderText("适应页面高度", "ページ高さに合わせる", "Fit page height"), "zoom:fit-height");
-        button.Flyout = menu;
-
-        var insertAt = settingsPanel.Children.IndexOf(ReaderBehaviorLabel);
-        if (insertAt < 0) insertAt = settingsPanel.Children.Count;
-        settingsPanel.Children.Insert(insertAt, viewLabel);
-        settingsPanel.Children.Insert(insertAt + 1, button);
-        UpdateReaderViewModeSummary();
-    }
-
-    private void AddViewMenuItem(MenuFlyout menu, string label, string tag)
-    {
-        var item = new MenuFlyoutItem { Text = label, Tag = tag };
-        item.Click += ReaderViewModeItem_Click;
-        menu.Items.Add(item);
-    }
-
-    private async void ReaderViewModeItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem { Tag: string tag }) return;
-
-        if (tag.StartsWith("view:", StringComparison.Ordinal))
-        {
-            var mode = tag[5..] switch
-            {
-                "vertical" => "vertical",
-                "wrapped" => "wrapped",
-                _ => "horizontal"
-            };
+            reloadReaderUnit = true;
             App.Settings.Update(settings =>
             {
-                settings.ReaderViewMode = mode;
-                settings.ContinuousScrolling = mode is not "horizontal";
+                if (tag == "spread:single")
+                {
+                    settings.ReaderSpreadMode = "single";
+                    settings.ReaderViewMode = "horizontal";
+                }
+                else
+                {
+                    settings.ReaderSpreadMode = tag[7..];
+                    settings.ReaderViewMode = "horizontal";
+                }
             });
         }
-        else if (tag.StartsWith("spread:", StringComparison.Ordinal))
+        else if (tag == "zoom:fit-width" || tag == "zoom:fit-height")
         {
-            var spread = tag[7..] switch
-            {
-                "odd" => "odd",
-                "even" => "even",
-                _ => "single"
-            };
-            App.Settings.Update(settings => settings.ReaderSpreadMode = spread);
-        }
-        else if (tag == "zoom:in")
-        {
+            frameOnlyChange = true;
             App.Settings.Update(settings =>
             {
-                settings.ReaderZoomMode = "custom";
-                settings.ReaderZoomFactor = Math.Clamp(settings.ReaderZoomFactor + 0.1, 0.6, 2.0);
+                settings.ReaderZoomMode = tag[5..];
             });
-        }
-        else if (tag == "zoom:out")
-        {
-            App.Settings.Update(settings =>
-            {
-                settings.ReaderZoomMode = "custom";
-                settings.ReaderZoomFactor = Math.Clamp(settings.ReaderZoomFactor - 0.1, 0.6, 2.0);
-            });
-        }
-        else if (tag == "zoom:auto")
-        {
-            App.Settings.Update(settings =>
-            {
-                settings.ReaderZoomMode = "auto";
-                settings.ReaderZoomFactor = 1.0;
-            });
-        }
-        else if (tag == "zoom:fit-width")
-        {
-            App.Settings.Update(settings => settings.ReaderZoomMode = "fit-width");
-        }
-        else if (tag == "zoom:fit-height")
-        {
-            App.Settings.Update(settings => settings.ReaderZoomMode = "fit-height");
         }
 
-        var previousSettingsReady = _settingsReady;
-        _settingsReady = false;
-        try
-        {
-            ContinuousScrollToggle.IsOn = App.Settings.Current.ReaderViewMode is not "horizontal";
-        }
-        finally
-        {
-            _settingsReady = previousSettingsReady;
-        }
-
-        UpdateReaderViewModeSummary();
+        EnforceFixedReaderOptions();
+        UpdateReaderViewOptionSelection();
         ApplyFigmaReaderPageGeometry();
+        if (frameOnlyChange) return;
+        if (reloadReaderUnit && _document is not null && _source is not null)
+        {
+            // A spread change creates a different page group. Reusing the old
+            // fractional column offset can land between the previous and the
+            // newly paired pages, exposing a sliver of the preceding page.
+            await NavigateToSectionAsync(_sectionIndex, restoreSavedFraction: false);
+            return;
+        }
         if (_webReady)
         {
             var progress = _sectionFraction;
@@ -219,27 +107,24 @@ public sealed partial class ReaderPage
         }
     }
 
-    private void UpdateReaderViewModeSummary()
+    private void UpdateReaderViewOptionSelection()
     {
-        if (_readerViewModeValueText is null) return;
-        _readerViewModeValueText.Text = App.Settings.Current.ReaderViewMode switch
-        {
-            "vertical" => ReaderText("垂直滚动", "垂直スクロール", "Vertical scrolling"),
-            "wrapped" => ReaderText("覆盖滚动", "折り返しスクロール", "Wrapped scrolling"),
-            _ => ReaderText("水平滚动", "水平スクロール", "Horizontal scrolling")
-        };
+        var settings = App.Settings.Current;
+        SetSegmentSelection(SinglePageButton, settings.ReaderViewMode == "horizontal" && settings.ReaderSpreadMode == "single");
+        SetSegmentSelection(OddPageStartButton, settings.ReaderSpreadMode == "odd");
+        SetSegmentSelection(EvenPageStartButton, settings.ReaderSpreadMode == "even");
+        SetSegmentSelection(FitPageWidthButton, settings.ReaderZoomMode == "fit-width");
+        SetSegmentSelection(FitPageHeightButton, settings.ReaderZoomMode == "fit-height");
     }
 
     private void SimplifySelectionNoteEditor()
     {
-        AnnotationHighlightLabel.Visibility = Visibility.Collapsed;
-        HighlightYellowButton.Visibility = Visibility.Collapsed;
-        HighlightBlueButton.Visibility = Visibility.Collapsed;
-        HighlightGreenButton.Visibility = Visibility.Collapsed;
-        AnnotationHintText.Visibility = Visibility.Collapsed;
-        SelectionAnnotationCard.Width = 404;
-        SelectionAnnotationCard.Padding = new Thickness(14, 12, 14, 12);
-        SelectionAnnotationTextBox.MinHeight = 76;
+        SelectionAnnotationCard.Width = 360;
+        SelectionAnnotationCard.Height = 74;
+        SelectionAnnotationCard.Padding = new Thickness(10);
+        SelectionAnnotationTextBox.Height = 52;
+        SelectionAnnotationTextBox.MinHeight = 52;
+        SelectionAnnotationTextBox.MaxHeight = 52;
         SelectionAnnotationTextBox.PlaceholderText = ReaderText(
             "为所选文字添加笔记…",
             "選択したテキストにノートを追加…",
@@ -304,6 +189,7 @@ public sealed partial class ReaderPage
             var width = startWidth + ((targetWidth - startWidth) * eased);
             column.Width = new GridLength(Math.Max(0, width));
             pane.Opacity = targetWidth > startWidth ? Math.Clamp(eased * 1.15, 0, 1) : Math.Clamp(1 - eased * 0.45, 0, 1);
+            ApplyFigmaReaderPageGeometry();
             await Task.Delay(15, cancellationToken);
         }
 
@@ -320,22 +206,46 @@ public sealed partial class ReaderPage
         ReaderWebView.CoreWebView2.WebMessageReceived += (core, args) =>
         {
             var message = args.TryGetWebMessageAsString();
+            if (message.StartsWith("pagearc-zoom:", StringComparison.Ordinal))
+            {
+                if (int.TryParse(message.AsSpan("pagearc-zoom:".Length), out var zoomDelta))
+                    _ = ChangeReaderZoomAsync(zoomDelta);
+                return;
+            }
             if (!message.StartsWith("pagearc-turn:", StringComparison.Ordinal)) return;
             if (!int.TryParse(message.AsSpan("pagearc-turn:".Length), out var delta)) return;
             _ = TurnPageByDeltaAsync(delta < 0 ? -1 : 1);
         };
     }
 
+    private Task ChangeReaderZoomAsync(int delta)
+    {
+        var current = App.Settings.Current.ReaderZoomMode == "custom"
+            ? App.Settings.Current.ReaderZoomFactor
+            : 1d;
+        var next = delta == 0 ? 1d : Math.Clamp(current + (delta > 0 ? 0.1d : -0.1d), 0.6d, 2d);
+        App.Settings.Update(settings =>
+        {
+            settings.ReaderZoomMode = delta == 0 ? "auto" : "custom";
+            settings.ReaderZoomFactor = next;
+        });
+        UpdateReaderViewOptionSelection();
+        ApplyFigmaReaderPageGeometry();
+        return Task.CompletedTask;
+    }
+
     private async Task InstallReaderInputBridgeAsync()
     {
         if (ReaderWebView.CoreWebView2 is null) return;
-        const string script = """
+        var script = """
             (() => {
+              window.__pagearcClickToTurn = __CLICK_TO_TURN__;
               if (window.__pagearcInputBridgeInstalled) return true;
               window.__pagearcInputBridgeInstalled = true;
               const hasSelection = () => !!(window.getSelection?.().toString?.().trim());
               const interactive = target => target?.closest?.('a,button,input,textarea,select,summary,[contenteditable="true"],label');
               const postBoundaryTurn = delta => window.chrome?.webview?.postMessage('pagearc-turn:' + delta);
+              const postZoom = delta => window.chrome?.webview?.postMessage('pagearc-zoom:' + delta);
               const turn = delta => {
                 if (hasSelection()) return;
                 try {
@@ -345,6 +255,11 @@ public sealed partial class ReaderPage
               };
               let wheelReady = true;
               document.addEventListener('wheel', event => {
+                if (event.ctrlKey) {
+                  event.preventDefault();
+                  postZoom(event.deltaY < 0 ? 1 : -1);
+                  return;
+                }
                 const mode = window.__pagearcReaderViewMode || 'horizontal';
                 if (mode === 'vertical') return;
                 const amount = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
@@ -355,8 +270,15 @@ public sealed partial class ReaderPage
                 setTimeout(() => wheelReady = true, 180);
                 turn(amount > 0 ? 1 : -1);
               }, {passive:false, capture:true});
+              document.addEventListener('keydown', event => {
+                if (!event.ctrlKey) return;
+                const key = event.key;
+                if (key !== '+' && key !== '=' && key !== '-' && key !== '_' && key !== '0') return;
+                event.preventDefault();
+                postZoom(key === '0' ? 0 : (key === '-' || key === '_' ? -1 : 1));
+              }, true);
               document.addEventListener('click', event => {
-                if (interactive(event.target) || hasSelection()) return;
+                if (window.__pagearcClickToTurn === false || interactive(event.target) || hasSelection()) return;
                 const rtl = getComputedStyle(document.documentElement).direction === 'rtl' || getComputedStyle(document.body).direction === 'rtl';
                 const leftHalf = event.clientX < window.innerWidth / 2;
                 const delta = rtl ? (leftHalf ? 1 : -1) : (leftHalf ? -1 : 1);
@@ -364,7 +286,10 @@ public sealed partial class ReaderPage
               }, true);
               return true;
             })()
-            """;
+            """.Replace(
+                "__CLICK_TO_TURN__",
+                App.Settings.Current.ClickToTurnPages ? "true" : "false",
+                StringComparison.Ordinal);
         try
         {
             await ReaderWebView.CoreWebView2.ExecuteScriptAsync(script);
@@ -383,63 +308,82 @@ public sealed partial class ReaderPage
         if (delta < 0 && _sectionIndex > 0)
         {
             _sectionFraction = 1;
-            await NavigateToSectionAsync(_sectionIndex - 1, restoreSavedFraction: true);
+            await NavigateToSectionAsync(PreviousReaderSectionIndex(), restoreSavedFraction: true);
         }
-        else if (delta > 0 && _sectionIndex + 1 < _document.Sections.Count)
+        else if (delta > 0 && NextReaderSectionIndex() < _document.Sections.Count)
         {
             _sectionFraction = 0;
-            await NavigateToSectionAsync(_sectionIndex + 1, restoreSavedFraction: true);
+            await NavigateToSectionAsync(NextReaderSectionIndex(), restoreSavedFraction: true);
         }
     }
 
-    private async Task ApplyReaderViewEnhancementsAsync()
+    private async Task ApplyReaderViewEnhancementsAsync(string? spreadOverride = null)
     {
         if (!_webReady || ReaderWebView.CoreWebView2 is null) return;
         var settings = App.Settings.Current;
         var mode = JsonSerializer.Serialize(settings.ReaderViewMode);
-        var spread = JsonSerializer.Serialize(settings.ReaderSpreadMode);
-        var zoomMode = JsonSerializer.Serialize(settings.ReaderZoomMode);
-        var zoom = Math.Clamp(settings.ReaderZoomFactor, 0.6, 2.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        var spread = JsonSerializer.Serialize(spreadOverride ?? settings.ReaderSpreadMode);
         var script = """
             (() => {
               const mode = __MODE__;
               const spread = __SPREAD__;
-              const zoomMode = __ZOOM_MODE__;
-              const requestedZoom = __ZOOM__;
               window.__pagearcReaderViewMode = mode;
+              const root = document.scrollingElement || document.documentElement;
+              const body = document.body;
+              const previousState = window.__pagearc;
+              const previousPage = previousState && mode === 'horizontal'
+                ? Math.round(root.scrollLeft / Math.max(1, previousState.pageStep || root.clientWidth))
+                : 0;
+              const previousProgress = previousState?.progress?.() ?? 0;
+              const media = [...body.querySelectorAll('img,svg,video')];
+              const imagePage = media.length > 0 && (body.innerText || '').trim().length < 80;
+              body.classList.toggle('pagearc-image-page', imagePage);
               let style = document.getElementById('pagearc-view-mode-style');
               if (!style) { style = document.createElement('style'); style.id = 'pagearc-view-mode-style'; document.head.appendChild(style); }
               let extra = '';
-              if (mode === 'horizontal' && spread !== 'single') {
-                extra += 'body{column-width:calc(50vw - 70px)!important;column-gap:84px!important;}';
-                if (spread === 'even') extra += 'body{padding-left:calc(50vw - 42px)!important;}';
+              if (mode === 'horizontal') {
+                extra += spread === 'single'
+                  ? 'html{overflow:hidden!important;overscroll-behavior:none!important;}body{box-sizing:border-box!important;width:100%!important;height:100%!important;min-width:0!important;max-width:none!important;padding:44px 56px 56px!important;overflow:visible!important;column-count:1!important;column-width:auto!important;column-gap:112px!important;column-fill:auto!important;}body>*{max-inline-size:100%!important;}'
+                  : 'html{overflow:hidden!important;overscroll-behavior:none!important;}body{box-sizing:border-box!important;width:100%!important;height:100%!important;min-width:0!important;max-width:none!important;padding:44px 42px 56px!important;overflow:visible!important;column-count:2!important;column-width:auto!important;column-gap:84px!important;column-fill:auto!important;}body>.pagearc-spread-page{box-sizing:border-box;}body>.pagearc-spread-right{break-before:column;-webkit-column-break-before:always;}body>.pagearc-spread-blank{height:calc(100vh - 100px);break-after:column;-webkit-column-break-after:always;}';
               }
               if (mode === 'wrapped') {
                 extra += 'body{max-width:none!important;}';
               }
-              style.textContent = extra;
-
-              const root = document.scrollingElement || document.documentElement;
-              const body = document.body;
-              body.style.zoom = '1';
-              let factor = requestedZoom;
-              if (zoomMode === 'fit-width') {
-                factor = Math.max(.6, Math.min(2, root.clientWidth / Math.max(1, body.scrollWidth)));
-              } else if (zoomMode === 'fit-height') {
-                factor = Math.max(.6, Math.min(2, root.clientHeight / Math.max(1, body.scrollHeight)));
-              } else if (zoomMode === 'auto') {
-                factor = 1;
+              if (imagePage) {
+                extra += 'body.pagearc-image-page img,body.pagearc-image-page svg,body.pagearc-image-page video{display:block!important;width:100%!important;height:auto!important;max-height:none!important;margin:auto!important;object-fit:contain!important;}';
               }
-              body.style.zoom = String(factor);
-              const saved = window.__pagearc?.progress?.() ?? 0;
-              requestAnimationFrame(() => window.__pagearc?.restore?.(saved));
-              return factor;
+              style.textContent = extra;
+              if (mode === 'horizontal') {
+                const horizontalPadding = spread === 'single' ? 112 : 84;
+                const columnGap = spread === 'single' ? 112 : 84;
+                const visibleColumns = spread === 'single' ? 1 : 2;
+                const contentWidth = Math.max(1, root.clientWidth - horizontalPadding);
+                const columnWidth = spread === 'single'
+                  ? contentWidth
+                  : Math.max(1, (contentWidth - columnGap) / 2);
+                const pageStep = (columnWidth + columnGap) * visibleColumns;
+                body.style.setProperty('width', root.clientWidth + 'px', 'important');
+                body.style.setProperty('column-width', columnWidth + 'px', 'important');
+                body.style.setProperty('column-count', visibleColumns.toString(), 'important');
+                body.style.setProperty('column-gap', columnGap + 'px', 'important');
+                if (window.__pagearc) {
+                  window.__pagearc.visiblePageCount = visibleColumns;
+                  window.__pagearc.pageStep = pageStep;
+                  window.__pagearc.snap?.();
+                }
+              }
+              body.style.zoom = '1';
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  if (mode === 'horizontal') window.__pagearc?.restorePage?.(previousPage);
+                  else window.__pagearc?.restore?.(previousProgress);
+                });
+              });
+              return 1;
             })()
             """
             .Replace("__MODE__", mode, StringComparison.Ordinal)
-            .Replace("__SPREAD__", spread, StringComparison.Ordinal)
-            .Replace("__ZOOM_MODE__", zoomMode, StringComparison.Ordinal)
-            .Replace("__ZOOM__", zoom, StringComparison.Ordinal);
+            .Replace("__SPREAD__", spread, StringComparison.Ordinal);
         try
         {
             await ReaderWebView.CoreWebView2.ExecuteScriptAsync(script);
@@ -447,6 +391,24 @@ public sealed partial class ReaderPage
         catch (Exception ex)
         {
             StartupDiagnostics.Log("Reader view-mode enhancement failed", ex);
+        }
+    }
+
+    private async void ClickPageTurnToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (!_figmaReaderControlsReady) return;
+        var enabled = ClickPageTurnToggle.IsOn;
+        App.Settings.Update(settings => settings.ClickToTurnPages = enabled);
+        if (ReaderWebView.CoreWebView2 is null) return;
+
+        try
+        {
+            await ReaderWebView.CoreWebView2.ExecuteScriptAsync(
+                $"window.__pagearcClickToTurn = {(enabled ? "true" : "false")};");
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("Updating click-to-turn setting failed", ex);
         }
     }
 

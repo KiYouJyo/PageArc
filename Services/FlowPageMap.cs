@@ -32,7 +32,72 @@ public sealed class FlowPageMap
         TotalPages = Math.Max(1, running);
     }
 
-    public int TotalPages { get; }
+    public int TotalPages { get; private set; }
+
+    public bool IsFrozen { get; private set; }
+
+    public void FreezeMeasuredPages(IReadOnlyList<int> measuredPages)
+    {
+        ArgumentNullException.ThrowIfNull(measuredPages);
+        if (measuredPages.Count != _pagesPerSection.Length)
+            throw new ArgumentException("Measured page count must match the document section count.", nameof(measuredPages));
+
+        for (var i = 0; i < _pagesPerSection.Length; i++)
+            _pagesPerSection[i] = Math.Max(1, measuredPages[i]);
+        RebuildStarts();
+        IsFrozen = true;
+    }
+
+    public int GetSectionStartPage(int sectionIndex)
+    {
+        sectionIndex = Math.Clamp(sectionIndex, 0, _pagesPerSection.Length - 1);
+        return _sectionStarts[sectionIndex] + 1;
+    }
+
+    /// <summary>
+    /// Replaces source-size estimates with the page faces measured by the reader.
+    /// A spread can render more than one spine item, so measured faces are distributed
+    /// across that exact range while preserving at least one page per section.
+    /// </summary>
+    public void UpdateRenderedRange(int startSectionIndex, int endSectionIndex, int measuredPages)
+    {
+        if (IsFrozen) return;
+        startSectionIndex = Math.Clamp(startSectionIndex, 0, _pagesPerSection.Length - 1);
+        endSectionIndex = Math.Clamp(endSectionIndex, startSectionIndex, _pagesPerSection.Length - 1);
+        var sectionCount = endSectionIndex - startSectionIndex + 1;
+        measuredPages = Math.Max(sectionCount, measuredPages);
+
+        var estimateTotal = 0;
+        for (var i = startSectionIndex; i <= endSectionIndex; i++) estimateTotal += _pagesPerSection[i];
+
+        var remainingPages = measuredPages;
+        var remainingSections = sectionCount;
+        for (var i = startSectionIndex; i <= endSectionIndex; i++)
+        {
+            var pages = i == endSectionIndex
+                ? remainingPages
+                : Math.Clamp(
+                    (int)Math.Round(measuredPages * (_pagesPerSection[i] / (double)Math.Max(1, estimateTotal))),
+                    1,
+                    remainingPages - (remainingSections - 1));
+            _pagesPerSection[i] = pages;
+            remainingPages -= pages;
+            remainingSections--;
+        }
+
+        RebuildStarts();
+    }
+
+    private void RebuildStarts()
+    {
+        var running = 0;
+        for (var i = 0; i < _pagesPerSection.Length; i++)
+        {
+            _sectionStarts[i] = running;
+            running += _pagesPerSection[i];
+        }
+        TotalPages = Math.Max(1, running);
+    }
 
     public int GetPage(int sectionIndex, double fraction)
     {
@@ -66,12 +131,8 @@ public sealed class FlowPageMap
     public FlowContentLocator LocateProgress(double progress)
     {
         progress = Math.Clamp(progress, 0, 1);
-        var sectionCount = Math.Max(1, _pagesPerSection.Length);
-        if (progress >= 1) return new FlowContentLocator(sectionCount - 1, 1);
-
-        var scaled = progress * sectionCount;
-        var sectionIndex = Math.Clamp((int)Math.Floor(scaled), 0, sectionCount - 1);
-        var fraction = Math.Clamp(scaled - sectionIndex, 0, 1);
-        return new FlowContentLocator(sectionIndex, fraction);
+        if (progress >= 1) return new FlowContentLocator(_pagesPerSection.Length - 1, 1);
+        var page = Math.Clamp((int)Math.Floor(progress * TotalPages) + 1, 1, TotalPages);
+        return LocatePage(page);
     }
 }

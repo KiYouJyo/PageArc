@@ -253,7 +253,7 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void ShellTheme_UsesMicaAndNeutralTitleBarPalette()
+    public void ShellTheme_UsesMicaWithOpaqueCyanChrome()
     {
         var root = FindRepoRoot();
         var appXaml = File.ReadAllText(Path.Combine(root, "App.xaml"));
@@ -261,12 +261,12 @@ public sealed class FoundationTests
         var readerXaml = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml"));
 
         Assert.Contains("<MicaBackdrop/>", mainWindowXaml, StringComparison.Ordinal);
-        Assert.Contains("#F3F3F3", appXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("#202020", appXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("#E5F9F9", appXaml, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("#1A2323", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#FFEAF5F5", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#FF132020", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#00FFFFFF", appXaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#00000000", appXaml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("PageArcNavigationPaneBrush", appXaml, StringComparison.Ordinal);
-        Assert.Contains("CardBackgroundFillColorDefaultBrush", appXaml, StringComparison.Ordinal);
+        Assert.Contains("PageArcSectionBrush", appXaml, StringComparison.Ordinal);
         Assert.Contains("Background=\"Transparent\"", mainWindowXaml, StringComparison.Ordinal);
         Assert.DoesNotContain("ThemeTransitionOverlay", mainWindowXaml, StringComparison.Ordinal);
         Assert.DoesNotContain("Background=\"#F9F9F9\"", readerXaml, StringComparison.OrdinalIgnoreCase);
@@ -309,21 +309,22 @@ public sealed class FoundationTests
         Assert.Contains("WebResourceRequested", code, StringComparison.Ordinal);
         Assert.Contains("SectionFraction", code, StringComparison.Ordinal);
         Assert.Contains("ColumnDefinition x:Name=\"ContentsColumn\" Width=\"260\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth=\"760\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ReaderSurface\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Name=\"ReaderSurface\" MaxWidth=", xaml, StringComparison.Ordinal);
         Assert.Contains("TextTrimming=\"CharacterEllipsis\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("This page contains no text", code, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void LanguageSwitch_AlwaysReEnablesSelectorAndKeepsWindowInPlace()
+    public void LanguageSwitch_AlwaysReEnablesSelectorAndReloadsAllXUidResources()
     {
         var root = FindRepoRoot();
         var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
         var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
         Assert.Contains("finally", settingsCode, StringComparison.Ordinal);
         Assert.Contains("LanguageCombo.IsEnabled = true;", settingsCode, StringComparison.Ordinal);
-        Assert.DoesNotContain("ReloadMainWindow", settingsCode, StringComparison.Ordinal);
-        Assert.Contains("ReloadLocalizedShell", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("new MainWindow", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("App.ReloadMainWindow(App.PendingNavigationTag)", windowCode, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -22,6 +23,7 @@ public sealed partial class ReaderPage : Page
     private FlowDocument? _document;
     private FlowSectionContent? _currentContent;
     private int _sectionIndex;
+    private int _renderedSectionEndIndex;
     private double _sectionFraction;
     private bool _settingsReady;
     private bool _webReady;
@@ -31,6 +33,7 @@ public sealed partial class ReaderPage : Page
     private DateTimeOffset _lastProgressSave = DateTimeOffset.MinValue;
     private CancellationTokenSource? _searchCts;
     private ReaderSidebarMode _sidebarMode = ReaderSidebarMode.Contents;
+    private bool _pageMeasurementInProgress;
 
     public ReaderPage()
     {
@@ -85,7 +88,7 @@ public sealed partial class ReaderPage : Page
         SelectByTag(ReaderThemeCombo, App.Settings.Current.ReadingTheme);
         ReaderFontScaleSlider.Value = App.Settings.Current.FontScale;
         ReaderLineHeightSlider.Value = App.Settings.Current.LineHeight;
-        ContinuousScrollToggle.IsOn = App.Settings.Current.ContinuousScrolling;
+        EnforceFixedReaderOptions();
         _settingsReady = true;
 
         if (!_readerEngine.CanOpen(_book))
@@ -120,6 +123,8 @@ public sealed partial class ReaderPage : Page
 
             ConfigureBookResourceMapping();
             RefreshBookmarks();
+            _pageMap = new FlowPageMap(_document);
+            await MeasureAndFreezePageMapAsync();
             var requestedIndex = ResolveInitialSectionIndex(_document, _book);
             _sectionFraction = Math.Clamp(_book.SectionFraction, 0, 1);
             await NavigateToSectionAsync(requestedIndex, preferReadableText: true, restoreSavedFraction: true);
@@ -188,6 +193,53 @@ public sealed partial class ReaderPage : Page
         _mappedCacheRoot = fullRoot;
     }
 
+    private async Task MeasureAndFreezePageMapAsync()
+    {
+        if (_document is null || _source is null || ReaderWebView.CoreWebView2 is null) return;
+        var map = _pageMap ??= new FlowPageMap(_document);
+        var measuredPages = new int[_document.Sections.Count];
+        _pageMeasurementInProgress = true;
+        try
+        {
+            for (var index = 0; index < _document.Sections.Count; index++)
+            {
+                var content = await _source.LoadSectionAsync(index);
+                _navigationCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                ReaderWebView.CoreWebView2.NavigateToString(content.Html);
+                await _navigationCompletion.Task;
+                await ApplyWebReaderStyleAsync(0, forcePaginated: true);
+                await ApplyReaderViewEnhancementsAsync("single");
+
+                var result = await ReaderWebView.CoreWebView2.ExecuteScriptAsync("""
+                    (async () => {
+                      try { await document.fonts?.ready; } catch {}
+                      await Promise.all(Array.from(document.images || []).map(image => {
+                        if (image.complete) return image.decode?.().catch(() => {}) ?? Promise.resolve();
+                        return new Promise(resolve => {
+                          image.addEventListener('load', resolve, {once:true});
+                          image.addEventListener('error', resolve, {once:true});
+                        });
+                      }));
+                      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                      const metrics = window.__pagearc?.metrics?.();
+                      return Math.max(1, Number(metrics?.pages) || 1);
+                    })()
+                    """);
+                measuredPages[index] = int.TryParse(result, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pages)
+                    ? Math.Max(1, pages)
+                    : 1;
+            }
+
+            map.FreezeMeasuredPages(measuredPages);
+            StartupDiagnostics.Log($"Flow pagination frozen: sections={measuredPages.Length}, pages={map.TotalPages}.");
+            UpdateProgressUi(save: false);
+        }
+        finally
+        {
+            _pageMeasurementInProgress = false;
+        }
+    }
+
     private async Task NavigateToSectionAsync(int index, bool preferReadableText = false, bool restoreSavedFraction = false)
     {
         if (_document is null || _source is null || _book is null) return;
@@ -198,7 +250,9 @@ public sealed partial class ReaderPage : Page
         {
             var targetIndex = Math.Clamp(index, 0, _document.Sections.Count - 1);
             var content = await _source.LoadSectionAsync(targetIndex);
-            if (preferReadableText && string.IsNullOrWhiteSpace(content.PlainText))
+            if (preferReadableText
+                && string.IsNullOrWhiteSpace(content.PlainText)
+                && !ContainsVisualContent(content.Html))
             {
                 var readable = await FindReadableSectionAsync(targetIndex);
                 if (readable is not null)
@@ -208,19 +262,54 @@ public sealed partial class ReaderPage : Page
                 }
             }
 
+            if (IsReaderSpreadLayout)
+            {
+                var spreadStart = ReaderLayoutPolicy.ResolveSpreadStartIndex(
+                    targetIndex,
+                    _document.Sections.Count,
+                    App.Settings.Current.ReaderSpreadMode);
+                if (spreadStart != targetIndex)
+                {
+                    targetIndex = spreadStart;
+                    content = await _source.LoadSectionAsync(targetIndex);
+                }
+            }
+
+            var renderedContent = content;
+            var renderedEndIndex = targetIndex;
+            if (IsReaderSpreadLayout)
+            {
+                if (ReaderLayoutPolicy.HasLeadingBlankPage(targetIndex, App.Settings.Current.ReaderSpreadMode))
+                {
+                    renderedContent = CreateLeadingBlankSpread(content);
+                }
+                else if (targetIndex + 1 < _document.Sections.Count)
+                {
+                    var partner = await _source.LoadSectionAsync(targetIndex + 1);
+                    renderedEndIndex = targetIndex + 1;
+                    renderedContent = CombineSpreadSections(content, partner);
+                }
+            }
+
             _sectionIndex = targetIndex;
-            _currentContent = content;
+            _renderedSectionEndIndex = renderedEndIndex;
+            _measuredAbsolutePage = null;
+            _currentContent = renderedContent;
             if (!restoreSavedFraction) _sectionFraction = 0;
             _book.SpineIndex = _sectionIndex;
             _book.SectionFraction = _sectionFraction;
 
             _navigationCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReaderWebView.CoreWebView2.NavigateToString(content.Html);
+            ReaderWebView.CoreWebView2.NavigateToString(renderedContent.Html);
             await _navigationCompletion.Task;
             await ApplyWebReaderStyleAsync(_sectionFraction);
+            // NavigationCompleted can run before the base reader state exists.
+            // Re-apply page geometry after it so column width and turn distance
+            // are always derived from the final WebView viewport.
+            await ApplyReaderViewEnhancementsAsync();
             UpdateTocSelection();
             UpdateProgressUi(save: true);
-            StartupDiagnostics.Log($"Flow render succeeded for section {_sectionIndex}: {_document.Sections[_sectionIndex].Href}, chars={content.PlainText.Length}.");
+            StartupDiagnostics.Log($"Flow render succeeded for section {_sectionIndex}-{_renderedSectionEndIndex}: {_document.Sections[_sectionIndex].Href}, chars={renderedContent.PlainText.Length}.");
         }
         catch (Exception ex)
         {
@@ -249,6 +338,86 @@ public sealed partial class ReaderPage : Page
         return null;
     }
 
+    private static FlowSectionContent CombineSpreadSections(FlowSectionContent first, FlowSectionContent second)
+    {
+        var firstBody = ExtractBodyFragment(first.Html);
+        var secondBody = ResolveFragmentResources(
+            ExtractBodyFragment(second.Html),
+            ExtractBaseHref(second.Html));
+        var firstHead = ExtractHeadFragment(first.Html);
+        var html = $"<!doctype html><html><head>{firstHead}</head><body>" +
+                   $"<section class=\"pagearc-spread-page pagearc-spread-left\">{firstBody}</section>" +
+                   $"<section class=\"pagearc-spread-page pagearc-spread-right\">{secondBody}</section>" +
+                   "</body></html>";
+        return new FlowSectionContent(
+            html,
+            string.Join(Environment.NewLine + Environment.NewLine, new[] { first.PlainText, second.PlainText }.Where(text => !string.IsNullOrWhiteSpace(text))),
+            first.BaseHref);
+    }
+
+    private static FlowSectionContent CreateLeadingBlankSpread(FlowSectionContent firstPage)
+    {
+        var body = ExtractBodyFragment(firstPage.Html);
+        var head = ExtractHeadFragment(firstPage.Html);
+        var html = $"<!doctype html><html><head>{head}</head><body>" +
+                   "<section class=\"pagearc-spread-page pagearc-spread-left pagearc-spread-blank\" aria-hidden=\"true\"></section>" +
+                   $"<section class=\"pagearc-spread-page pagearc-spread-right\">{body}</section>" +
+                   "</body></html>";
+        return new FlowSectionContent(html, firstPage.PlainText, firstPage.BaseHref);
+    }
+
+    private static bool ContainsVisualContent(string html) =>
+        Regex.IsMatch(html ?? string.Empty, @"<(?:img|svg|image|video)\b", RegexOptions.IgnoreCase);
+
+    private static string ExtractBodyFragment(string html)
+    {
+        var match = Regex.Match(html ?? string.Empty, @"<body\b[^>]*>(?<content>.*?)</body\s*>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        return match.Success ? match.Groups["content"].Value : html ?? string.Empty;
+    }
+
+    private static string ExtractHeadFragment(string html)
+    {
+        var match = Regex.Match(html ?? string.Empty, @"<head\b[^>]*>(?<content>.*?)</head\s*>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        return match.Success ? match.Groups["content"].Value : "<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">";
+    }
+
+    private static string ExtractBaseHref(string html)
+    {
+        var match = Regex.Match(html ?? string.Empty, @"<base\b[^>]*\bhref\s*=\s*[\""'](?<href>[^\""']+)[\""']", RegexOptions.IgnoreCase);
+        return match.Success ? match.Groups["href"].Value : string.Empty;
+    }
+
+    private static string ResolveFragmentResources(string fragment, string baseHref)
+    {
+        if (string.IsNullOrWhiteSpace(baseHref) || !Uri.TryCreate(baseHref, UriKind.Absolute, out var baseUri)) return fragment;
+        return Regex.Replace(
+            fragment,
+            @"(?<prefix>\bsrc\s*=\s*[\""'])(?<url>[^\""']+)(?<suffix>[\""'])",
+            match =>
+            {
+                var value = match.Groups["url"].Value;
+                if (value.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+                    || value.StartsWith("http:", StringComparison.OrdinalIgnoreCase)
+                    || value.StartsWith("https:", StringComparison.OrdinalIgnoreCase)
+                    || value.StartsWith("//", StringComparison.OrdinalIgnoreCase)
+                    || value.StartsWith("#", StringComparison.Ordinal)) return match.Value;
+                return match.Groups["prefix"].Value + new Uri(baseUri, value).AbsoluteUri + match.Groups["suffix"].Value;
+            },
+            RegexOptions.IgnoreCase);
+    }
+
+    private bool IsReaderSpreadLayout =>
+        App.Settings.Current.ReaderViewMode == "horizontal"
+        && App.Settings.Current.ReaderSpreadMode is "odd" or "even";
+
+    private int NextReaderSectionIndex() => IsReaderSpreadLayout
+        ? Math.Max(_sectionIndex + 1, _renderedSectionEndIndex + 1)
+        : _sectionIndex + 1;
+
+    private int PreviousReaderSectionIndex() => IsReaderSpreadLayout
+        ? ReaderLayoutPolicy.ResolvePreviousSpreadStartIndex(_sectionIndex, App.Settings.Current.ReaderSpreadMode)
+        : _sectionIndex - 1;
+
     private static int ResolveInitialSectionIndex(FlowDocument document, BookEntry book)
     {
         var saved = Math.Clamp(book.SpineIndex, 0, Math.Max(0, document.Sections.Count - 1));
@@ -256,7 +425,7 @@ public sealed partial class ReaderPage : Page
         return document.Toc.Select(item => item.SectionIndex).FirstOrDefault(index => index is >= 0) ?? saved;
     }
 
-    private async Task ApplyWebReaderStyleAsync(double restoreFraction)
+    private async Task ApplyWebReaderStyleAsync(double restoreFraction, bool forcePaginated = false)
     {
         if (!_webReady) return;
         var settings = App.Settings.Current;
@@ -274,17 +443,21 @@ public sealed partial class ReaderPage : Page
         };
         var scale = Math.Clamp(settings.FontScale, 0.8, 1.6).ToString("0.###", CultureInfo.InvariantCulture);
         var lineHeight = Math.Clamp(settings.LineHeight, 1.2, 2.4).ToString("0.###", CultureInfo.InvariantCulture);
-        var continuous = settings.ContinuousScrolling;
+        // Continuous scrolling stays enabled in persisted settings. A spread
+        // selection is the one deliberate exception: it switches the reader
+        // surface to paginated columns so the option has a visible effect.
+        var continuous = !forcePaginated && settings.ReaderViewMode != "horizontal";
         var fontRule = fontFamily == "inherit" ? string.Empty : $"font-family:{fontFamily}!important;";
         var modeCss = continuous
             ? "html,body{min-height:100%;overflow-x:hidden;}body{height:auto;}"
-            : "html{height:100%;overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;}body{height:100%;min-width:100%;column-width:calc(100vw - 112px);column-gap:112px;column-fill:auto;overflow:visible;}html::-webkit-scrollbar{display:none;}";
+            : "html{width:100%;height:100%;overflow:hidden;scroll-behavior:auto;}body{width:100%;height:100%;min-width:0;max-width:none;column-count:1;column-width:auto;column-gap:0;column-fill:auto;overflow:visible;}html::-webkit-scrollbar{display:none;}";
 
         var css = """
             :root{color-scheme:__SCHEME__;}
             html,body{margin:0;background:__BACKGROUND__!important;color:__FOREGROUND__!important;}
             html{font-size:__SCALE__em;}
             body{box-sizing:border-box;padding:44px 56px 56px;line-height:__LINE_HEIGHT__;__FONT_RULE__overflow-wrap:anywhere;}
+            body :where(p,div,li,dd,dt,blockquote){line-height:__LINE_HEIGHT__!important;}
             body *{max-width:100%;}
             img,svg,video{height:auto!important;max-width:100%!important;}
             table{max-width:100%;border-collapse:collapse;}
@@ -312,36 +485,95 @@ public sealed partial class ReaderPage : Page
               const continuous = __CONTINUOUS__;
               const root = document.scrollingElement || document.documentElement;
               const clamp = v => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
+              const state = window.__pagearc || {};
               const progress = () => {
                 const max = continuous ? Math.max(0, root.scrollHeight - root.clientHeight) : Math.max(0, root.scrollWidth - root.clientWidth);
                 const pos = continuous ? root.scrollTop : root.scrollLeft;
                 return max <= 1 ? 0 : clamp(pos / max);
               };
-              const notify = () => window.chrome?.webview?.postMessage('progress:' + progress().toFixed(6));
-              window.__pagearc = {
-                move(delta) {
-                  const max = continuous ? Math.max(0, root.scrollHeight - root.clientHeight) : Math.max(0, root.scrollWidth - root.clientWidth);
-                  const pos = continuous ? root.scrollTop : root.scrollLeft;
-                  if ((delta < 0 && pos <= 2) || (delta > 0 && pos >= max - 2) || max <= 1) return false;
-                  const amount = (continuous ? root.clientHeight * 0.85 : root.clientWidth) * delta;
-                  if (continuous) root.scrollTo({top: Math.max(0, Math.min(max, pos + amount)), behavior:'smooth'});
-                  else root.scrollTo({left: Math.max(0, Math.min(max, pos + amount)), behavior:'smooth'});
-                  setTimeout(notify, 180);
-                  return true;
-                },
-                restore(value) {
-                  const max = continuous ? Math.max(0, root.scrollHeight - root.clientHeight) : Math.max(0, root.scrollWidth - root.clientWidth);
-                  const target = max * clamp(value);
-                  if (continuous) root.scrollTo(0, target); else root.scrollTo(target, 0);
-                  notify();
-                },
-                progress
+              const metrics = () => {
+                const visible = Math.max(1, state.visiblePageCount || 1);
+                if (state.continuous) {
+                  const pages = Math.max(1, Math.ceil(root.scrollHeight / Math.max(1, root.clientHeight)));
+                  const page = Math.max(0, Math.min(pages - 1, Math.round(root.scrollTop / Math.max(1, root.clientHeight))));
+                  return { page, pages, visible: 1 };
+                }
+                const step = Math.max(1, state.pageStep || root.clientWidth);
+                const groups = Math.max(1, Math.floor((Math.max(0, root.scrollWidth - root.clientWidth) + 2) / step) + 1);
+                const group = Math.max(0, Math.min(groups - 1, Math.round(root.scrollLeft / step)));
+                return { page: group * visible, pages: groups * visible, visible };
               };
-              let queued = false;
-              const onScroll = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; notify(); }); };
-              root.addEventListener('scroll', onScroll, {passive:true});
-              window.addEventListener('resize', () => window.__pagearc.restore(window.__pagearc.progress()));
-              window.__pagearc.restore(__FRACTION__);
+              const notify = () => {
+                const value = metrics();
+                window.chrome?.webview?.postMessage('pagearc-progress:' + JSON.stringify({
+                  fraction: progress(), page: value.page, pages: value.pages, visible: value.visible
+                }));
+              };
+              state.root = root;
+              state.continuous = continuous;
+              state.progress = progress;
+              state.metrics = metrics;
+              state.notify = notify;
+              state.move = delta => {
+                const max = continuous ? Math.max(0, root.scrollHeight - root.clientHeight) : Math.max(0, root.scrollWidth - root.clientWidth);
+                const pos = continuous ? root.scrollTop : root.scrollLeft;
+                if ((delta < 0 && pos <= 2) || (delta > 0 && pos >= max - 2) || max <= 1) return false;
+                const amount = (continuous ? root.clientHeight * 0.85 : (state.pageStep || root.clientWidth)) * delta;
+                if (continuous) root.scrollTo({top: Math.max(0, Math.min(max, pos + amount)), behavior:'smooth'});
+                else root.scrollTo({left: Math.max(0, Math.min(max, pos + amount)), behavior:'auto'});
+                setTimeout(() => state.notify(), 180);
+                return true;
+              };
+              state.snap = () => {
+                if (continuous) return;
+                const max = Math.max(0, root.scrollWidth - root.clientWidth);
+                const step = Math.max(1, state.pageStep || root.clientWidth);
+                const lastCompleteStep = Math.max(0, Math.floor((max + 2) / step));
+                const page = Math.max(0, Math.min(lastCompleteStep, Math.round(root.scrollLeft / step)));
+                const target = page * step;
+                if (Math.abs(root.scrollLeft - target) > 1) root.scrollTo(target, 0);
+              };
+              state.restorePage = page => {
+                if (continuous) return state.restore(progress());
+                const max = Math.max(0, root.scrollWidth - root.clientWidth);
+                const step = Math.max(1, state.pageStep || root.clientWidth);
+                root.scrollTo(Math.max(0, Math.min(max, Math.max(0, Math.round(page)) * step)), 0);
+                state.snap();
+                state.notify();
+              };
+              state.restore = value => {
+                const max = continuous ? Math.max(0, root.scrollHeight - root.clientHeight) : Math.max(0, root.scrollWidth - root.clientWidth);
+                const target = max * clamp(value);
+                if (continuous) {
+                  root.scrollTo(0, target);
+                } else {
+                  // Reflowing text changes column widths. A raw fractional
+                  // restore can then stop between columns and reveal the
+                  // previous page. Always restore to a complete page/spread.
+                  const step = Math.max(1, state.pageStep || root.clientWidth);
+                  const lastCompleteStep = Math.max(0, Math.floor((max + 2) / step));
+                  const page = Math.max(0, Math.min(lastCompleteStep, Math.round(target / step)));
+                  root.scrollTo(page * step, 0);
+                }
+                state.notify();
+              };
+              if (!state.listenersInstalled) {
+                let queued = false;
+                state.onScroll = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; state.snap(); state.notify(); }); };
+              state.onResize = () => {
+                if (state.continuous) {
+                  state.restore(state.progress());
+                  return;
+                }
+                const step = Math.max(1, state.pageStep || root.clientWidth);
+                state.restorePage(Math.round(root.scrollLeft / step));
+              };
+                root.addEventListener('scroll', state.onScroll, {passive:true});
+                window.addEventListener('resize', state.onResize);
+                state.listenersInstalled = true;
+              }
+              window.__pagearc = state;
+              state.restore(__FRACTION__);
               return true;
             })()
             """
@@ -349,23 +581,39 @@ public sealed partial class ReaderPage : Page
             .Replace("__CONTINUOUS__", continuous ? "true" : "false", StringComparison.Ordinal)
             .Replace("__FRACTION__", fraction, StringComparison.Ordinal);
         await ReaderWebView.CoreWebView2.ExecuteScriptAsync(script);
-        ApplyReaderSurfaceWidth();
-    }
-
-    private void ApplyReaderSurfaceWidth()
-    {
-        ReaderSurface.MaxWidth = App.Settings.Current.PageWidth switch
-        {
-            "narrow" => 640,
-            "wide" => 900,
-            _ => 760
-        };
+        ApplyFigmaReaderPageGeometry();
     }
 
     private void HandleWebMessage(string? message)
     {
-        if (_document is null || _book is null || string.IsNullOrWhiteSpace(message) || !message.StartsWith("progress:", StringComparison.Ordinal)) return;
-        if (!double.TryParse(message.AsSpan("progress:".Length), NumberStyles.Float, CultureInfo.InvariantCulture, out var fraction)) return;
+        if (_document is null || _book is null || string.IsNullOrWhiteSpace(message)) return;
+        double fraction;
+        if (message.StartsWith("pagearc-progress:", StringComparison.Ordinal))
+        {
+            if (_pageMeasurementInProgress) return;
+            try
+            {
+                using var payload = JsonDocument.Parse(message["pagearc-progress:".Length..]);
+                fraction = payload.RootElement.GetProperty("fraction").GetDouble();
+                var page = Math.Max(0, payload.RootElement.GetProperty("page").GetInt32());
+                var pages = Math.Max(1, payload.RootElement.GetProperty("pages").GetInt32());
+                var map = EnsurePageMap();
+                if (map is not null)
+                {
+                    map.UpdateRenderedRange(_sectionIndex, Math.Max(_sectionIndex, _renderedSectionEndIndex), pages);
+                    _measuredAbsolutePage = map.GetSectionStartPage(_sectionIndex) + Math.Min(page, pages - 1);
+                }
+            }
+            catch (JsonException)
+            {
+                return;
+            }
+        }
+        else
+        {
+            if (!message.StartsWith("progress:", StringComparison.Ordinal)
+                || !double.TryParse(message.AsSpan("progress:".Length), NumberStyles.Float, CultureInfo.InvariantCulture, out fraction)) return;
+        }
         _sectionFraction = Math.Clamp(fraction, 0, 1);
         _book.SectionFraction = _sectionFraction;
         UpdateProgressUi(save: false);
@@ -409,15 +657,18 @@ public sealed partial class ReaderPage : Page
     private void UpdateProgressUi(bool save)
     {
         if (_document is null || _book is null) return;
-        var count = Math.Max(1, _document.Sections.Count);
         _book.SpineIndex = _sectionIndex;
         _book.SectionFraction = _sectionFraction;
-        _book.Progress = Math.Clamp((_sectionIndex + _sectionFraction) / count, 0, 1);
+        var map = EnsurePageMap();
+        var page = _measuredAbsolutePage ?? map?.GetPage(_sectionIndex, _sectionFraction) ?? 1;
+        var totalPages = Math.Max(1, map?.TotalPages ?? _document.Sections.Count);
+        _book.Progress = totalPages <= 1 ? 0 : Math.Clamp((page - 1) / (double)(totalPages - 1), 0, 1);
         ReaderProgress.Value = _book.Progress;
         ChapterProgressText.Text = FlowSearchService.ResolveChapterTitle(_document, _sectionIndex);
         var percent = Math.Round(_book.Progress * 100);
         ReaderPercentText.Text = $"{percent}%";
         BookProgressText.Text = string.Format(App.Localization.GetString("Reader_ReadPercent"), percent);
+        UpdatePageJumpUi();
         if (save) SaveReadingPosition(force: true);
     }
 
@@ -606,15 +857,16 @@ public sealed partial class ReaderPage : Page
     private async void Previous_Click(object sender, RoutedEventArgs e)
     {
         if (await TryMoveWithinSectionAsync(-1)) return;
-        if (_document is not null && _sectionIndex > 0)
-            await NavigateToSectionAsync(_sectionIndex - 1, restoreSavedFraction: false);
+        if (_document is not null && PreviousReaderSectionIndex() < _sectionIndex)
+            await NavigateToSectionAsync(PreviousReaderSectionIndex(), restoreSavedFraction: false);
     }
 
     private async void Next_Click(object sender, RoutedEventArgs e)
     {
         if (await TryMoveWithinSectionAsync(1)) return;
-        if (_document is not null && _sectionIndex < _document.Sections.Count - 1)
-            await NavigateToSectionAsync(_sectionIndex + 1, restoreSavedFraction: false);
+        var nextIndex = NextReaderSectionIndex();
+        if (_document is not null && nextIndex < _document.Sections.Count)
+            await NavigateToSectionAsync(nextIndex, restoreSavedFraction: false);
     }
 
     private async void TocList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -632,8 +884,6 @@ public sealed partial class ReaderPage : Page
     private async void ReaderThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) => await SaveAndApplyReaderSettingsAsync();
     private async void ReaderFontScaleSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e) => await SaveAndApplyReaderSettingsAsync();
     private async void ReaderLineHeightSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e) => await SaveAndApplyReaderSettingsAsync();
-    private async void ReaderSettings_Continuous_Toggled(object sender, RoutedEventArgs e) => await SaveAndApplyReaderSettingsAsync();
-
     private async Task SaveAndApplyReaderSettingsAsync()
     {
         if (!_settingsReady) return;
@@ -642,7 +892,8 @@ public sealed partial class ReaderPage : Page
             if (ReaderThemeCombo.SelectedItem is ComboBoxItem { Tag: string theme }) settings.ReadingTheme = theme;
             settings.FontScale = ReaderFontScaleSlider.Value;
             settings.LineHeight = ReaderLineHeightSlider.Value;
-            settings.ContinuousScrolling = ContinuousScrollToggle.IsOn;
+            settings.ContinuousScrolling = true;
+            settings.ShowReadingProgress = true;
         });
         if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
     }

@@ -26,6 +26,9 @@ public sealed partial class ReaderPage
 
         [JsonPropertyName("height")]
         public double Height { get; set; }
+
+        [JsonPropertyName("annotationId")]
+        public string? AnnotationId { get; set; }
     }
 
     private bool _selectionAnnotationUiReady;
@@ -41,28 +44,14 @@ public sealed partial class ReaderPage
         if (_selectionAnnotationUiReady) return;
         _selectionAnnotationUiReady = true;
 
-        // Figma 53:109 refined follow-up: selection notes are a single autosaving field.
-        // There is no explicit Save/Close/highlight-color chrome in the current reader UI.
+        // Selection notes are a single autosaving field with light dismiss.
         MoreButton.Flyout = null;
-        AnnotationHighlightLabel.Visibility = Visibility.Collapsed;
-        HighlightYellowButton.Visibility = Visibility.Collapsed;
-        HighlightBlueButton.Visibility = Visibility.Collapsed;
-        HighlightGreenButton.Visibility = Visibility.Collapsed;
-        AnnotationHintText.Visibility = Visibility.Collapsed;
-        SaveSelectionAnnotationButton.Visibility = Visibility.Collapsed;
-        if (AnnotationHighlightLabel.Parent is FrameworkElement annotationHeader)
-            annotationHeader.Visibility = Visibility.Collapsed;
-        if (SaveSelectionAnnotationButton.Parent is FrameworkElement annotationFooter)
-            annotationFooter.Visibility = Visibility.Collapsed;
-        if (SelectionAnnotationCard.Child is StackPanel annotationStack)
-            annotationStack.Spacing = 0;
-
-        SelectionAnnotationCard.Width = 404;
-        SelectionAnnotationCard.Height = 102;
-        SelectionAnnotationCard.Padding = new Thickness(14, 12, 14, 12);
-        SelectionAnnotationTextBox.Height = 78;
-        SelectionAnnotationTextBox.MinHeight = 78;
-        SelectionAnnotationTextBox.MaxHeight = 78;
+        SelectionAnnotationCard.Width = 360;
+        SelectionAnnotationCard.Height = 74;
+        SelectionAnnotationCard.Padding = new Thickness(10);
+        SelectionAnnotationTextBox.Height = 52;
+        SelectionAnnotationTextBox.MinHeight = 52;
+        SelectionAnnotationTextBox.MaxHeight = 52;
         SelectionAnnotationTextBox.PlaceholderText = ReaderText(
             "为所选文字添加笔记…",
             "選択したテキストにノートを追加…",
@@ -79,13 +68,6 @@ public sealed partial class ReaderPage
         FilterAnnotationItemsToNotes();
         NotesModeButton.Click += (_, _) => DispatcherQueue.TryEnqueue(FilterAnnotationItemsToNotes);
 
-        // The view-mode controls are created in the refined reader layer. Retry once the pane is
-        // actually loaded/opened so the selector cannot disappear because Parent was unavailable
-        // during the first page initialization pass.
-        ReaderSettingsPane.Loaded += (_, _) => EnsureReaderViewModeControls();
-        AppearanceButton.Click += (_, _) => DispatcherQueue.TryEnqueue(EnsureReaderViewModeControls);
-        DispatcherQueue.TryEnqueue(EnsureReaderViewModeControls);
-
         ReaderWebView.NavigationCompleted += async (_, args) =>
         {
             if (!args.IsSuccess || ReaderWebView.CoreWebView2 is null) return;
@@ -97,12 +79,6 @@ public sealed partial class ReaderPage
             }
             await InstallSelectionObserverAsync();
         };
-    }
-
-    private void EnsureReaderViewModeControls()
-    {
-        if (_readerViewModeValueText is not null) return;
-        BuildReaderViewModeControls();
     }
 
     private async Task InstallSelectionObserverAsync()
@@ -130,7 +106,25 @@ public sealed partial class ReaderPage
                   height: rect.height
                 }));
               };
-              document.addEventListener('mouseup', () => setTimeout(report, 0), true);
+              document.addEventListener('mouseup', event => {
+                if (event.target?.closest?.('mark.pagearc-annotation[data-pagearc-annotation-id]')) return;
+                setTimeout(report, 0);
+              }, true);
+              document.addEventListener('click', event => {
+                const mark = event.target?.closest?.('mark.pagearc-annotation[data-pagearc-annotation-id]');
+                if (!mark) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                const rect = mark.getBoundingClientRect();
+                post('annotation-edit:' + JSON.stringify({
+                  annotationId: mark.dataset.pagearcAnnotationId,
+                  text: (mark.textContent || '').trim().slice(0, 2000),
+                  x: rect.x,
+                  y: rect.y,
+                  width: rect.width,
+                  height: rect.height
+                }));
+              }, true);
               document.addEventListener('keyup', event => {
                 if (event.shiftKey || event.key.startsWith('Arrow')) setTimeout(report, 0);
               }, true);
@@ -155,6 +149,24 @@ public sealed partial class ReaderPage
             await CloseSelectionPopupAsync(saveBeforeClose: true);
             return;
         }
+        if (message.StartsWith("annotation-edit:", StringComparison.Ordinal))
+        {
+            try
+            {
+                var payload = JsonSerializer.Deserialize<SelectionPopupPayload>(message["annotation-edit:".Length..]);
+                if (payload is null || string.IsNullOrWhiteSpace(payload.AnnotationId) || _book is null) return;
+                var annotation = App.ReadingData.GetAnnotations(_book.Id)
+                    .FirstOrDefault(item => string.Equals(item.Id, payload.AnnotationId, StringComparison.Ordinal));
+                if (annotation is null || string.IsNullOrWhiteSpace(annotation.Note)) return;
+                payload.Text = annotation.Quote;
+                ShowSelectionAnnotationPopup(payload, annotation);
+            }
+            catch (Exception ex)
+            {
+                StartupDiagnostics.Log("Reader annotation edit message parsing failed", ex);
+            }
+            return;
+        }
         if (!message.StartsWith("selection:", StringComparison.Ordinal)) return;
 
         try
@@ -177,7 +189,7 @@ public sealed partial class ReaderPage
         }
     }
 
-    private void ShowSelectionAnnotationPopup(SelectionPopupPayload payload)
+    private void ShowSelectionAnnotationPopup(SelectionPopupPayload payload, ReaderAnnotation? selectedAnnotation = null)
     {
         var quote = payload.Text.Trim();
         if (SelectionAnnotationPopup.IsOpen && string.Equals(_selectionQuote, quote, StringComparison.Ordinal))
@@ -188,12 +200,12 @@ public sealed partial class ReaderPage
         _selectionAutoSaveCts = null;
         _selectionQuote = quote;
 
-        var existing = _book is null
+        var existing = selectedAnnotation ?? (_book is null
             ? null
             : App.ReadingData.GetAnnotations(_book.Id)
                 .LastOrDefault(item => item.Locator.SectionIndex == _sectionIndex
                                        && string.Equals(item.Quote.Trim(), quote, StringComparison.Ordinal)
-                                       && !string.IsNullOrWhiteSpace(item.Note));
+                                       && !string.IsNullOrWhiteSpace(item.Note)));
         _selectionAnnotationId = existing?.Id;
         _selectionTextInternalUpdate = true;
         try
@@ -326,23 +338,4 @@ public sealed partial class ReaderPage
         }
     }
 
-    // Legacy handlers remain because the pre-refinement XAML still binds the controls. Their parent
-    // rows are collapsed at runtime, so they are not part of the visible interaction contract.
-    private void AnnotationColor_Click(object sender, RoutedEventArgs e)
-    {
-    }
-
-    private async void SaveSelectionAnnotation_Click(object sender, RoutedEventArgs e)
-    {
-        // Kept as a compatibility fallback only; visible saves happen automatically while typing.
-        if (string.IsNullOrWhiteSpace(_selectionQuote)) return;
-        var note = SelectionAnnotationTextBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(note)) return;
-        await SaveSelectedAnnotationAsync(_selectionQuote, note, "note-red");
-        FilterAnnotationItemsToNotes();
-        await CloseSelectionPopupAsync(saveBeforeClose: false);
-    }
-
-    private async void AnnotationPopupClose_Click(object sender, RoutedEventArgs e) =>
-        await CloseSelectionPopupAsync(saveBeforeClose: true);
 }

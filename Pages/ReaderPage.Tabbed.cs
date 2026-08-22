@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
 using PageArc.Models;
 using PageArc.Services;
@@ -24,6 +25,7 @@ public sealed partial class ReaderPage
     private CancellationTokenSource? _progressSeekCts;
     private bool _readerSessionClosed;
     private bool _chromeInitialized;
+    private int? _measuredAbsolutePage;
 
     private void InitializeTabbedReaderChrome()
     {
@@ -43,15 +45,13 @@ public sealed partial class ReaderPage
         UpdatePageJumpUi();
         ApplyTabbedProgressVisibility();
 
-        FigmaShowProgressToggle.Toggled += (_, _) => ApplyTabbedProgressVisibility();
         ReaderWebView.NavigationCompleted += (_, args) =>
         {
             if (args.IsSuccess) DispatcherQueue.TryEnqueue(UpdatePageJumpUi);
         };
     }
 
-    private void ApplyTabbedProgressVisibility() =>
-        ReaderProgressStrip.Visibility = App.Settings.Current.ShowReadingProgress ? Visibility.Visible : Visibility.Collapsed;
+    private void ApplyTabbedProgressVisibility() => ReaderProgressStrip.Visibility = Visibility.Visible;
 
     public void PrepareForClose()
     {
@@ -119,6 +119,17 @@ public sealed partial class ReaderPage
             : new SolidColorBrush(Colors.Transparent);
         if (button.Content is TextBlock text)
             text.FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal;
+        if (selected) AnimateReaderSelection(button);
+    }
+
+    private static void AnimateReaderSelection(UIElement element)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(element);
+        var animation = visual.Compositor.CreateScalarKeyFrameAnimation();
+        animation.InsertKeyFrame(0, 0.76f);
+        animation.InsertKeyFrame(1, 1f);
+        animation.Duration = TimeSpan.FromMilliseconds(140);
+        visual.StartAnimation("Opacity", animation);
     }
 
     private void AddCurrentBookmark_Click(object sender, RoutedEventArgs e)
@@ -153,7 +164,8 @@ public sealed partial class ReaderPage
             return;
         }
 
-        PageJumpBox.Text = map.GetPage(_sectionIndex, _sectionFraction).ToString(CultureInfo.CurrentCulture);
+        var page = _measuredAbsolutePage ?? map.GetPage(_sectionIndex, _sectionFraction);
+        PageJumpBox.Text = Math.Clamp(page, 1, map.TotalPages).ToString(CultureInfo.CurrentCulture);
         PageTotalText.Text = $"/ {map.TotalPages.ToString(CultureInfo.CurrentCulture)}";
     }
 

@@ -57,12 +57,19 @@ public sealed class ReaderFigma092Tests
         Assert.Contains("x:Name=\"BookmarksModeButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"NotesModeButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("Margin=\"12,12,12,0\" Height=\"36\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("HorizontalAlignment\" Value=\"Stretch\"", xaml, StringComparison.Ordinal);
         Assert.Contains("CharacterSpacing=\"40\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth=\"760\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("MaxHeight=\"704\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("Margin=\"60,28,60,76\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ReaderSurface\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ReaderFrameViewport\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ReaderFrameCanvas\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ReaderFrameViewbox\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReaderFrameScaleTransform", xaml, StringComparison.Ordinal);
+        Assert.Contains("Width=\"1600\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Height=\"900\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Margin=\"24,20,24,68\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ReaderProgress\" Grid.Column=\"2\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"PageJumpBox\" Grid.Column=\"5\" Width=\"64\" Height=\"30\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PageJumpBox\" Grid.Column=\"5\" Width=\"48\" Height=\"28\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ReaderProgress\" Grid.Column=\"2\" Height=\"30\" Padding=\"10,0\"", xaml, StringComparison.Ordinal);
         Assert.Contains("TextTrimming=\"CharacterEllipsis\" MaxLines=\"1\"", xaml, StringComparison.Ordinal);
         Assert.Contains("PreviousPageButton.Visibility = Visibility.Collapsed", refined, StringComparison.Ordinal);
         Assert.Contains("NextPageButton.Visibility = Visibility.Collapsed", refined, StringComparison.Ordinal);
@@ -88,13 +95,22 @@ public sealed class ReaderFigma092Tests
         Assert.Contains("x:Name=\"ThemeLightButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ThemeSepiaButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ThemeDarkButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"ReaderThemeCardStyle\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Property=\"BorderThickness\" Value=\"2\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"FigmaFontFamilyCombo\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ReaderFontScaleSlider\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"LineNormalButton\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"WidthMediumButton\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"ContinuousScrollToggle\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"FigmaShowProgressToggle\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Name=\"WidthMediumButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"OddPageStartButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"EvenPageStartButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SinglePageButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"FitPageWidthButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"FitPageHeightButton\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("ContinuousScrollToggle", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("FigmaShowProgressToggle", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"FigmaResetReaderButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ClickPageTurnToggle\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Toggled=\"ClickPageTurnToggle_Toggled\"", xaml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -107,8 +123,10 @@ public sealed class ReaderFigma092Tests
         Assert.Contains("x:Name=\"SelectionAnnotationPopup\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"SelectionAnnotationTextBox\"", xaml, StringComparison.Ordinal);
         Assert.Contains("window.getSelection", selectionCode, StringComparison.Ordinal);
-        Assert.Contains("HighlightYellowButton.Visibility = Visibility.Collapsed", selectionCode, StringComparison.Ordinal);
-        Assert.Contains("SaveSelectedAnnotationAsync", selectionCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("HighlightYellowButton", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("AnnotationPopupClose_Click", xaml, StringComparison.Ordinal);
+        Assert.Contains("Width=\"360\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("App.ReadingData.SaveAnnotation", selectionCode, StringComparison.Ordinal);
         Assert.Contains("note-red", selectionCode, StringComparison.Ordinal);
         Assert.Contains("MoreButton.Flyout = null", selectionCode, StringComparison.Ordinal);
     }
@@ -124,7 +142,8 @@ public sealed class ReaderFigma092Tests
         Assert.Contains("settings.ReadingThemeFollowsApp = false", code, StringComparison.Ordinal);
         Assert.Contains("settings.ReadingThemeFollowsApp = true", code, StringComparison.Ordinal);
         Assert.Contains("ApplyWebReaderStyleAsync", code, StringComparison.Ordinal);
-        Assert.Contains("settings.ReadingThemeFollowsApp = false", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("settings.ReadingThemeFollowsApp = theme == \"app\"", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("ActualTheme == ElementTheme.Dark ? \"dark\" : \"light\"", settingsCode, StringComparison.Ordinal);
     }
 
     [Fact]

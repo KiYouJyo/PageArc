@@ -11,20 +11,13 @@ public sealed partial class ReaderPage
 {
     private readonly ObservableCollection<ReaderAnnotationListItem> _annotationItems = [];
     private bool _notesInitialized;
-    private bool _readerExtrasInitialized;
-    private bool _extendedSettingsReady;
     private bool _annotationNavigationHooked;
-    private ComboBox? _readerFontFamilyCombo;
-    private ComboBox? _readerPageWidthCombo;
-    private ToggleSwitch? _readerShowProgressToggle;
-    private HyperlinkButton? _readerResetButton;
     private WebView2? _kindleParserWebView;
     private WebViewKindleParserRuntime? _kindleParserRuntime;
 
     private void ReaderPage_NotesLoaded(object sender, RoutedEventArgs e)
     {
         ConfigureKindleFlowRuntime();
-        SetupExtendedReaderControls();
         SetupAnnotationNavigationHook();
         ApplyProgressVisibility();
 
@@ -63,94 +56,6 @@ public sealed partial class ReaderPage
         _readerEngine.RegisterAdapter(new MobiFlowAdapter(_kindleParserRuntime), prefer: true);
     }
 
-    private void SetupExtendedReaderControls()
-    {
-        if (_readerExtrasInitialized) return;
-        _readerExtrasInitialized = true;
-
-        if (AppearanceButton.Flyout is Flyout flyout && flyout.Content is StackPanel panel)
-        {
-            var fontLabel = new TextBlock { Text = ReaderText("字体", "フォント", "Font") };
-            _readerFontFamilyCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-            _readerFontFamilyCombo.Items.Add(new ComboBoxItem { Content = ReaderText("书籍默认", "本の既定", "Book default"), Tag = "book" });
-            _readerFontFamilyCombo.Items.Add(new ComboBoxItem { Content = "Segoe UI Variable", Tag = "Segoe UI Variable" });
-            _readerFontFamilyCombo.Items.Add(new ComboBoxItem { Content = "Georgia", Tag = "Georgia" });
-            SelectByTag(_readerFontFamilyCombo, App.Settings.Current.DefaultFont);
-
-            // The canonical Figma flyout places font family immediately after the theme selector.
-            var fontInsertIndex = Math.Min(3, panel.Children.Count);
-            panel.Children.Insert(fontInsertIndex, fontLabel);
-            panel.Children.Insert(Math.Min(fontInsertIndex + 1, panel.Children.Count), _readerFontFamilyCombo);
-
-            // Re-home the existing continuous-scroll toggle so page width appears before reading-mode controls,
-            // matching Figma node 16:227 without replacing the current Fluent controls wholesale.
-            panel.Children.Remove(ContinuousScrollToggle);
-            panel.Children.Add(new TextBlock { Text = ReaderText("页面宽度", "ページ幅", "Page width") });
-            _readerPageWidthCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-            _readerPageWidthCombo.Items.Add(new ComboBoxItem { Content = ReaderText("窄", "狭い", "Narrow"), Tag = "narrow" });
-            _readerPageWidthCombo.Items.Add(new ComboBoxItem { Content = ReaderText("中", "中", "Medium"), Tag = "medium" });
-            _readerPageWidthCombo.Items.Add(new ComboBoxItem { Content = ReaderText("宽", "広い", "Wide"), Tag = "wide" });
-            SelectByTag(_readerPageWidthCombo, App.Settings.Current.PageWidth);
-            panel.Children.Add(_readerPageWidthCombo);
-            panel.Children.Add(ContinuousScrollToggle);
-
-            var progressRow = new Grid();
-            progressRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            progressRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            progressRow.Children.Add(new TextBlock
-            {
-                Text = ReaderText("显示阅读进度", "読書進捗を表示", "Show reading progress"),
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            _readerShowProgressToggle = new ToggleSwitch
-            {
-                IsOn = App.Settings.Current.ShowReadingProgress,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                OnContent = string.Empty,
-                OffContent = string.Empty
-            };
-            Grid.SetColumn(_readerShowProgressToggle, 1);
-            progressRow.Children.Add(_readerShowProgressToggle);
-            panel.Children.Add(progressRow);
-            panel.Children.Add(new Border
-            {
-                Height = 1,
-                Opacity = 0.25,
-                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
-            });
-
-            _readerResetButton = new HyperlinkButton
-            {
-                Content = ReaderText("恢复默认设置", "既定の設定に戻す", "Restore defaults"),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Padding = new Thickness(0, 4, 0, 4)
-            };
-            panel.Children.Add(_readerResetButton);
-
-            _readerFontFamilyCombo.SelectionChanged += ReaderFontFamily_SelectionChanged;
-            _readerPageWidthCombo.SelectionChanged += ReaderPageWidth_SelectionChanged;
-            _readerShowProgressToggle.Toggled += ReaderShowProgress_Toggled;
-            _readerResetButton.Click += ReaderReset_Click;
-            _extendedSettingsReady = true;
-        }
-
-        // The Figma command bar already reserves the ••• tool. Use a native Fluent flyout there for
-        // annotation actions so no additional permanent reader chrome is introduced.
-        MoreButton.Click -= Notes_Click;
-        var moreMenu = new MenuFlyout();
-        var notesItem = new MenuFlyoutItem { Text = ReaderText("笔记", "ノート", "Notes") };
-        notesItem.Click += Notes_Click;
-        moreMenu.Items.Add(notesItem);
-        moreMenu.Items.Add(new MenuFlyoutSeparator());
-        var highlightItem = new MenuFlyoutItem { Text = ReaderText("高亮所选文字", "選択範囲をハイライト", "Highlight selection") };
-        highlightItem.Click += AddHighlight_Click;
-        moreMenu.Items.Add(highlightItem);
-        var noteItem = new MenuFlyoutItem { Text = ReaderText("为所选文字添加笔记", "選択範囲にノートを追加", "Add note to selection") };
-        noteItem.Click += AddNote_Click;
-        moreMenu.Items.Add(noteItem);
-        MoreButton.Flyout = moreMenu;
-    }
-
     private void SetupAnnotationNavigationHook()
     {
         if (_annotationNavigationHooked) return;
@@ -161,72 +66,12 @@ public sealed partial class ReaderPage
         };
     }
 
-    private async void ReaderFontFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_extendedSettingsReady || _readerFontFamilyCombo?.SelectedItem is not ComboBoxItem { Tag: string font }) return;
-        App.Settings.Update(settings => settings.DefaultFont = font);
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
-    }
-
-    private async void ReaderPageWidth_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_extendedSettingsReady || _readerPageWidthCombo?.SelectedItem is not ComboBoxItem { Tag: string width }) return;
-        App.Settings.Update(settings => settings.PageWidth = width);
-        ApplyReaderSurfaceWidth();
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
-    }
-
-    private void ReaderShowProgress_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (!_extendedSettingsReady || _readerShowProgressToggle is null) return;
-        App.Settings.Update(settings => settings.ShowReadingProgress = _readerShowProgressToggle.IsOn);
-        ApplyProgressVisibility();
-    }
-
-    private async void ReaderReset_Click(object sender, RoutedEventArgs e)
-    {
-        var previousMainReady = _settingsReady;
-        _settingsReady = false;
-        _extendedSettingsReady = false;
-        try
-        {
-            App.Settings.Update(settings =>
-            {
-                settings.ReadingTheme = "light";
-                settings.DefaultFont = "book";
-                settings.FontScale = 1.0;
-                settings.LineHeight = 1.75;
-                settings.PageWidth = "medium";
-                settings.ContinuousScrolling = false;
-                settings.ShowReadingProgress = true;
-            });
-
-            SelectByTag(ReaderThemeCombo, "light");
-            ReaderFontScaleSlider.Value = 1.0;
-            ReaderLineHeightSlider.Value = 1.75;
-            ContinuousScrollToggle.IsOn = false;
-            if (_readerFontFamilyCombo is not null) SelectByTag(_readerFontFamilyCombo, "book");
-            if (_readerPageWidthCombo is not null) SelectByTag(_readerPageWidthCombo, "medium");
-            if (_readerShowProgressToggle is not null) _readerShowProgressToggle.IsOn = true;
-        }
-        finally
-        {
-            _settingsReady = previousMainReady;
-            _extendedSettingsReady = true;
-        }
-
-        ApplyProgressVisibility();
-        ApplyReaderSurfaceWidth();
-        if (_webReady) await ApplyWebReaderStyleAsync(_sectionFraction);
-    }
-
     private void ApplyProgressVisibility()
     {
-        var visibility = App.Settings.Current.ShowReadingProgress ? Visibility.Visible : Visibility.Collapsed;
-        ReaderProgress.Visibility = visibility;
-        ChapterProgressText.Visibility = visibility;
-        ReaderPercentText.Visibility = visibility;
-        BookProgressText.Visibility = visibility;
+        ReaderProgress.Visibility = Visibility.Visible;
+        ChapterProgressText.Visibility = Visibility.Visible;
+        ReaderPercentText.Visibility = Visibility.Visible;
+        BookProgressText.Visibility = Visibility.Visible;
     }
 
     private async void AddHighlight_Click(object sender, RoutedEventArgs e)

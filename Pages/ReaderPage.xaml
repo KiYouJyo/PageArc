@@ -19,9 +19,12 @@
         </Style>
         <Style x:Key="ReaderSidebarTabButtonStyle" TargetType="Button" BasedOn="{StaticResource ReaderToolButtonStyle}">
             <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="5,0"/>
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style x:Key="ReaderNavButtonStyle" TargetType="Button" BasedOn="{StaticResource ReaderToolButtonStyle}">
             <Setter Property="Width" Value="40"/>
@@ -31,14 +34,28 @@
             <Setter Property="Background" Value="{ThemeResource PageArcReaderToolbarBrush}"/>
         </Style>
         <Style x:Key="ReaderSegmentButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="34"/>
+            <Setter Property="Height" Value="52"/>
             <Setter Property="MinWidth" Value="0"/>
-            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="{ThemeResource PageArcCardStrokeBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="ReaderThemeCardStyle" TargetType="Button">
+            <Setter Property="Height" Value="64"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="9,7"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource PageArcCardStrokeBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
         </Style>
         <Style x:Key="ReaderTocItemStyle" TargetType="ListViewItem">
             <Setter Property="Height" Value="38"/>
@@ -46,9 +63,55 @@
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Padding" Value="12,0,8,0"/>
             <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BackgroundSizing" Value="InnerBorderEdge"/>
+            <Setter Property="UseSystemFocusVisuals" Value="True"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Grid Background="Transparent">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters><Setter Target="SelectionLayer.Opacity" Value="0.55"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters><Setter Target="SelectionLayer.Opacity" Value="0.78"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Selected">
+                                        <VisualState.Setters><Setter Target="SelectionLayer.Opacity" Value="1"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="SelectedPointerOver">
+                                        <VisualState.Setters><Setter Target="SelectionLayer.Opacity" Value="1"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="SelectedPressed">
+                                        <VisualState.Setters><Setter Target="SelectionLayer.Opacity" Value="1"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="ItemSurface.Opacity" Value="0.45"/></VisualState.Setters></VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <Border x:Name="SelectionLayer"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                    CornerRadius="8"
+                                    Opacity="0"/>
+                            <Border x:Name="ItemSurface"
+                                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Background="Transparent">
+                                <ContentPresenter Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Padding="{TemplateBinding Padding}"
+                                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Page.Resources>
 
@@ -114,11 +177,11 @@
             <Border x:Name="ContentsPane"
                     Grid.Column="0"
                     Background="{ThemeResource PageArcReaderPaneBrush}"
-                    BorderBrush="{ThemeResource PageArcCardStrokeBrush}"
+                    BorderBrush="{ThemeResource PageArcReaderDividerBrush}"
                     BorderThickness="0,0,1,0">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="56"/>
+                                <RowDefinition Height="56"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
@@ -139,7 +202,14 @@
                     <Grid x:Name="ContentsMode" Grid.Row="1" Padding="16,12,16,16">
                         <Grid.RowDefinitions><RowDefinition Height="62"/><RowDefinition Height="*"/><RowDefinition Height="32"/></Grid.RowDefinitions>
                         <StackPanel Margin="4,0,0,0"><TextBlock x:Uid="Reader_ContentsHeading" FontSize="20" FontWeight="SemiBold"/><TextBlock x:Name="ContentsMetaText" Margin="0,6,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
-                        <ListView x:Name="TocList" Grid.Row="1" Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource ReaderTocItemStyle}" SelectionChanged="TocList_SelectionChanged"/>
+                        <ListView x:Name="TocList" Grid.Row="1" Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource ReaderTocItemStyle}" SelectionChanged="TocList_SelectionChanged">
+                            <ListView.ItemContainerTransitions>
+                                <TransitionCollection>
+                                    <EntranceThemeTransition IsStaggeringEnabled="True"/>
+                                    <RepositionThemeTransition/>
+                                </TransitionCollection>
+                            </ListView.ItemContainerTransitions>
+                        </ListView>
                         <TextBlock x:Name="BookProgressText" Grid.Row="2" Margin="4,0,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom"/>
                     </Grid>
 
@@ -169,31 +239,60 @@
                 </Grid>
             </Border>
 
-            <Grid x:Name="ReadingArea" Grid.Column="1" Background="{ThemeResource PageArcReaderAreaBrush}">
-                <Border x:Name="ReaderSurface" Margin="60,28,60,76" MaxWidth="760" MaxHeight="704" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{ThemeResource PageArcReaderPageBrush}" BorderBrush="{ThemeResource PageArcCardStrokeBrush}" BorderThickness="1" CornerRadius="8">
-                    <Grid><WebView2 x:Name="ReaderWebView"/><Grid x:Name="ReaderLoadingLayer" Background="{ThemeResource PageArcReaderPageBrush}" Visibility="Collapsed"><ProgressRing Width="36" Height="36" IsActive="True" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Grid>
-                </Border>
+            <Grid x:Name="ReadingArea" Grid.Column="1" Background="{ThemeResource PageArcReaderAreaBrush}" SizeChanged="ReaderReadingArea_SizeChanged">
+                <!-- The WebView always keeps the same 1600 x 900 logical canvas. The outer
+                     viewport changes its real layout extent for pane/window/zoom changes, so
+                     scaling cannot paint into an adjacent pane and never repaginates the book. -->
+                <ScrollViewer x:Name="ReaderFrameViewport"
+                              Margin="24,20,24,68"
+                              HorizontalScrollMode="Enabled"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollMode="Enabled"
+                              VerticalScrollBarVisibility="Auto"
+                              ZoomMode="Disabled"
+                              HorizontalContentAlignment="Left"
+                              VerticalContentAlignment="Top">
+                    <Grid x:Name="ReaderFrameCanvas" Width="1600" Height="900">
+                        <Viewbox x:Name="ReaderFrameViewbox"
+                                 Width="1600"
+                                 Height="900"
+                                 Stretch="Uniform"
+                                 StretchDirection="Both"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <Border x:Name="ReaderSurface"
+                                    Width="1600"
+                                    Height="900"
+                                    Background="{ThemeResource PageArcReaderPageBrush}"
+                                    BorderBrush="{ThemeResource PageArcCardStrokeBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <Grid><WebView2 x:Name="ReaderWebView"/><Grid x:Name="ReaderLoadingLayer" Background="{ThemeResource PageArcReaderPageBrush}" Visibility="Collapsed"><ProgressRing Width="36" Height="36" IsActive="True" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Grid>
+                            </Border>
+                        </Viewbox>
+                    </Grid>
+                </ScrollViewer>
 
                 <Button x:Name="PreviousPageButton" Style="{StaticResource ReaderNavButtonStyle}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,338,0,0" Click="Previous_Click"><Button.RenderTransform><TranslateTransform X="-426"/></Button.RenderTransform><TextBlock Text="‹" FontSize="24" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></Button>
                 <Button x:Name="NextPageButton" Style="{StaticResource ReaderNavButtonStyle}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,338,0,0" Click="Next_Click"><Button.RenderTransform><TranslateTransform X="426"/></Button.RenderTransform><TextBlock Text="›" FontSize="24" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></Button>
 
                 <!-- Explicit columns keep chapter, slider, page jump, total and percent from ever overlapping. -->
-                <Grid x:Name="ReaderProgressStrip" Height="44" MaxWidth="760" Margin="60,0,60,20" HorizontalAlignment="Stretch" VerticalAlignment="Bottom">
+                <Grid x:Name="ReaderProgressStrip" Height="44" Margin="24,0,24,12" HorizontalAlignment="Stretch" VerticalAlignment="Bottom">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="16"/>
                         <ColumnDefinition Width="*" MinWidth="120"/>
                         <ColumnDefinition Width="14"/>
                         <ColumnDefinition Width="24"/>
-                        <ColumnDefinition Width="64"/>
-                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="48"/>
+                        <ColumnDefinition Width="62"/>
                         <ColumnDefinition Width="20"/>
                         <ColumnDefinition Width="48"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="ChapterProgressText" Grid.Column="0" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <Slider x:Name="ReaderProgress" Grid.Column="2" Height="30" HorizontalAlignment="Stretch" VerticalAlignment="Center" Minimum="0" Maximum="1" StepFrequency="0.001" ValueChanged="ReaderProgress_ValueChanged"/>
+                    <Slider x:Name="ReaderProgress" Grid.Column="2" Height="30" Padding="10,0" HorizontalAlignment="Stretch" VerticalAlignment="Center" Minimum="0" Maximum="1" StepFrequency="0.001" ValueChanged="ReaderProgress_ValueChanged"/>
                     <TextBlock x:Name="PageJumpLabel" Grid.Column="4" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <TextBox x:Name="PageJumpBox" Grid.Column="5" Width="64" Height="30" Padding="6,2" HorizontalAlignment="Stretch" VerticalAlignment="Center" FontSize="12" TextAlignment="Center" KeyDown="PageJumpBox_KeyDown" LostFocus="PageJumpBox_LostFocus"/>
+                    <TextBox x:Name="PageJumpBox" Grid.Column="5" Width="48" Height="28" MinWidth="0" Padding="4,0" HorizontalAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" FontSize="12" TextAlignment="Center" KeyDown="PageJumpBox_KeyDown" LostFocus="PageJumpBox_LostFocus"/>
                     <TextBlock x:Name="PageTotalText" Grid.Column="6" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <TextBlock x:Name="ReaderPercentText" Grid.Column="8" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Grid>
@@ -207,7 +306,7 @@
                     Width="260"
                     Visibility="Collapsed"
                     Background="{ThemeResource PageArcReaderPaneBrush}"
-                    BorderBrush="{ThemeResource PageArcCardStrokeBrush}"
+                    BorderBrush="{ThemeResource PageArcReaderDividerBrush}"
                     BorderThickness="1,0,0,0">
                 <Grid Padding="16,14,16,14">
                     <Grid.RowDefinitions><RowDefinition Height="42"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -218,9 +317,9 @@
                             <TextBlock x:Uid="ReaderSettings_ThemeLabel" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <Button x:Name="ThemeLightButton" Tag="light" Height="60" Padding="8,6" Background="White" BorderBrush="{ThemeResource PageArcCardStrokeBrush}" BorderThickness="1" CornerRadius="6" Click="ReaderThemeCard_Click" HorizontalContentAlignment="Left" VerticalContentAlignment="Top"><StackPanel Spacing="2"><TextBlock Text="Aa" FontSize="16" FontWeight="SemiBold" Foreground="#FF1F1F1F"/><TextBlock x:Name="ThemeLightText" FontSize="11" Foreground="#D11F1F1F"/></StackPanel></Button>
-                                <Button x:Name="ThemeSepiaButton" Grid.Column="1" Tag="sepia" Height="60" Padding="8,6" Background="#FFF2E8D1" BorderBrush="{ThemeResource PageArcCardStrokeBrush}" BorderThickness="1" CornerRadius="6" Click="ReaderThemeCard_Click" HorizontalContentAlignment="Left" VerticalContentAlignment="Top"><StackPanel Spacing="2"><TextBlock Text="Aa" FontSize="16" FontWeight="SemiBold" Foreground="#FF473829"/><TextBlock x:Name="ThemeSepiaText" FontSize="11" Foreground="#D1473829"/></StackPanel></Button>
-                                <Button x:Name="ThemeDarkButton" Grid.Column="2" Tag="dark" Height="60" Padding="8,6" Background="#FF1F1F1F" BorderBrush="{ThemeResource PageArcCardStrokeBrush}" BorderThickness="1" CornerRadius="6" Click="ReaderThemeCard_Click" HorizontalContentAlignment="Left" VerticalContentAlignment="Top"><StackPanel Spacing="2"><TextBlock Text="Aa" FontSize="16" FontWeight="SemiBold" Foreground="#FFF0F0F0"/><TextBlock x:Name="ThemeDarkText" FontSize="11" Foreground="#D1F0F0F0"/></StackPanel></Button>
+                                <Button x:Name="ThemeLightButton" Tag="light" Style="{StaticResource ReaderThemeCardStyle}" Background="White" Click="ReaderThemeCard_Click"><StackPanel Spacing="2"><TextBlock Text="Aa" FontSize="16" FontWeight="SemiBold" Foreground="#FF1F1F1F"/><TextBlock x:Name="ThemeLightText" FontSize="11" Foreground="#D11F1F1F"/></StackPanel></Button>
+                                <Button x:Name="ThemeSepiaButton" Grid.Column="1" Tag="sepia" Style="{StaticResource ReaderThemeCardStyle}" Background="#FFF2E8D1" Click="ReaderThemeCard_Click"><StackPanel Spacing="2"><TextBlock Text="Aa" FontSize="16" FontWeight="SemiBold" Foreground="#FF473829"/><TextBlock x:Name="ThemeSepiaText" FontSize="11" Foreground="#D1473829"/></StackPanel></Button>
+                                <Button x:Name="ThemeDarkButton" Grid.Column="2" Tag="dark" Style="{StaticResource ReaderThemeCardStyle}" Background="#FF1F1F1F" Click="ReaderThemeCard_Click"><StackPanel Spacing="2"><TextBlock Text="Aa" FontSize="16" FontWeight="SemiBold" Foreground="#FFF0F0F0"/><TextBlock x:Name="ThemeDarkText" FontSize="11" Foreground="#D1F0F0F0"/></StackPanel></Button>
                             </Grid>
 
                             <TextBlock x:Name="ReaderFontLabel" Margin="0,4,0,0" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -232,12 +331,21 @@
                             <TextBlock x:Uid="ReaderSettings_LineSpacingLabel" Margin="0,4,0,0" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Button x:Name="LineCompactButton" Tag="1.5" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderLineSpacing_Click"><TextBlock x:Name="LineCompactText"/></Button><Button x:Name="LineNormalButton" Grid.Column="1" Tag="1.75" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderLineSpacing_Click"><TextBlock x:Name="LineNormalText"/></Button><Button x:Name="LineRelaxedButton" Grid.Column="2" Tag="2.0" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderLineSpacing_Click"><TextBlock x:Name="LineRelaxedText"/></Button></Grid>
 
-                            <TextBlock x:Name="ReaderPageWidthLabel" Margin="0,4,0,0" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Button x:Name="WidthNarrowButton" Tag="narrow" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderPageWidth_Click"><TextBlock x:Name="WidthNarrowText"/></Button><Button x:Name="WidthMediumButton" Grid.Column="1" Tag="medium" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderPageWidth_Click"><TextBlock x:Name="WidthMediumText"/></Button><Button x:Name="WidthWideButton" Grid.Column="2" Tag="wide" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderPageWidth_Click"><TextBlock x:Name="WidthWideText"/></Button></Grid>
-
-                            <TextBlock x:Name="ReaderBehaviorLabel" Margin="0,4,0,0" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <Grid Height="36"><TextBlock x:Name="ContinuousScrollLabel" FontSize="13" VerticalAlignment="Center"/><ToggleSwitch x:Name="ContinuousScrollToggle" HorizontalAlignment="Right" VerticalAlignment="Center" OnContent="" OffContent="" Toggled="ReaderSettings_Continuous_Toggled"/></Grid>
-                            <Grid Height="36"><TextBlock x:Name="ShowProgressLabel" FontSize="13" VerticalAlignment="Center"/><ToggleSwitch x:Name="FigmaShowProgressToggle" HorizontalAlignment="Right" VerticalAlignment="Center" OnContent="" OffContent="" Toggled="FigmaShowProgress_Toggled"/></Grid>
+                            <TextBlock x:Name="ReaderViewOptionsLabel" Margin="0,8,0,0" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <Grid ColumnSpacing="6" RowSpacing="6">
+                                <Grid.RowDefinitions><RowDefinition Height="52"/><RowDefinition Height="52"/><RowDefinition Height="52"/></Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Button x:Name="SinglePageButton" Grid.ColumnSpan="2" Tag="spread:single" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderViewOption_Click"><TextBlock x:Name="SinglePageText" TextWrapping="Wrap" TextAlignment="Center"/></Button>
+                                <Button x:Name="OddPageStartButton" Grid.Row="1" Tag="spread:odd" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderViewOption_Click"><TextBlock x:Name="OddPageStartText" TextWrapping="Wrap" TextAlignment="Center"/></Button>
+                                <Button x:Name="EvenPageStartButton" Grid.Row="1" Grid.Column="1" Tag="spread:even" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderViewOption_Click"><TextBlock x:Name="EvenPageStartText" TextWrapping="Wrap" TextAlignment="Center"/></Button>
+                                <Button x:Name="FitPageWidthButton" Grid.Row="2" Tag="zoom:fit-width" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderViewOption_Click"><TextBlock x:Name="FitPageWidthText" TextWrapping="Wrap" TextAlignment="Center"/></Button>
+                                <Button x:Name="FitPageHeightButton" Grid.Row="2" Grid.Column="1" Tag="zoom:fit-height" Style="{StaticResource ReaderSegmentButtonStyle}" Click="ReaderViewOption_Click"><TextBlock x:Name="FitPageHeightText" TextWrapping="Wrap" TextAlignment="Center"/></Button>
+                            </Grid>
+                            <ToggleSwitch x:Name="ClickPageTurnToggle"
+                                          Margin="0,4,0,0"
+                                          HorizontalAlignment="Stretch"
+                                          IsOn="True"
+                                          Toggled="ClickPageTurnToggle_Toggled"/>
                             <Border Height="1" Margin="0,4,0,0" Background="{ThemeResource PageArcCardStrokeBrush}"/>
                             <HyperlinkButton x:Name="FigmaResetReaderButton" Padding="0,5" HorizontalAlignment="Left" Click="FigmaReaderReset_Click"/>
                             <ComboBox x:Name="ReaderThemeCombo" Visibility="Collapsed" SelectionChanged="ReaderThemeCombo_SelectionChanged"><ComboBoxItem x:Uid="ReadingTheme_Light" Tag="light"/><ComboBoxItem x:Uid="ReadingTheme_Sepia" Tag="sepia"/><ComboBoxItem x:Uid="ReadingTheme_Dark" Tag="dark"/></ComboBox>
@@ -248,30 +356,23 @@
             </Border>
         </Grid>
 
-        <!-- Figma 53:109 — selection-triggered Zotero-style annotation editor. -->
-        <Popup x:Name="SelectionAnnotationPopup" IsLightDismissEnabled="False">
+        <!-- Selection notes autosave and close when focus moves elsewhere. -->
+        <Popup x:Name="SelectionAnnotationPopup" IsLightDismissEnabled="True">
             <Border x:Name="SelectionAnnotationCard"
-                    Width="404"
-                    Padding="14,12"
+                    Width="360"
+                    Height="74"
+                    Padding="10"
                     Background="{ThemeResource PageArcReaderFlyoutBrush}"
                     BorderBrush="{ThemeResource PageArcCardStrokeBrush}"
                     BorderThickness="1"
                     CornerRadius="10">
-                <StackPanel Spacing="10">
-                    <Grid Height="30" ColumnSpacing="8">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
-                        <TextBlock x:Name="AnnotationHighlightLabel" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
-                        <Button x:Name="HighlightYellowButton" Grid.Column="1" Tag="yellow" Width="34" Height="28" Padding="0" CornerRadius="6" Click="AnnotationColor_Click"><Ellipse Width="10" Height="10" Fill="#FFFAC22E"/></Button>
-                        <Button x:Name="HighlightBlueButton" Grid.Column="2" Tag="blue" Width="34" Height="28" Padding="0" CornerRadius="6" Click="AnnotationColor_Click"><Ellipse Width="10" Height="10" Fill="#FF6BB8EB"/></Button>
-                        <Button x:Name="HighlightGreenButton" Grid.Column="3" Tag="green" Width="34" Height="28" Padding="0" CornerRadius="6" Click="AnnotationColor_Click"><Ellipse Width="10" Height="10" Fill="#FF8CC780"/></Button>
-                        <Button Grid.Column="5" Width="30" Height="30" MinWidth="30" Padding="0" Background="Transparent" BorderThickness="0" Click="AnnotationPopupClose_Click"><TextBlock Text="×" FontSize="15"/></Button>
-                    </Grid>
-                    <TextBox x:Name="SelectionAnnotationTextBox" MinHeight="76" MaxHeight="104" AcceptsReturn="True" TextWrapping="Wrap" MaxLength="2000"/>
-                    <Grid Height="30">
-                        <TextBlock x:Name="AnnotationHintText" VerticalAlignment="Center" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <Button x:Name="SaveSelectionAnnotationButton" Width="58" Height="30" HorizontalAlignment="Right" Click="SaveSelectionAnnotation_Click"/>
-                    </Grid>
-                </StackPanel>
+                <TextBox x:Name="SelectionAnnotationTextBox"
+                         Height="52"
+                         MinHeight="52"
+                         MaxHeight="52"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         MaxLength="2000"/>
             </Border>
         </Popup>
     </Grid>

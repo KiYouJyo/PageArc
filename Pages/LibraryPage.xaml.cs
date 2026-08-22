@@ -23,6 +23,7 @@ public sealed partial class LibraryPage : Page
         try
         {
             InitializeComponent();
+            BooksGridRepeater.ElementPrepared += BooksGridRepeater_ElementPrepared;
             ApplyLibraryStaticText();
             RestoreLibraryPreferences();
             StartupDiagnostics.Log("LibraryPage.InitializeComponent completed.");

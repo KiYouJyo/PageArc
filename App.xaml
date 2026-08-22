@@ -11,42 +11,50 @@
 
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <!-- The resting compact pane follows the neutral title-bar tone. Open-pane interaction tint is applied by MainWindow. -->
-                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#F3F3F3"/>
-                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#F3F3F3"/>
+                    <SolidColorBrush x:Key="PageArcWindowBackgroundBrush" Color="#00FFFFFF"/>
+                    <!-- Shell chrome is deliberately opaque: book content must never show through navigation. -->
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#FFEAF5F5"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#FFEAF5F5"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00FFFFFF"/>
-                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#F3F3F3"/>
-                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00FFFFFF"/>
-                    <!-- Reader chrome is transparent so it reveals the same Mica backdrop as the custom title bar. Only the document page has its own reading-theme surface. -->
-                    <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="#00000000"/>
-                    <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="#00000000"/>
-                    <SolidColorBrush x:Key="PageArcReaderAreaBrush" Color="#00000000"/>
+                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#FFEAF5F5"/>
+                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#FFEAF5F5"/>
+                    <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="#FFEAF5F5"/>
+                    <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="#FFEAF5F5"/>
+                    <SolidColorBrush x:Key="PageArcReaderAreaBrush" Color="#4CEAF5F5"/>
+                    <SolidColorBrush x:Key="PageArcReaderDividerBrush" Color="#33757575"/>
                     <SolidColorBrush x:Key="PageArcReaderPageBrush" Color="#F5FFFFFF"/>
                     <SolidColorBrush x:Key="PageArcReaderFlyoutBrush" Color="#FFF6F6F6"/>
-                    <StaticResource x:Key="PageArcCardBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
-                    <StaticResource x:Key="PageArcSurfaceBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
-                    <StaticResource x:Key="PageArcCardStrokeBrush" ResourceKey="CardStrokeColorDefaultBrush"/>
+                    <SolidColorBrush x:Key="PageArcCardBrush" Color="#FFF6FAFA"/>
+                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="#FFFFFFFF"/>
+                    <SolidColorBrush x:Key="PageArcSectionBrush" Color="#FFF6FAFA"/>
+                    <SolidColorBrush x:Key="PageArcInsetBrush" Color="#FFFFFFFF"/>
+                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="#663F5555"/>
+                    <SolidColorBrush x:Key="PageArcDividerBrush" Color="#33465B5B"/>
                     <StaticResource x:Key="PageArcAccentBrush" ResourceKey="AccentFillColorDefaultBrush"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <!-- The resting compact pane is neutral dark gray. Open-pane interaction tint is applied by MainWindow. -->
-                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#202020"/>
-                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#202020"/>
+                    <SolidColorBrush x:Key="PageArcWindowBackgroundBrush" Color="#00000000"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#FF132020"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#FF132020"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00000000"/>
-                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#202020"/>
-                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#00000000"/>
-                    <!-- Same rule in dark mode: chrome inherits the title-bar Mica; the page remains independently themeable. -->
-                    <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="#00000000"/>
-                    <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="#00000000"/>
-                    <SolidColorBrush x:Key="PageArcReaderAreaBrush" Color="#00000000"/>
+                    <SolidColorBrush x:Key="PageArcPaneBrush" Color="#FF132020"/>
+                    <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#FF132020"/>
+                    <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="#FF132020"/>
+                    <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="#FF132020"/>
+                    <SolidColorBrush x:Key="PageArcReaderAreaBrush" Color="#60182424"/>
+                    <SolidColorBrush x:Key="PageArcReaderDividerBrush" Color="#52FFFFFF"/>
                     <SolidColorBrush x:Key="PageArcReaderPageBrush" Color="#FA1F1F1F"/>
                     <SolidColorBrush x:Key="PageArcReaderFlyoutBrush" Color="#FF202020"/>
-                    <StaticResource x:Key="PageArcCardBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
-                    <StaticResource x:Key="PageArcSurfaceBrush" ResourceKey="CardBackgroundFillColorDefaultBrush"/>
-                    <StaticResource x:Key="PageArcCardStrokeBrush" ResourceKey="CardStrokeColorDefaultBrush"/>
+                    <SolidColorBrush x:Key="PageArcCardBrush" Color="#FF262F2E"/>
+                    <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="#FF323B3A"/>
+                    <SolidColorBrush x:Key="PageArcSectionBrush" Color="#FF262F2E"/>
+                    <SolidColorBrush x:Key="PageArcInsetBrush" Color="#FF363F3E"/>
+                    <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="#80414C4A"/>
+                    <SolidColorBrush x:Key="PageArcDividerBrush" Color="#664D5654"/>
                     <StaticResource x:Key="PageArcAccentBrush" ResourceKey="AccentFillColorDefaultBrush"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="PageArcWindowBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="{ThemeResource SystemColorWindowColor}"/>
@@ -55,11 +63,15 @@
                     <SolidColorBrush x:Key="PageArcReaderToolbarBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcReaderPaneBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcReaderAreaBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcReaderDividerBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
                     <SolidColorBrush x:Key="PageArcReaderPageBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcReaderFlyoutBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcCardBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
                     <SolidColorBrush x:Key="PageArcSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
                     <SolidColorBrush x:Key="PageArcCardStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                    <SolidColorBrush x:Key="PageArcSectionBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="PageArcInsetBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+                    <SolidColorBrush x:Key="PageArcDividerBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
                     <SolidColorBrush x:Key="PageArcAccentBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
@@ -70,6 +82,19 @@
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="Padding" Value="16"/>
+            </Style>
+            <Style x:Key="PageArcSectionStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource PageArcSectionBrush}"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="10"/>
+                <Setter Property="Padding" Value="20"/>
+            </Style>
+            <Style x:Key="PageArcInsetStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource PageArcInsetBrush}"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="8"/>
             </Style>
         </ResourceDictionary>
     </Application.Resources>

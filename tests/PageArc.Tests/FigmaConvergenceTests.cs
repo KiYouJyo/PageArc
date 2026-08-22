@@ -30,6 +30,8 @@ public sealed class FigmaConvergenceTests
         Assert.DoesNotContain("Click=\"Favorite_Click\"", xaml, StringComparison.Ordinal);
         Assert.Contains("settings.LibraryView = _libraryView", preferences, StringComparison.Ordinal);
         Assert.Contains("BooksListRepeater.Visibility", code, StringComparison.Ordinal);
+        Assert.Contains("HorizontalContentAlignment=\"Stretch\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"BooksContentHost\"", xaml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -41,6 +43,8 @@ public sealed class FigmaConvergenceTests
         Assert.Contains("BooksListRepeater.ElementPrepared", code, StringComparison.Ordinal);
         Assert.Contains("BooksScrollViewer.ViewportWidth", code, StringComparison.Ordinal);
         Assert.Contains("element.Width = width", code, StringComparison.Ordinal);
+        Assert.Contains("BooksContentHost.Width = width", code, StringComparison.Ordinal);
+        Assert.Contains("BooksListRepeater.Width = width", code, StringComparison.Ordinal);
         Assert.Contains("NormalizeRealizedListWidths", code, StringComparison.Ordinal);
     }
 

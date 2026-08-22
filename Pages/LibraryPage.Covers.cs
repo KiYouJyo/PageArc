@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PageArc.Models;
 using PageArc.Services;
@@ -9,19 +10,24 @@ namespace PageArc.Pages;
 
 public sealed partial class LibraryPage
 {
-    private readonly HashSet<string> _coverRefreshAttempts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, BitmapImage> _coverBitmapCache = new(StringComparer.OrdinalIgnoreCase);
 
     private async void CoverImage_Loaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not Image { Tag: string id } image) return;
+        if (sender is not Image image) return;
+        if (image.Tag is not string)
+        {
+            DispatcherQueue.TryEnqueue(async () => await LoadCoverImageAsync(image));
+            return;
+        }
+        await LoadCoverImageAsync(image);
+    }
+
+    private async Task LoadCoverImageAsync(Image image)
+    {
+        if (image.Tag is not string id) return;
         var book = App.Library.FindById(id);
         if (book is null) return;
-
-        if ((string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath))
-            && _coverRefreshAttempts.Add(book.Id))
-        {
-            await TryRefreshStoredCoverAsync(book);
-        }
 
         if (string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath))
         {
@@ -32,7 +38,11 @@ public sealed partial class LibraryPage
 
         try
         {
-            var bitmap = await LoadCoverBitmapAsync(book.CoverPath, 520);
+            if (!_coverBitmapCache.TryGetValue(book.CoverPath, out var bitmap))
+            {
+                bitmap = await LoadCoverBitmapAsync(book.CoverPath, 520);
+                if (bitmap is not null) _coverBitmapCache[book.CoverPath] = bitmap;
+            }
             if (!string.Equals(image.Tag as string, id, StringComparison.Ordinal)) return;
             image.Source = bitmap;
             image.Opacity = bitmap is null ? 0 : 1;
@@ -45,41 +55,39 @@ public sealed partial class LibraryPage
         }
     }
 
-    private async Task TryRefreshStoredCoverAsync(BookEntry book)
+    private async Task LoadPreparedCoverAsync(DependencyObject root, string? preparedId = null)
     {
-        var format = BookFormatRegistry.Normalize(book.Format);
-        if (format is not ("EPUB" or "FB2") || book.IsMissing || !File.Exists(book.FilePath)) return;
-        try
+        var image = FindCoverImage(root);
+        if (image is null) return;
+        if (!string.IsNullOrWhiteSpace(preparedId)) image.Tag = preparedId;
+        await LoadCoverImageAsync(image);
+    }
+
+    private static Image? FindCoverImage(DependencyObject root)
+    {
+        if (root is Image image) return image;
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var index = 0; index < count; index++)
         {
-            var metadata = await BookMetadataService.ReadAsync(book);
-            if (!string.IsNullOrWhiteSpace(metadata.Title)) book.Title = metadata.Title;
-            if (!string.IsNullOrWhiteSpace(metadata.Author)) book.Author = metadata.Author;
-            if (!string.IsNullOrWhiteSpace(metadata.Language)) book.Language = metadata.Language;
-            if (!string.IsNullOrWhiteSpace(metadata.Publisher)) book.Publisher = metadata.Publisher;
-            if (!string.IsNullOrWhiteSpace(metadata.Description)) book.Description = metadata.Description;
-            if (!string.IsNullOrWhiteSpace(metadata.CoverPath)) book.CoverPath = metadata.CoverPath;
-            App.Library.Save();
+            var found = FindCoverImage(VisualTreeHelper.GetChild(root, index));
+            if (found is not null) return found;
         }
-        catch (Exception ex)
-        {
-            StartupDiagnostics.Log($"Cover refresh failed for existing library book '{book.FilePath}'.", ex);
-        }
+        return null;
     }
 
     private async Task LoadDetailsCoverAsync(BookEntry book)
     {
         DetailsCoverImage.Source = null;
         DetailsCoverImage.Opacity = 0;
-        if ((string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath))
-            && _coverRefreshAttempts.Add(book.Id))
-        {
-            await TryRefreshStoredCoverAsync(book);
-        }
         if (string.IsNullOrWhiteSpace(book.CoverPath) || !File.Exists(book.CoverPath)) return;
         var expectedId = book.Id;
         try
         {
-            var bitmap = await LoadCoverBitmapAsync(book.CoverPath, 420);
+            if (!_coverBitmapCache.TryGetValue(book.CoverPath, out var bitmap))
+            {
+                bitmap = await LoadCoverBitmapAsync(book.CoverPath, 420);
+                if (bitmap is not null) _coverBitmapCache[book.CoverPath] = bitmap;
+            }
             if (_detailsBook is null || !string.Equals(_detailsBook.Id, expectedId, StringComparison.Ordinal)) return;
             DetailsCoverImage.Source = bitmap;
             DetailsCoverImage.Opacity = bitmap is null ? 0 : 1;

@@ -62,6 +62,9 @@ public sealed class TabbedShell093Tests
         Assert.Contains("CreateTabVisual(session.Id, HomeTabTitle(), Symbol.Home, 220)", code, StringComparison.Ordinal);
         Assert.Contains("CreateTabVisual(session.Id, title, Symbol.Library, 300)", code, StringComparison.Ordinal);
         Assert.Contains("RefreshTabVisuals", code, StringComparison.Ordinal);
+        Assert.Contains("EntranceThemeTransition", code, StringComparison.Ordinal);
+        Assert.Contains("RepositionThemeTransition", code, StringComparison.Ordinal);
+        Assert.Contains("AnimateSelectedTab", code, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -112,6 +115,56 @@ public sealed class TabbedShell093Tests
         Assert.Equal(4, map.TotalPages);
         Assert.Equal(1, nearEnd.SectionIndex);
         Assert.InRange(nearEnd.Fraction, 0.6, 0.8);
+    }
+
+    [Fact]
+    public void FlowPageMapReplacesEstimatesWithMeasuredRenderedPages()
+    {
+        var document = new FlowDocument
+        {
+            Format = "EPUB",
+            Title = "Measured",
+            Sections =
+            [
+                new FlowSection("a", "a", "text/html", Size: 3500),
+                new FlowSection("b", "b", "text/html", Size: 3500),
+                new FlowSection("c", "c", "text/html", Size: 3500)
+            ]
+        };
+
+        var map = new FlowPageMap(document);
+        map.UpdateRenderedRange(0, 1, 6);
+
+        Assert.Equal(7, map.TotalPages);
+        Assert.Equal(7, map.GetSectionStartPage(2));
+        Assert.Equal(4, map.GetPage(1, 0));
+    }
+
+    [Fact]
+    public void FlowPageMapFreezesTheCompleteUpfrontMeasurement()
+    {
+        var document = new FlowDocument
+        {
+            Format = "EPUB",
+            Title = "Frozen",
+            Sections =
+            [
+                new FlowSection("a", "a", "text/html", Size: 3500),
+                new FlowSection("b", "b", "text/html", Size: 3500),
+                new FlowSection("c", "c", "text/html", Size: 3500)
+            ]
+        };
+
+        var map = new FlowPageMap(document);
+        map.FreezeMeasuredPages([2, 5, 3]);
+
+        Assert.True(map.IsFrozen);
+        Assert.Equal(10, map.TotalPages);
+        Assert.Equal(3, map.GetSectionStartPage(1));
+        Assert.Equal(8, map.GetSectionStartPage(2));
+
+        map.UpdateRenderedRange(0, 2, 99);
+        Assert.Equal(10, map.TotalPages);
     }
 
     private static string FindRepoRoot()

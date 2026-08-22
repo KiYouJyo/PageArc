@@ -67,10 +67,11 @@
                         <CheckBox x:Name="TocCheck" x:Uid="Conversion_KeepToc" IsChecked="True"/>
                     </StackPanel>
                     <Border Grid.Row="4" Background="{ThemeResource ControlFillColorSecondaryBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource PageArcAccentBrush}"/>
-                            <TextBlock x:Uid="Conversion_SafetyNotice" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
-                        </StackPanel>
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource PageArcAccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" x:Uid="Conversion_SafetyNotice" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        </Grid>
                     </Border>
                     <Button x:Name="StartConversionButton" Grid.Row="5" x:Uid="Conversion_Start" Click="StartConversion_Click" HorizontalAlignment="Right" VerticalAlignment="Bottom" IsEnabled="False">
                         <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8AB;" FontSize="14"/><TextBlock x:Uid="Conversion_StartText"/></StackPanel>

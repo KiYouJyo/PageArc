@@ -8,7 +8,10 @@ namespace PageArc.Pages;
 public sealed partial class SettingsPage : Page
 {
     private readonly ReadingBackupService _backupService = new();
+    private readonly WebDavSyncService _webDavSyncService = new();
+    private readonly WebDavCredentialStore _webDavCredentialStore = new();
     private bool _loaded;
+    private bool _webDavBusy;
 
     public SettingsPage()
     {
@@ -23,32 +26,35 @@ public sealed partial class SettingsPage : Page
         SelectByTag(LanguageCombo, App.Settings.Current.Language);
         SelectByTag(ThemeCombo, App.Settings.Current.AppTheme);
         SelectByTag(AccentCombo, App.Settings.Current.AccentSource);
-        SelectByTag(ReadingThemeCombo, App.Settings.Current.ReadingTheme);
+        SelectByTag(ReadingThemeCombo, App.Settings.Current.ReadingThemeFollowsApp ? "app" : App.Settings.Current.ReadingTheme);
         SelectByTag(FontCombo, App.Settings.Current.DefaultFont);
-        SelectByTag(PageWidthCombo, App.Settings.Current.PageWidth);
         SelectByTag(LibrarySortCombo, App.Settings.Current.LibrarySort);
         FontScaleSlider.Value = App.Settings.Current.FontScale;
         LineHeightSlider.Value = App.Settings.Current.LineHeight;
-        ContinuousToggle.IsOn = App.Settings.Current.ContinuousScrolling;
         RecentToggle.IsOn = App.Settings.Current.ShowRecentBooks;
         DuplicatesToggle.IsOn = App.Settings.Current.DuplicateDetection;
+        UpdateWebDavStatus();
         LanguageCombo.IsEnabled = true;
         _loaded = true;
     }
 
     private void ApplyExtendedLocalizedText()
     {
+        AppearanceSectionHint.Text = LocalText("主题、语言与界面外观", "テーマ、言語、インターフェイスの外観", "Theme, language, and interface appearance");
+        LibrarySectionHint.Text = LocalText("管理书库行为与导入偏好", "ライブラリの動作と読み込み設定", "Library behavior and import preferences");
+        ReadingSectionHint.Text = LocalText("默认排版与阅读体验", "既定の組版と読書体験", "Default typography and reading experience");
+        DataSectionHint.Text = LocalText("备份、WebDAV 同步与本地缓存", "バックアップ、WebDAV 同期、ローカル キャッシュ", "Backup, WebDAV sync, and local cache");
         AccentLabel.Text = LocalText("强调色", "アクセント カラー", "Accent color");
         AccentHint.Text = LocalText("使用 Windows 强调色", "Windows のアクセント カラーを使用します", "Use the Windows accent color");
         WindowsAccentItem.Content = "Windows";
-        PageWidthLabel.Text = LocalText("页面宽度", "ページ幅", "Page width");
-        PageWidthNarrowItem.Content = LocalText("窄", "狭い", "Narrow");
-        PageWidthMediumItem.Content = LocalText("中", "中", "Medium");
-        PageWidthWideItem.Content = LocalText("宽", "広い", "Wide");
         LibrarySortLabel.Text = LocalText("默认排序", "既定の並べ替え", "Default sort");
         LibrarySortRecentItem.Content = LocalText("最近打开", "最近開いた順", "Recently opened");
         LibrarySortTitleItem.Content = LocalText("标题", "タイトル", "Title");
         RestoreReadingDataButton.Content = LocalText("恢复", "復元", "Restore");
+        WebDavLabel.Text = "WebDAV";
+        WebDavHint.Text = LocalText("同步阅读进度、书签、高亮和笔记；密码安全保存在 Windows 凭据保险库", "読書位置、しおり、ハイライト、ノートを同期します。パスワードは Windows 資格情報コンテナーに安全に保存されます", "Sync reading positions, bookmarks, highlights, and notes. Passwords are stored securely in Windows Password Vault");
+        WebDavConfigureButton.Content = LocalText("配置", "設定", "Configure");
+        WebDavSyncButton.Content = LocalText("立即同步", "今すぐ同期", "Sync now");
     }
 
     private static void SelectByTag(ComboBox comboBox, string tag)
@@ -86,13 +92,17 @@ public sealed partial class SettingsPage : Page
         App.Settings.Update(settings =>
         {
             if (AccentCombo.SelectedItem is ComboBoxItem { Tag: string accent }) settings.AccentSource = accent;
-            if (ReadingThemeCombo.SelectedItem is ComboBoxItem { Tag: string theme }) settings.ReadingTheme = theme;
+            if (ReadingThemeCombo.SelectedItem is ComboBoxItem { Tag: string theme })
+            {
+                settings.ReadingThemeFollowsApp = theme == "app";
+                if (theme != "app") settings.ReadingTheme = theme;
+            }
             if (FontCombo.SelectedItem is ComboBoxItem { Tag: string font }) settings.DefaultFont = font;
-            if (PageWidthCombo.SelectedItem is ComboBoxItem { Tag: string pageWidth }) settings.PageWidth = pageWidth;
             if (LibrarySortCombo.SelectedItem is ComboBoxItem { Tag: string sort }) settings.LibrarySort = sort;
             settings.FontScale = FontScaleSlider.Value;
             settings.LineHeight = LineHeightSlider.Value;
-            settings.ContinuousScrolling = ContinuousToggle.IsOn;
+            settings.ContinuousScrolling = true;
+            settings.ShowReadingProgress = true;
             settings.ShowRecentBooks = RecentToggle.IsOn;
             settings.DuplicateDetection = DuplicatesToggle.IsOn;
         });
@@ -180,6 +190,143 @@ public sealed partial class SettingsPage : Page
             StartupDiagnostics.Log("Cache clear failed", ex);
             await ShowTransientMessageAsync(LocalText("清理缓存失败", "キャッシュのクリアに失敗しました", "Clear cache failed"), LocalText("部分缓存文件可能仍被占用。", "一部のキャッシュ ファイルが使用中の可能性があります。", "Some cache files may still be in use."));
         }
+    }
+
+    private async void ConfigureWebDav_Click(object sender, RoutedEventArgs e)
+    {
+        if (_webDavBusy) return;
+        PersistReadingSettings();
+
+        var endpointBox = new TextBox
+        {
+            Header = LocalText("WebDAV 文件地址", "WebDAV ファイル URL", "WebDAV file URL"),
+            PlaceholderText = "https://example.com/dav/PageArc/reading-data.json",
+            Text = App.Settings.Current.WebDavEndpoint
+        };
+        var usernameBox = new TextBox
+        {
+            Header = LocalText("用户名", "ユーザー名", "Username"),
+            Text = App.Settings.Current.WebDavUsername
+        };
+        var passwordBox = new PasswordBox
+        {
+            Header = LocalText("密码或应用专用密码", "パスワードまたはアプリ パスワード", "Password or app password"),
+            PlaceholderText = string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint)
+                ? string.Empty
+                : LocalText("留空以保留已保存密码", "空欄の場合は保存済みパスワードを維持", "Leave blank to keep the saved password")
+        };
+        var content = new StackPanel { Spacing = 12, MinWidth = 420 };
+        content.Children.Add(endpointBox);
+        content.Children.Add(usernameBox);
+        content.Children.Add(passwordBox);
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = LocalText("配置 WebDAV 同步", "WebDAV 同期を設定", "Configure WebDAV sync"),
+            Content = content,
+            PrimaryButtonText = LocalText("保存并测试", "保存してテスト", "Save and test"),
+            CloseButtonText = LocalText("取消", "キャンセル", "Cancel"),
+            DefaultButton = ContentDialogButton.Primary
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        WebDavConnectionSettings settings;
+        try
+        {
+            settings = new WebDavConnectionSettings(endpointBox.Text.Trim(), usernameBox.Text.Trim());
+            _ = settings.GetEndpointUri();
+        }
+        catch (Exception)
+        {
+            await ShowTransientMessageAsync(LocalText("地址无效", "URL が無効です", "Invalid address"), LocalText("请输入完整的 HTTPS 或 HTTP WebDAV 文件地址。", "完全な HTTPS または HTTP WebDAV ファイル URL を入力してください。", "Enter a complete HTTPS or HTTP WebDAV file URL."));
+            return;
+        }
+
+        var previousEndpoint = App.Settings.Current.WebDavEndpoint;
+        var previousUsername = App.Settings.Current.WebDavUsername;
+        var password = passwordBox.Password;
+        if (string.IsNullOrWhiteSpace(password)
+            && string.Equals(previousEndpoint, settings.Endpoint, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(previousUsername, settings.Username, StringComparison.Ordinal))
+        {
+            password = _webDavCredentialStore.Read(previousEndpoint, previousUsername) ?? string.Empty;
+        }
+
+        App.Settings.Update(value =>
+        {
+            value.WebDavEndpoint = settings.Endpoint;
+            value.WebDavUsername = settings.Username;
+        });
+        if (!string.IsNullOrWhiteSpace(passwordBox.Password))
+            _webDavCredentialStore.Save(settings.Endpoint, settings.Username, passwordBox.Password);
+
+        SetWebDavBusy(true);
+        try
+        {
+            await _webDavSyncService.TestConnectionAsync(settings, password);
+            WebDavStatusText.Text = LocalText("连接成功，配置已保存", "接続成功。設定を保存しました", "Connected. Configuration saved");
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("WebDAV connection test failed", ex);
+            WebDavStatusText.Text = LocalText("连接测试失败，请检查地址和凭据", "接続テストに失敗しました。URL と資格情報を確認してください", "Connection test failed. Check the URL and credentials");
+        }
+        finally { SetWebDavBusy(false); }
+    }
+
+    private async void SyncWebDav_Click(object sender, RoutedEventArgs e)
+    {
+        if (_webDavBusy) return;
+        PersistReadingSettings();
+        var settings = new WebDavConnectionSettings(App.Settings.Current.WebDavEndpoint, App.Settings.Current.WebDavUsername);
+        try { _ = settings.GetEndpointUri(); }
+        catch
+        {
+            await ShowTransientMessageAsync(LocalText("尚未配置 WebDAV", "WebDAV は未設定です", "WebDAV is not configured"), LocalText("请先配置 WebDAV 文件地址和凭据。", "先に WebDAV ファイル URL と資格情報を設定してください。", "Configure the WebDAV file URL and credentials first."));
+            return;
+        }
+
+        SetWebDavBusy(true);
+        WebDavStatusText.Text = LocalText("正在合并并同步…", "マージして同期しています…", "Merging and syncing…");
+        try
+        {
+            var password = _webDavCredentialStore.Read(settings.Endpoint, settings.Username) ?? string.Empty;
+            var local = _backupService.CreateBackup(App.ReadingData, App.Library.Books);
+            var remote = await _webDavSyncService.DownloadAsync(settings, password);
+            var merged = remote is null ? local : ReadingBackupService.Merge(local, remote);
+            if (remote is not null)
+            {
+                _backupService.Restore(merged, App.ReadingData, App.Library.Books, ReadingBackupRestoreMode.Merge);
+                App.Library.Save();
+                merged = _backupService.CreateBackup(App.ReadingData, App.Library.Books);
+            }
+            await _webDavSyncService.UploadAsync(settings, password, merged);
+            WebDavStatusText.Text = string.Format(LocalText("上次同步：{0:HH:mm}", "最終同期：{0:HH:mm}", "Last synced: {0:HH:mm}"), DateTimeOffset.Now);
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("WebDAV sync failed", ex);
+            WebDavStatusText.Text = LocalText("同步失败，本地数据未被覆盖", "同期に失敗しました。ローカル データは上書きされていません", "Sync failed. Local data was not overwritten");
+        }
+        finally { SetWebDavBusy(false); }
+    }
+
+    private void UpdateWebDavStatus()
+    {
+        WebDavStatusText.Text = string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint)
+            ? LocalText("未配置", "未設定", "Not configured")
+            : LocalText("已配置", "設定済み", "Configured");
+        WebDavSyncButton.IsEnabled = !_webDavBusy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+    }
+
+    private void SetWebDavBusy(bool busy)
+    {
+        _webDavBusy = busy;
+        WebDavProgressRing.IsActive = busy;
+        WebDavProgressRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        WebDavConfigureButton.IsEnabled = !busy;
+        WebDavSyncButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
     }
 
     private async Task ShowTransientMessageAsync(string title, string message)

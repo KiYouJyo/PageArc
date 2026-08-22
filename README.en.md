@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-0.9.5-005fb8)
+![Version](https://img.shields.io/badge/version-1.0-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -11,9 +11,9 @@
 
 **PageArc** is a WinUI 3 / Windows App SDK ebook reader for Windows focused on reflowable formats. The UI follows the PAGEARC Figma source of truth while keeping reading local-first and leaving original ebook files untouched.
 
-## v0.9.5
+## v1.0
 
-v0.9.5 completes the requested data/runtime/reading-interaction pass on top of the v0.9.3 multi-tab reader:
+v1.0 completes the production convergence of the reader, library, settings, updater and Windows distribution experience on top of v0.9.5:
 
 - reading backups move to schema v2 and can now be restored in Merge or Replace mode; PageArc remaps progress, bookmarks and notes after a device/path change using exact IDs, content fingerprints and unique book identity;
 - official x64 packages bundle a pinned local calibre 9.13.0 conversion runtime, making all 20 directed EPUB / FB2 / MOBI / AZW3 / LIT conversion pairs available without a separate calibre installation; external calibre remains a development/compatibility fallback;

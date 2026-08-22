@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0] - 2026-08-22
+
+### Changed
+- Unified the custom title bar and NavigationView pane on one opaque shell-chrome surface so the hamburger rail no longer renders with a different tint.
+- Standardized Settings selectors, actions, sliders and label-free switches on a shared right edge across wide and compact layouts.
+- Promoted the application and MSIX package versions to `1.0` / `1.0.0.0`.
+
 ## [0.9.5] - 2026-08-18
 
 ### Added

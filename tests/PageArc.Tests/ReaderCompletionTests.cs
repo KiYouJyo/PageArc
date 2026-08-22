@@ -16,8 +16,10 @@ public sealed class ReaderCompletionTests
         Assert.Equal(1.0, settings.FontScale);
         Assert.Equal(1.75, settings.LineHeight);
         Assert.Equal("medium", settings.PageWidth);
-        Assert.False(settings.ContinuousScrolling);
+        Assert.Equal("vertical", settings.ReaderViewMode);
+        Assert.True(settings.ContinuousScrolling);
         Assert.True(settings.ShowReadingProgress);
+        Assert.True(settings.ClickToTurnPages);
     }
 
     [Fact]

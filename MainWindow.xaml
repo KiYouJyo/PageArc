@@ -6,13 +6,15 @@
         <MicaBackdrop/>
     </Window.SystemBackdrop>
 
+    <Grid x:Name="WindowRoot" Background="Transparent" Loaded="OnWindowRootLoaded">
+    <Grid x:Name="MainContent" Opacity="0" IsHitTestVisible="False">
     <Grid x:Name="RootGrid" Background="Transparent" Loaded="MainWindow_SessionRestoreLoaded">
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="Transparent">
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="{ThemeResource PageArcToolbarBrush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="90"/>
                 <ColumnDefinition Width="*"/>
@@ -49,7 +51,13 @@
             </ScrollViewer>
         </Grid>
 
-        <Grid x:Name="WorkspaceHost" Grid.Row="1">
+        <Grid x:Name="WorkspaceHost" Grid.Row="1" SizeChanged="WorkspaceHost_SizeChanged">
+            <!-- NavigationView's compact-pane template applies its own material layer.  Keep an
+                 explicit opaque rail behind it so the hamburger strip and title bar use the
+                 exact same shell colour in every display mode. -->
+            <Border Width="64"
+                    HorizontalAlignment="Left"
+                    Background="{ThemeResource PageArcToolbarBrush}"/>
             <NavigationView
                 x:Name="AppNavigation"
                 Background="Transparent"
@@ -62,6 +70,13 @@
                 Loaded="AppNavigation_Loaded"
                 DisplayModeChanged="AppNavigation_DisplayModeChanged"
                 SelectionChanged="AppNavigation_SelectionChanged">
+                <NavigationView.Resources>
+                    <!-- WinUI's NavigationView template otherwise supplies its own pane surface,
+                         which is visibly lighter than the custom title bar. -->
+                    <StaticResource x:Key="NavigationViewDefaultPaneBackground" ResourceKey="PageArcToolbarBrush"/>
+                    <StaticResource x:Key="NavigationViewExpandedPaneBackground" ResourceKey="PageArcToolbarBrush"/>
+                    <StaticResource x:Key="NavigationViewTopPaneBackground" ResourceKey="PageArcToolbarBrush"/>
+                </NavigationView.Resources>
                 <NavigationView.MenuItems>
                     <NavigationViewItem x:Uid="Nav_Library" Tag="library">
                         <NavigationViewItem.Icon><SymbolIcon Symbol="Library"/></NavigationViewItem.Icon>
@@ -88,5 +103,18 @@
             </NavigationView>
             <Grid x:Name="ReaderHost" Visibility="Collapsed"/>
         </Grid>
+    </Grid>
+    </Grid>
+    <Grid x:Name="StartupOverlay" Background="Transparent" Canvas.ZIndex="100">
+        <Image x:Name="StartupLogo"
+               Source="ms-appx:///Assets/Icon-Large-1024.png"
+               Width="183"
+               Height="183"
+               Stretch="Uniform"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               ImageOpened="OnStartupLogoImageOpened"
+               ImageFailed="OnStartupLogoImageFailed"/>
+    </Grid>
     </Grid>
 </Window>

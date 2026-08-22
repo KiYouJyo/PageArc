@@ -13,17 +13,26 @@ public sealed class AppSettings
     public double FontScale { get; set; } = 1.0;
     public double LineHeight { get; set; } = 1.75;
     public string PageWidth { get; set; } = "medium";
-    // ReaderViewMode is the visible v0.9.3 view-mode selector. ContinuousScrolling is
-    // retained as a migration/compatibility field for settings written by older builds.
-    public string ReaderViewMode { get; set; } = "horizontal";
+    // Continuous reading and the progress strip are fixed reader behavior. The fields remain
+    // persisted for compatibility with older settings files and are normalized on reader load.
+    public string ReaderViewMode { get; set; } = "vertical";
     public string ReaderSpreadMode { get; set; } = "single";
     public string ReaderZoomMode { get; set; } = "auto";
     public double ReaderZoomFactor { get; set; } = 1.0;
-    public bool ContinuousScrolling { get; set; }
+    public bool ContinuousScrolling { get; set; } = true;
     public bool ShowReadingProgress { get; set; } = true;
+    public bool ClickToTurnPages { get; set; } = true;
     public bool ShowRecentBooks { get; set; } = true;
     public bool DuplicateDetection { get; set; } = true;
+    public string WebDavEndpoint { get; set; } = string.Empty;
+    public string WebDavUsername { get; set; } = string.Empty;
     public string LibrarySort { get; set; } = "recent";
     public string LibraryFilter { get; set; } = "all";
     public string LibraryView { get; set; } = "grid";
+    public bool HasWindowPlacement { get; set; }
+    public int LastNormalWindowX { get; set; }
+    public int LastNormalWindowY { get; set; }
+    public int LastNormalWindowWidth { get; set; }
+    public int LastNormalWindowHeight { get; set; }
+    public bool WasWindowMaximized { get; set; }
 }

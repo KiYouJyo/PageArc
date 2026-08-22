@@ -82,14 +82,16 @@ public sealed class LibraryService
         if (string.IsNullOrWhiteSpace(format))
             return new LibraryImportItemResult(fullPath, LibraryImportDisposition.Unsupported, ErrorMessage: $"Unsupported ebook format: {info.Extension}");
 
+        BookEntry? existingByPath;
         lock (_gate)
         {
-            var existingPath = Books.FirstOrDefault(x => PathsEqual(x.FilePath, fullPath));
-            if (existingPath is not null)
-            {
-                existingPath.IsMissing = false;
-                return new LibraryImportItemResult(fullPath, LibraryImportDisposition.ExistingPath, existingPath);
-            }
+            existingByPath = Books.FirstOrDefault(x => PathsEqual(x.FilePath, fullPath));
+        }
+        if (existingByPath is not null)
+        {
+            existingByPath.IsMissing = false;
+            await EnsureStoredCoverAsync(existingByPath, cancellationToken);
+            return new LibraryImportItemResult(fullPath, LibraryImportDisposition.ExistingPath, existingByPath);
         }
 
         try
@@ -221,6 +223,19 @@ public sealed class LibraryService
         return changed;
     }
 
+    public async Task<int> EnsureImportedCoversAsync(CancellationToken cancellationToken = default)
+    {
+        var changed = 0;
+        foreach (var book in Books.ToArray())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (book.IsMissing || !string.IsNullOrWhiteSpace(book.CoverPath) && File.Exists(book.CoverPath)) continue;
+            if (await EnsureStoredCoverAsync(book, cancellationToken)) changed++;
+        }
+        if (changed > 0) Save();
+        return changed;
+    }
+
     public void MarkOpened(BookEntry book)
     {
         book.LastOpenedAt = DateTimeOffset.Now;
@@ -284,6 +299,18 @@ public sealed class LibraryService
         {
             StartupDiagnostics.Log($"Metadata enrichment failed for '{entry.FilePath}'.", ex);
         }
+    }
+
+    private async Task<bool> EnsureStoredCoverAsync(BookEntry entry, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(entry.CoverPath) && File.Exists(entry.CoverPath)) return false;
+        var before = entry.CoverPath;
+        await EnrichMetadataAsync(entry, cancellationToken);
+        var changed = !string.Equals(before, entry.CoverPath, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(entry.CoverPath)
+            && File.Exists(entry.CoverPath);
+        if (changed) Save();
+        return changed;
     }
 
     private void EnsureStorage()

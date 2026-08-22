@@ -2,68 +2,73 @@
     x:Class="PageArc.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Background="{ThemeResource PageArcCanvasBrush}">
-    <ScrollViewer>
-        <Grid Padding="24">
-            <Grid.RowDefinitions><RowDefinition Height="88"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    Background="Transparent">
+    <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <Grid x:Name="SettingsLayout" Padding="28,24,28,36" HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/><RowDefinition Height="22"/><RowDefinition Height="Auto"/>
+                <RowDefinition Height="18"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/><RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <StackPanel>
-                <TextBlock x:Uid="Settings_Title" FontSize="28" FontWeight="SemiBold"/>
-                <TextBlock x:Uid="Settings_Subtitle" Margin="0,4,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock x:Uid="Settings_Title" FontSize="34" FontWeight="SemiBold"/>
+                <TextBlock x:Uid="Settings_Subtitle" Margin="0,4,0,0" FontSize="15" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
-            <Grid Grid.Row="1" ColumnSpacing="16">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Spacing="16">
-                    <Border Style="{StaticResource PageArcCardStyle}">
-                        <StackPanel Spacing="12">
-                            <TextBlock x:Uid="Settings_Appearance" FontSize="18" FontWeight="SemiBold"/>
-                            <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions>
-                                <StackPanel><TextBlock x:Uid="Settings_AppTheme"/><TextBlock x:Uid="Settings_AppThemeHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
-                                <ComboBox x:Name="ThemeCombo" Grid.Column="1" SelectionChanged="ThemeCombo_SelectionChanged"><ComboBoxItem x:Uid="Theme_System" Tag="system"/><ComboBoxItem x:Uid="Theme_Light" Tag="light"/><ComboBoxItem x:Uid="Theme_Dark" Tag="dark"/></ComboBox>
-                            </Grid>
-                            <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions>
-                                <StackPanel><TextBlock x:Name="AccentLabel"/><TextBlock x:Name="AccentHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
-                                <ComboBox x:Name="AccentCombo" Grid.Column="1"><ComboBoxItem x:Name="WindowsAccentItem" Tag="windows"/></ComboBox>
-                            </Grid>
-                            <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions>
-                                <StackPanel><TextBlock x:Uid="Settings_Language"/><TextBlock x:Uid="Settings_LanguageHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
-                                <ComboBox x:Name="LanguageCombo" Grid.Column="1" SelectionChanged="LanguageCombo_SelectionChanged"><ComboBoxItem x:Uid="Language_System" Tag="system"/><ComboBoxItem Content="中文（简体）" Tag="zh-CN"/><ComboBoxItem Content="日本語" Tag="ja-JP"/><ComboBoxItem Content="English" Tag="en-US"/></ComboBox>
-                            </Grid>
-                            <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions>
-                                <StackPanel><TextBlock x:Uid="Settings_ReadingTheme"/><TextBlock x:Uid="Settings_ReadingThemeHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
-                                <ComboBox x:Name="ReadingThemeCombo" Grid.Column="1"><ComboBoxItem x:Uid="ReadingTheme_Light" Tag="light"/><ComboBoxItem x:Uid="ReadingTheme_Sepia" Tag="sepia"/><ComboBoxItem x:Uid="ReadingTheme_Dark" Tag="dark"/></ComboBox>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource PageArcCardStyle}">
-                        <StackPanel Spacing="14">
-                            <TextBlock x:Uid="Settings_Library" FontSize="18" FontWeight="SemiBold"/>
-                            <Grid><TextBlock x:Name="LibrarySortLabel"/><ComboBox x:Name="LibrarySortCombo" Width="150" HorizontalAlignment="Right"><ComboBoxItem x:Name="LibrarySortRecentItem" Tag="recent"/><ComboBoxItem x:Name="LibrarySortTitleItem" Tag="title"/></ComboBox></Grid>
-                            <Grid><StackPanel><TextBlock x:Uid="Settings_ShowRecent"/><TextBlock x:Uid="Settings_ShowRecentHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ToggleSwitch x:Name="RecentToggle" HorizontalAlignment="Right"/></Grid>
-                            <Grid><StackPanel><TextBlock x:Uid="Settings_ImportFolders"/><TextBlock x:Uid="Settings_ImportFoldersHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><Button x:Uid="Settings_ManageFolders" HorizontalAlignment="Right" Click="ManageFolders_Click"/></Grid>
-                            <Grid><StackPanel><TextBlock x:Uid="Settings_Duplicates"/><TextBlock x:Uid="Settings_DuplicatesHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ToggleSwitch x:Name="DuplicatesToggle" HorizontalAlignment="Right"/></Grid>
-                        </StackPanel>
+            <Border Grid.Row="2" Style="{StaticResource PageArcSectionStyle}">
+                <StackPanel Spacing="14">
+                    <StackPanel><TextBlock x:Uid="Settings_Appearance" FontSize="22" FontWeight="SemiBold"/><TextBlock x:Name="AppearanceSectionHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                    <Border Style="{StaticResource PageArcInsetStyle}">
+                        <Grid Padding="18,0">
+                            <Grid.RowDefinitions><RowDefinition Height="68"/><RowDefinition Height="1"/><RowDefinition Height="68"/><RowDefinition Height="1"/><RowDefinition Height="68"/><RowDefinition Height="1"/><RowDefinition Height="68"/></Grid.RowDefinitions>
+                            <Grid ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock x:Uid="Settings_AppTheme"/><TextBlock x:Uid="Settings_AppThemeHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ComboBox x:Name="ThemeCombo" Grid.Column="1" Height="40" HorizontalAlignment="Stretch" VerticalAlignment="Center" SelectionChanged="ThemeCombo_SelectionChanged"><ComboBoxItem x:Uid="Theme_System" Tag="system"/><ComboBoxItem x:Uid="Theme_Light" Tag="light"/><ComboBoxItem x:Uid="Theme_Dark" Tag="dark"/></ComboBox></Grid>
+                            <Rectangle Grid.Row="1" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                            <Grid Grid.Row="2" ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock x:Name="AccentLabel"/><TextBlock x:Name="AccentHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ComboBox x:Name="AccentCombo" Grid.Column="1" Height="40" HorizontalAlignment="Stretch" VerticalAlignment="Center"><ComboBoxItem x:Name="WindowsAccentItem" Tag="windows"/></ComboBox></Grid>
+                            <Rectangle Grid.Row="3" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                            <Grid Grid.Row="4" ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock x:Uid="Settings_Language"/><TextBlock x:Uid="Settings_LanguageHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ComboBox x:Name="LanguageCombo" Grid.Column="1" Height="40" HorizontalAlignment="Stretch" VerticalAlignment="Center" SelectionChanged="LanguageCombo_SelectionChanged"><ComboBoxItem x:Uid="Language_System" Tag="system"/><ComboBoxItem Content="中文（简体）" Tag="zh-CN"/><ComboBoxItem Content="日本語" Tag="ja-JP"/><ComboBoxItem Content="English" Tag="en-US"/></ComboBox></Grid>
+                            <Rectangle Grid.Row="5" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                            <Grid Grid.Row="6" ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock x:Uid="Settings_ReadingTheme"/><TextBlock x:Uid="Settings_ReadingThemeHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ComboBox x:Name="ReadingThemeCombo" Grid.Column="1" Height="40" HorizontalAlignment="Stretch" VerticalAlignment="Center"><ComboBoxItem x:Uid="ReadingTheme_App" Tag="app"/><ComboBoxItem x:Uid="ReadingTheme_Light" Tag="light"/><ComboBoxItem x:Uid="ReadingTheme_Sepia" Tag="sepia"/><ComboBoxItem x:Uid="ReadingTheme_Dark" Tag="dark"/></ComboBox></Grid>
+                        </Grid>
                     </Border>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="16">
-                    <Border Style="{StaticResource PageArcCardStyle}">
-                        <StackPanel Spacing="14">
-                            <TextBlock x:Uid="Settings_Reading" FontSize="18" FontWeight="SemiBold"/>
-                            <Grid><TextBlock x:Uid="Settings_Font"/><ComboBox x:Name="FontCombo" Width="150" HorizontalAlignment="Right"><ComboBoxItem x:Uid="Font_BookDefault" Tag="book"/><ComboBoxItem Content="Segoe UI Variable" Tag="Segoe UI Variable"/><ComboBoxItem Content="Georgia" Tag="Georgia"/></ComboBox></Grid>
-                            <Grid><TextBlock x:Uid="Settings_FontSize"/><Slider x:Name="FontScaleSlider" Width="180" Minimum="0.8" Maximum="1.6" StepFrequency="0.1" HorizontalAlignment="Right"/></Grid>
-                            <Grid><TextBlock x:Uid="Settings_LineSpacing"/><Slider x:Name="LineHeightSlider" Width="180" Minimum="1.35" Maximum="2.1" StepFrequency="0.05" HorizontalAlignment="Right"/></Grid>
-                            <Grid><TextBlock x:Name="PageWidthLabel"/><ComboBox x:Name="PageWidthCombo" Width="150" HorizontalAlignment="Right"><ComboBoxItem x:Name="PageWidthNarrowItem" Tag="narrow"/><ComboBoxItem x:Name="PageWidthMediumItem" Tag="medium"/><ComboBoxItem x:Name="PageWidthWideItem" Tag="wide"/></ComboBox></Grid>
-                            <Grid><TextBlock x:Uid="Settings_Continuous"/><ToggleSwitch x:Name="ContinuousToggle" HorizontalAlignment="Right"/></Grid>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource PageArcCardStyle}">
-                        <StackPanel Spacing="14">
-                            <TextBlock x:Uid="Settings_DataStorage" FontSize="18" FontWeight="SemiBold"/>
-                            <Grid><StackPanel><TextBlock x:Uid="Settings_Backup"/><TextBlock x:Uid="Settings_BackupHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"><Button x:Uid="Settings_BackupButton" MinWidth="72" Click="BackupReadingData_Click"/><Button x:Name="RestoreReadingDataButton" MinWidth="72" Click="RestoreReadingData_Click"/></StackPanel></Grid>
-                            <Grid><StackPanel><TextBlock x:Uid="Settings_ClearCache"/><TextBlock x:Uid="Settings_ClearCacheHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><Button x:Uid="Settings_ClearCacheButton" HorizontalAlignment="Right" Click="ClearCache_Click"/></Grid>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+            </Border>
+            <Grid x:Name="MiddleCards" Grid.Row="4" ColumnSpacing="18" RowSpacing="18">
+                <Grid.ColumnDefinitions><ColumnDefinition x:Name="LibraryColumn" Width="*"/><ColumnDefinition x:Name="ReadingColumn" Width="*"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Border x:Name="LibraryCard" Style="{StaticResource PageArcSectionStyle}">
+                    <StackPanel Spacing="14">
+                        <StackPanel><TextBlock x:Uid="Settings_Library" FontSize="22" FontWeight="SemiBold"/><TextBlock x:Name="LibrarySectionHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                        <Border Style="{StaticResource PageArcInsetStyle}"><Grid Padding="18,0"><Grid.RowDefinitions><RowDefinition Height="62"/><RowDefinition Height="1"/><RowDefinition Height="62"/><RowDefinition Height="1"/><RowDefinition Height="62"/><RowDefinition Height="1"/><RowDefinition Height="62"/></Grid.RowDefinitions>
+                            <Grid ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="190"/></Grid.ColumnDefinitions><TextBlock x:Name="LibrarySortLabel" VerticalAlignment="Center"/><ComboBox x:Name="LibrarySortCombo" Grid.Column="1" Width="150" Height="36" HorizontalAlignment="Right" VerticalAlignment="Center"><ComboBoxItem x:Name="LibrarySortRecentItem" Tag="recent"/><ComboBoxItem x:Name="LibrarySortTitleItem" Tag="title"/></ComboBox></Grid><Rectangle Grid.Row="1" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                            <Grid Grid.Row="2" ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="190"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock x:Uid="Settings_ShowRecent"/><TextBlock x:Uid="Settings_ShowRecentHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ToggleSwitch x:Name="RecentToggle" Grid.Column="1" Width="40" MinWidth="0" Padding="0" OnContent="" OffContent="" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid><Rectangle Grid.Row="3" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                            <Grid Grid.Row="4" ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="190"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock x:Uid="Settings_ImportFolders"/><TextBlock x:Uid="Settings_ImportFoldersHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><Button Grid.Column="1" x:Uid="Settings_ManageFolders" MinWidth="92" Height="36" HorizontalAlignment="Right" VerticalAlignment="Center" Click="ManageFolders_Click"/></Grid><Rectangle Grid.Row="5" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                            <Grid Grid.Row="6" ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="190"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock x:Uid="Settings_Duplicates"/><TextBlock x:Uid="Settings_DuplicatesHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><ToggleSwitch x:Name="DuplicatesToggle" Grid.Column="1" Width="40" MinWidth="0" Padding="0" OnContent="" OffContent="" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
+                        </Grid></Border>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="ReadingCard" Grid.Column="1" Style="{StaticResource PageArcSectionStyle}">
+                    <StackPanel Spacing="14">
+                        <StackPanel><TextBlock x:Uid="Settings_Reading" FontSize="22" FontWeight="SemiBold"/><TextBlock x:Name="ReadingSectionHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                        <Border Style="{StaticResource PageArcInsetStyle}"><Grid Padding="18,0"><Grid.RowDefinitions><RowDefinition Height="62"/><RowDefinition Height="1"/><RowDefinition Height="62"/><RowDefinition Height="1"/><RowDefinition Height="62"/></Grid.RowDefinitions>
+                            <Grid><TextBlock x:Uid="Settings_Font" VerticalAlignment="Center"/><ComboBox x:Name="FontCombo" Width="190" Height="36" HorizontalAlignment="Right" VerticalAlignment="Center"><ComboBoxItem x:Uid="Font_BookDefault" Tag="book"/><ComboBoxItem Content="Segoe UI Variable" Tag="Segoe UI Variable"/><ComboBoxItem Content="Georgia" Tag="Georgia"/></ComboBox></Grid><Rectangle Grid.Row="1" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                            <Grid Grid.Row="2"><TextBlock x:Uid="Settings_FontSize" VerticalAlignment="Center"/><Slider x:Name="FontScaleSlider" Width="190" Minimum="0.8" Maximum="1.6" StepFrequency="0.1" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid><Rectangle Grid.Row="3" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                            <Grid Grid.Row="4"><TextBlock x:Uid="Settings_LineSpacing" VerticalAlignment="Center"/><Slider x:Name="LineHeightSlider" Width="190" Minimum="1.35" Maximum="2.1" StepFrequency="0.05" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
+                        </Grid></Border>
+                    </StackPanel>
+                </Border>
             </Grid>
+            <Border Grid.Row="6" Style="{StaticResource PageArcSectionStyle}">
+                <StackPanel Spacing="14">
+                    <StackPanel><TextBlock x:Uid="Settings_DataStorage" FontSize="22" FontWeight="SemiBold"/><TextBlock x:Name="DataSectionHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                    <Border Style="{StaticResource PageArcInsetStyle}"><Grid Padding="18,0"><Grid.RowDefinitions><RowDefinition Height="64"/><RowDefinition Height="1"/><RowDefinition Height="76"/><RowDefinition Height="1"/><RowDefinition Height="64"/></Grid.RowDefinitions>
+                        <Grid><StackPanel VerticalAlignment="Center"><TextBlock x:Uid="Settings_Backup"/><TextBlock x:Uid="Settings_BackupHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center"><Button x:Uid="Settings_BackupButton" MinWidth="86" Height="36" Click="BackupReadingData_Click"/><Button x:Name="RestoreReadingDataButton" MinWidth="86" Height="36" Click="RestoreReadingData_Click"/></StackPanel></Grid><Rectangle Grid.Row="1" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                        <Grid Grid.Row="2" ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel VerticalAlignment="Center"><TextBlock x:Name="WebDavLabel"/><TextBlock x:Name="WebDavHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Name="WebDavStatusText" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" TextTrimming="CharacterEllipsis"/></StackPanel><StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center"><ProgressRing x:Name="WebDavProgressRing" Width="20" Height="20" IsActive="False" Visibility="Collapsed"/><Button x:Name="WebDavConfigureButton" MinWidth="92" Height="36" Click="ConfigureWebDav_Click"/><Button x:Name="WebDavSyncButton" MinWidth="92" Height="36" Click="SyncWebDav_Click"/></StackPanel></Grid><Rectangle Grid.Row="3" Height="1" Fill="{ThemeResource PageArcDividerBrush}"/>
+                        <Grid Grid.Row="4"><StackPanel VerticalAlignment="Center"><TextBlock x:Uid="Settings_ClearCache"/><TextBlock x:Uid="Settings_ClearCacheHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel><Button x:Uid="Settings_ClearCacheButton" MinWidth="110" Height="36" HorizontalAlignment="Right" VerticalAlignment="Center" Click="ClearCache_Click"/></Grid>
+                    </Grid></Border>
+                </StackPanel>
+            </Border>
+            <VisualStateManager.VisualStateGroups><VisualStateGroup>
+                <VisualState x:Name="NarrowSettings"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers><VisualState.Setters><Setter Target="ReadingColumn.Width" Value="0"/><Setter Target="ReadingCard.(Grid.Column)" Value="0"/><Setter Target="ReadingCard.(Grid.Row)" Value="1"/><Setter Target="SettingsLayout.Padding" Value="20,22,20,36"/></VisualState.Setters></VisualState>
+                <VisualState x:Name="DesktopSettings"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1050"/></VisualState.StateTriggers></VisualState>
+            </VisualStateGroup></VisualStateManager.VisualStateGroups>
         </Grid>
     </ScrollViewer>
 </Page>

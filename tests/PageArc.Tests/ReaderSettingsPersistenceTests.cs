@@ -25,6 +25,7 @@ public sealed class ReaderSettingsPersistenceTests
                 value.PageWidth = "wide";
                 value.ContinuousScrolling = true;
                 value.ShowReadingProgress = false;
+                value.ClickToTurnPages = false;
             });
 
             var reloaded = new SettingsService(file);
@@ -37,6 +38,7 @@ public sealed class ReaderSettingsPersistenceTests
             Assert.Equal("wide", reloaded.Current.PageWidth);
             Assert.True(reloaded.Current.ContinuousScrolling);
             Assert.False(reloaded.Current.ShowReadingProgress);
+            Assert.False(reloaded.Current.ClickToTurnPages);
         }
         finally
         {

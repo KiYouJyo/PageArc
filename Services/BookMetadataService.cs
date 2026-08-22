@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -13,15 +14,73 @@ public static class BookMetadataService
         "(?:src|href|xlink:href)\\s*=\\s*[\"'](?<path>[^\"'#?]+(?:\\.jpe?g|\\.png|\\.gif|\\.webp|\\.bmp))(?:[?#][^\"']*)?[\"']",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-    public static Task<BookMetadataSnapshot> ReadAsync(BookEntry book, CancellationToken cancellationToken = default)
+    public static async Task<BookMetadataSnapshot> ReadAsync(BookEntry book, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(book);
-        return BookFormatRegistry.Normalize(book.Format) switch
+        var metadata = BookFormatRegistry.Normalize(book.Format) switch
         {
-            "EPUB" => ReadEpubAsync(book, cancellationToken),
-            "FB2" => ReadFb2Async(book, cancellationToken),
-            _ => Task.FromResult(BookMetadataSnapshot.Empty(book.Title))
+            "EPUB" => await ReadEpubAsync(book, cancellationToken),
+            "FB2" => await ReadFb2Async(book, cancellationToken),
+            _ => BookMetadataSnapshot.Empty(book.Title)
         };
+
+        if (!string.IsNullOrWhiteSpace(metadata.CoverPath)) return metadata;
+        var fallbackCover = await TryExtractCalibreCoverAsync(book, cancellationToken);
+        return string.IsNullOrWhiteSpace(fallbackCover) ? metadata : metadata with { CoverPath = fallbackCover };
+    }
+
+    private static async Task<string?> TryExtractCalibreCoverAsync(BookEntry book, CancellationToken cancellationToken)
+    {
+        var executable = ResolveCalibreMetadataExecutable();
+        if (string.IsNullOrWhiteSpace(executable) || !File.Exists(book.FilePath)) return null;
+
+        AppPaths.Ensure();
+        var temporaryCover = Path.Combine(AppPaths.CacheRoot, $"cover-extract-{book.Id}-{Guid.NewGuid():N}.jpg");
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = executable,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add(book.FilePath);
+            startInfo.ArgumentList.Add("--get-cover");
+            startInfo.ArgumentList.Add(temporaryCover);
+
+            using var process = Process.Start(startInfo);
+            if (process is null) return null;
+            using var registration = cancellationToken.Register(() =>
+            {
+                try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+            });
+            await process.WaitForExitAsync(cancellationToken);
+            if (process.ExitCode != 0 || !File.Exists(temporaryCover)) return null;
+            var info = new FileInfo(temporaryCover);
+            if (info.Length <= 0 || info.Length > MaxCoverBytes) return null;
+
+            await using var source = new FileStream(temporaryCover, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return await WriteCoverAsync(book.Id, source, "image/jpeg", ".jpg", cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            StartupDiagnostics.Log($"Calibre cover extraction failed for '{book.FilePath}'.", ex);
+            return null;
+        }
+        finally
+        {
+            try { if (File.Exists(temporaryCover)) File.Delete(temporaryCover); } catch { }
+        }
+    }
+
+    private static string? ResolveCalibreMetadataExecutable()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "ThirdParty", "calibre", "runtime", "ebook-meta.exe"),
+            Path.Combine(Environment.CurrentDirectory, "ThirdParty", "calibre", "runtime", "ebook-meta.exe")
+        };
+        return candidates.FirstOrDefault(File.Exists);
     }
 
     private static async Task<BookMetadataSnapshot> ReadEpubAsync(BookEntry book, CancellationToken cancellationToken)

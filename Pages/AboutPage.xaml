@@ -2,26 +2,61 @@
     x:Class="PageArc.Pages.AboutPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Background="{ThemeResource PageArcCanvasBrush}">
-    <Grid Padding="24">
-        <Grid.RowDefinitions><RowDefinition Height="94"/><RowDefinition Height="250"/><RowDefinition Height="24"/><RowDefinition Height="276"/><RowDefinition Height="20"/><RowDefinition Height="120"/></Grid.RowDefinitions>
-        <StackPanel><TextBlock x:Uid="About_Title" FontSize="28" FontWeight="SemiBold"/><TextBlock x:Uid="About_Subtitle" Margin="0,4,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
-        <Border Grid.Row="1" Style="{StaticResource PageArcCardStyle}" CornerRadius="10">
-            <Grid ColumnSpacing="32"><Grid.ColumnDefinitions><ColumnDefinition Width="112"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Border Width="112" Height="112" Background="#1A005FB8" CornerRadius="24" VerticalAlignment="Center"><TextBlock Text="PA" FontSize="36" FontWeight="SemiBold" Foreground="{ThemeResource PageArcAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="8"><TextBlock Text="PageArc" FontSize="30" FontWeight="SemiBold"/><TextBlock x:Name="AboutVersionText" x:Uid="About_Version" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Uid="About_Description" FontSize="15"/></StackPanel>
-            </Grid>
-        </Border>
-        <Grid Grid.Row="3" ColumnSpacing="24" RowSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="128"/><RowDefinition Height="128"/></Grid.RowDefinitions>
-            <Border Style="{StaticResource PageArcCardStyle}"><StackPanel Spacing="10"><TextBlock x:Uid="About_Formats" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="EPUB · MOBI · AZW3 · FB2 · LIT" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel></Border>
-            <Border Grid.Column="1" Style="{StaticResource PageArcCardStyle}"><StackPanel Spacing="10"><TextBlock x:Uid="About_Storage" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Uid="About_StorageBody" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel></Border>
-            <Border Grid.Row="1" Style="{StaticResource PageArcCardStyle}"><StackPanel Spacing="10"><TextBlock x:Uid="About_Privacy" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Uid="About_PrivacyBody" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel></Border>
-            <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource PageArcCardStyle}"><StackPanel Spacing="10"><TextBlock x:Uid="About_Licenses" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="LicenseBodyText" x:Uid="About_LicensesBody" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/></StackPanel></Border>
+    Background="Transparent">
+    <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <Grid x:Name="AboutLayout" Padding="28,24,28,36" HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="22"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <StackPanel><TextBlock x:Uid="About_Title" FontSize="34" FontWeight="SemiBold"/><TextBlock x:Uid="About_Subtitle" Margin="0,4,0,0" FontSize="15" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+
+            <Border Grid.Row="2" Style="{StaticResource PageArcSectionStyle}">
+                <StackPanel Spacing="18">
+                    <Grid ColumnSpacing="22"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Image Width="92" Height="92" Source="ms-appx:///Assets/Icon-Large-1024.png" Stretch="Uniform"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4"><TextBlock Text="PageArc" FontSize="28" FontWeight="SemiBold"/><TextBlock x:Name="ProductTaglineText" FontSize="16"/><TextBlock x:Uid="About_Description" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/></StackPanel>
+                    </Grid>
+                    <Border Style="{StaticResource PageArcInsetStyle}"><Grid Padding="18" ColumnSpacing="28"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel Spacing="5"><TextBlock x:Name="DisplayVersionLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Name="AboutVersionText" FontSize="18" FontWeight="SemiBold"/><TextBlock x:Name="AboutChannelText" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="5"><TextBlock x:Name="PackageVersionLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Name="PackageVersionText" FontSize="18" FontWeight="SemiBold"/><TextBlock x:Name="PublisherText" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="5"><TextBlock x:Name="ArchitectureLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Name="ArchitectureText" FontSize="18" FontWeight="SemiBold"/><TextBlock x:Name="StackText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/></StackPanel>
+                    </Grid></Border>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="4" Style="{StaticResource PageArcSectionStyle}">
+                <StackPanel Spacing="14">
+                    <StackPanel><TextBlock x:Uid="About_Updates" FontSize="22" FontWeight="SemiBold"/><TextBlock x:Name="UpdateSectionHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                    <Border Style="{StaticResource PageArcInsetStyle}"><Grid Padding="18" ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock x:Name="CurrentVersionLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Name="UpdateLocalVersionText" Margin="0,6,0,0" FontSize="24" FontWeight="SemiBold"/></StackPanel>
+                        <FontIcon Grid.Column="1" Glyph="&#xE72A;" FontSize="20" Opacity="0.65" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="2"><TextBlock x:Name="AvailableVersionLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Name="UpdateAvailableVersionText" Margin="0,6,0,0" FontSize="24" FontWeight="SemiBold"/></StackPanel>
+                    </Grid></Border>
+                    <Border Style="{StaticResource PageArcInsetStyle}"><Grid Padding="18" ColumnSpacing="28"><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel Spacing="5"><TextBlock x:Name="UpdateStatusLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Name="UpdateStatusText" x:Uid="About_UpdatesBody"/><TextBlock x:Name="ReleaseNotesText" MaxHeight="240" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/></StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="5"><TextBlock x:Name="UpdateSourceLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><TextBlock x:Name="UpdateSourceText"/><TextBlock x:Name="UpdateSourceStatusText" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                    </Grid></Border>
+                    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <ProgressBar x:Name="DownloadProgress" Height="4" Minimum="0" Maximum="100" Visibility="Collapsed" VerticalAlignment="Center"/>
+                        <Button x:Name="CheckUpdatesButton" Grid.Column="1" x:Uid="About_CheckUpdates" MinWidth="180" Height="40" Click="CheckUpdates_Click"><Grid><TextBlock x:Name="UpdateActionText" x:Uid="About_CheckUpdatesText" HorizontalAlignment="Center" VerticalAlignment="Center"/><ProgressRing x:Name="UpdateCheckProgressRing" Width="20" Height="20" IsActive="False" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Button>
+                    </Grid>
+                    <InfoBar x:Name="UpdateInfoBar" IsOpen="False" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="6" Style="{StaticResource PageArcSectionStyle}">
+                <StackPanel Spacing="14">
+                    <StackPanel><TextBlock x:Name="ProductInfoHeading" FontSize="22" FontWeight="SemiBold"/><TextBlock x:Name="ProductInfoHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                    <Grid x:Name="ProductInfoGrid" ColumnSpacing="18" RowSpacing="18"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="ProductInfoSecondColumn" Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <Border Style="{StaticResource PageArcInsetStyle}" Padding="18"><StackPanel Spacing="8"><TextBlock x:Uid="About_Formats" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="EPUB · MOBI · AZW3 · FB2 · LIT" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel></Border>
+                        <Border x:Name="StorageInfoCard" Grid.Column="1" Style="{StaticResource PageArcInsetStyle}" Padding="18"><StackPanel Spacing="8"><TextBlock x:Uid="About_Storage" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Uid="About_StorageBody" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/></StackPanel></Border>
+                        <Border Grid.Row="1" Style="{StaticResource PageArcInsetStyle}" Padding="18"><StackPanel Spacing="8"><TextBlock x:Uid="About_Privacy" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Uid="About_PrivacyBody" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/></StackPanel></Border>
+                        <Border x:Name="LicenseInfoCard" Grid.Row="1" Grid.Column="1" Style="{StaticResource PageArcInsetStyle}" Padding="18"><StackPanel Spacing="8"><TextBlock x:Uid="About_Licenses" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="LicenseBodyText" x:Uid="About_LicensesBody" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/></StackPanel></Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <VisualStateManager.VisualStateGroups><VisualStateGroup>
+                <VisualState x:Name="NarrowAbout"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers><VisualState.Setters><Setter Target="AboutLayout.Padding" Value="20,22,20,36"/><Setter Target="ProductInfoSecondColumn.Width" Value="0"/><Setter Target="StorageInfoCard.(Grid.Column)" Value="0"/><Setter Target="StorageInfoCard.(Grid.Row)" Value="1"/><Setter Target="LicenseInfoCard.(Grid.Column)" Value="0"/><Setter Target="LicenseInfoCard.(Grid.Row)" Value="3"/></VisualState.Setters></VisualState>
+                <VisualState x:Name="DesktopAbout"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1050"/></VisualState.StateTriggers></VisualState>
+            </VisualStateGroup></VisualStateManager.VisualStateGroups>
         </Grid>
-        <Border Grid.Row="5" Style="{StaticResource PageArcCardStyle}"><Grid>
-            <StackPanel VerticalAlignment="Center" Spacing="8"><TextBlock x:Uid="About_Updates" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="UpdateStatusText" x:Uid="About_UpdatesBody" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
-            <Button x:Name="CheckUpdatesButton" x:Uid="About_CheckUpdates" Width="160" HorizontalAlignment="Right" Click="CheckUpdates_Click"><StackPanel Orientation="Horizontal" Spacing="8"><SymbolIcon Symbol="Refresh"/><TextBlock x:Uid="About_CheckUpdatesText"/></StackPanel></Button>
-        </Grid></Border>
-        <InfoBar x:Name="UpdateInfoBar" IsOpen="False" HorizontalAlignment="Stretch" VerticalAlignment="Bottom"/>
-    </Grid>
+    </ScrollViewer>
 </Page>

@@ -3,7 +3,9 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
+using PageArc.Services;
 
 namespace PageArc.Pages;
 
@@ -12,6 +14,7 @@ public sealed partial class ReaderPage
     private bool _figmaReaderControlsReady;
     private bool _figmaThemeHooked;
     private bool _readingSettingsPaneOpen;
+    private int _readerFrameGeometryRevision;
 
     private void ReaderPage_FigmaLoaded(object sender, RoutedEventArgs e)
     {
@@ -33,13 +36,8 @@ public sealed partial class ReaderPage
 
     private void InitializeFigmaReaderControls()
     {
+        EnforceFixedReaderOptions();
         var settings = App.Settings.Current;
-        if (settings.ContinuousScrolling && settings.ReaderViewMode == "horizontal")
-        {
-            // Migrate the pre-view-mode preference without losing a user's old continuous setting.
-            App.Settings.Update(value => value.ReaderViewMode = "vertical");
-            settings = App.Settings.Current;
-        }
 
         var previousSettingsReady = _settingsReady;
         _settingsReady = false;
@@ -49,9 +47,8 @@ public sealed partial class ReaderPage
             SelectByTag(ReaderThemeCombo, EffectiveReaderTheme());
             ReaderFontScaleSlider.Value = settings.FontScale;
             ReaderLineHeightSlider.Value = settings.LineHeight;
-            ContinuousScrollToggle.IsOn = settings.ReaderViewMode is not "horizontal";
             SelectByTag(FigmaFontFamilyCombo, settings.DefaultFont);
-            FigmaShowProgressToggle.IsOn = settings.ShowReadingProgress;
+            ClickPageTurnToggle.IsOn = settings.ClickToTurnPages;
         }
         finally
         {
@@ -66,17 +63,20 @@ public sealed partial class ReaderPage
         LineCompactText.Text = ReaderText("紧凑", "狭い", "Compact");
         LineNormalText.Text = ReaderText("标准", "標準", "Normal");
         LineRelaxedText.Text = ReaderText("宽松", "広い", "Relaxed");
-        ReaderPageWidthLabel.Text = ReaderText("页面宽度", "ページ幅", "Page width");
-        WidthNarrowText.Text = ReaderText("窄", "狭い", "Narrow");
-        WidthMediumText.Text = ReaderText("中", "中", "Medium");
-        WidthWideText.Text = ReaderText("宽", "広い", "Wide");
-        ReaderBehaviorLabel.Text = ReaderText("阅读选项", "読書オプション", "Reading options");
-        ContinuousScrollLabel.Text = ReaderText("连续滚动", "連続スクロール", "Continuous scrolling");
-        ShowProgressLabel.Text = ReaderText("显示阅读进度", "読書進捗を表示", "Show reading progress");
+        ReaderViewOptionsLabel.Text = ReaderText("查看选项", "表示オプション", "View options");
+        SinglePageText.Text = ReaderText("单页视图", "単ページ表示", "Single page");
+        OddPageStartText.Text = ReaderText("奇数页起始\n（无封面）", "奇数ページ開始\n（表紙なし）", "Odd-page start\n(No cover)");
+        EvenPageStartText.Text = ReaderText("偶数页起始\n（有封面）", "偶数ページ開始\n（表紙あり）", "Even-page start\n(With cover)");
+        FitPageWidthText.Text = ReaderText("适应页面宽度", "ページ幅に合わせる", "Fit page width");
+        FitPageHeightText.Text = ReaderText("适应页面高度", "ページ高さに合わせる", "Fit page height");
+        ClickPageTurnToggle.Header = ReaderText("点击页面翻页", "ページのクリックで移動", "Click page to turn");
+        ClickPageTurnToggle.OnContent = ReaderText("开", "オン", "On");
+        ClickPageTurnToggle.OffContent = ReaderText("关", "オフ", "Off");
         FigmaResetReaderButton.Content = ReaderText("恢复默认设置", "既定の設定に戻す", "Restore defaults");
 
         SetReadingSettingsPaneOpen(false);
         UpdateFigmaReaderSelectionVisuals();
+        UpdateReaderViewOptionSelection();
         ApplyFigmaReaderPageGeometry();
         ApplyFigmaReaderSurfaceTheme();
         ApplyProgressVisibility();
@@ -195,23 +195,6 @@ public sealed partial class ReaderPage
         await RefreshReaderPresentationAsync();
     }
 
-    private async void ReaderPageWidth_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_figmaReaderControlsReady || sender is not Button { Tag: string width }) return;
-        width = width is "narrow" or "wide" ? width : "medium";
-        App.Settings.Update(settings => settings.PageWidth = width);
-        UpdateFigmaReaderSelectionVisuals();
-        ApplyFigmaReaderPageGeometry();
-        await RefreshReaderPresentationAsync();
-    }
-
-    private void FigmaShowProgress_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (!_figmaReaderControlsReady) return;
-        App.Settings.Update(settings => settings.ShowReadingProgress = FigmaShowProgressToggle.IsOn);
-        ApplyProgressVisibility();
-    }
-
     private async void FigmaReaderReset_Click(object sender, RoutedEventArgs e)
     {
         _figmaReaderControlsReady = false;
@@ -227,20 +210,20 @@ public sealed partial class ReaderPage
                 settings.FontScale = 1.0;
                 settings.LineHeight = 1.75;
                 settings.PageWidth = "medium";
-                settings.ReaderViewMode = "horizontal";
+                settings.ReaderViewMode = "vertical";
                 settings.ReaderSpreadMode = "single";
                 settings.ReaderZoomMode = "auto";
                 settings.ReaderZoomFactor = 1.0;
-                settings.ContinuousScrolling = false;
+                settings.ContinuousScrolling = true;
                 settings.ShowReadingProgress = true;
+                settings.ClickToTurnPages = true;
             });
 
             SelectByTag(ReaderThemeCombo, EffectiveReaderTheme());
             SelectByTag(FigmaFontFamilyCombo, "book");
             ReaderFontScaleSlider.Value = 1.0;
             ReaderLineHeightSlider.Value = 1.75;
-            ContinuousScrollToggle.IsOn = false;
-            FigmaShowProgressToggle.IsOn = true;
+            ClickPageTurnToggle.IsOn = true;
         }
         finally
         {
@@ -248,8 +231,8 @@ public sealed partial class ReaderPage
             _figmaReaderControlsReady = true;
         }
 
-        UpdateReaderViewModeSummary();
         UpdateFigmaReaderSelectionVisuals();
+        UpdateReaderViewOptionSelection();
         ApplyFigmaReaderPageGeometry();
         ApplyFigmaReaderSurfaceTheme();
         ApplyProgressVisibility();
@@ -268,18 +251,29 @@ public sealed partial class ReaderPage
         SetSegmentSelection(LineNormalButton, Math.Abs(lineHeight - 1.75) < 0.08);
         SetSegmentSelection(LineRelaxedButton, Math.Abs(lineHeight - 2.0) < 0.11);
 
-        var width = App.Settings.Current.PageWidth;
-        SetSegmentSelection(WidthNarrowButton, width == "narrow");
-        SetSegmentSelection(WidthMediumButton, width is not ("narrow" or "wide"));
-        SetSegmentSelection(WidthWideButton, width == "wide");
+        var settings = App.Settings.Current;
+        SetSegmentSelection(SinglePageButton, settings.ReaderViewMode == "horizontal" && settings.ReaderSpreadMode == "single");
+    }
+
+    private void EnforceFixedReaderOptions()
+    {
+        var settings = App.Settings.Current;
+        if (settings.ContinuousScrolling && settings.ShowReadingProgress) return;
+
+        App.Settings.Update(value =>
+        {
+            value.ContinuousScrolling = true;
+            value.ShowReadingProgress = true;
+        });
     }
 
     private static void SetThemeCardSelection(Button button, bool selected)
     {
-        button.BorderThickness = new Thickness(selected ? 2 : 1);
+        button.BorderThickness = new Thickness(2);
         button.BorderBrush = selected
             ? new SolidColorBrush(ColorHelper.FromArgb(255, 0, 95, 184))
             : new SolidColorBrush(ColorHelper.FromArgb(72, 117, 117, 117));
+        if (selected) AnimateReaderSelection(button);
     }
 
     private void SetSegmentSelection(Button button, bool selected)
@@ -294,16 +288,54 @@ public sealed partial class ReaderPage
 
     private void ApplyFigmaReaderPageGeometry()
     {
-        var pageWidth = App.Settings.Current.PageWidth switch
+        const double logicalWidth = 1600d;
+        const double logicalHeight = 900d;
+
+        var availableWidth = Math.Max(1d, ReadingArea.ActualWidth - 48d);
+        var availableHeight = Math.Max(1d, ReadingArea.ActualHeight - 88d);
+        var oldExtentWidth = ReaderFrameViewport.ExtentWidth;
+        var oldExtentHeight = ReaderFrameViewport.ExtentHeight;
+        var centerX = oldExtentWidth > 1d
+            ? (ReaderFrameViewport.HorizontalOffset + (ReaderFrameViewport.ViewportWidth / 2d)) / oldExtentWidth
+            : 0.5d;
+        var centerY = oldExtentHeight > 1d
+            ? (ReaderFrameViewport.VerticalOffset + (ReaderFrameViewport.ViewportHeight / 2d)) / oldExtentHeight
+            : 0.5d;
+
+        var settings = App.Settings.Current;
+        var zoom = settings.ReaderZoomMode == "custom"
+            ? Math.Clamp(settings.ReaderZoomFactor, 0.6d, 2d)
+            : 1d;
+        var fitScale = Math.Min(availableWidth / logicalWidth, availableHeight / logicalHeight);
+        var frameWidth = Math.Max(1d, logicalWidth * fitScale * zoom);
+        var frameHeight = Math.Max(1d, logicalHeight * fitScale * zoom);
+
+        ReaderFrameViewbox.Width = frameWidth;
+        ReaderFrameViewbox.Height = frameHeight;
+        ReaderFrameCanvas.Width = Math.Max(availableWidth, frameWidth);
+        ReaderFrameCanvas.Height = Math.Max(availableHeight, frameHeight);
+        ReaderProgressStrip.MaxWidth = availableWidth;
+
+        var revision = ++_readerFrameGeometryRevision;
+        DispatcherQueue.TryEnqueue(() =>
         {
-            "narrow" => 640d,
-            "wide" => 900d,
-            _ => 760d
-        };
-        if (App.Settings.Current.ReaderViewMode == "horizontal" && App.Settings.Current.ReaderSpreadMode is "odd" or "even")
-            pageWidth = Math.Min(1180d, pageWidth * 1.55d);
-        ReaderSurface.MaxWidth = pageWidth;
-        ReaderProgressStrip.MaxWidth = pageWidth;
+            if (revision != _readerFrameGeometryRevision) return;
+
+            var horizontalOffset = Math.Clamp(
+                (centerX * ReaderFrameViewport.ExtentWidth) - (ReaderFrameViewport.ViewportWidth / 2d),
+                0d,
+                Math.Max(0d, ReaderFrameViewport.ExtentWidth - ReaderFrameViewport.ViewportWidth));
+            var verticalOffset = Math.Clamp(
+                (centerY * ReaderFrameViewport.ExtentHeight) - (ReaderFrameViewport.ViewportHeight / 2d),
+                0d,
+                Math.Max(0d, ReaderFrameViewport.ExtentHeight - ReaderFrameViewport.ViewportHeight));
+            ReaderFrameViewport.ChangeView(horizontalOffset, verticalOffset, null, true);
+        });
+    }
+
+    private void ReaderReadingArea_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ApplyFigmaReaderPageGeometry();
     }
 
     private void ApplyFigmaReaderSurfaceTheme()

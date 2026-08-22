@@ -54,8 +54,51 @@ public sealed class ReadingBackupService
 
         var backup = CreateBackup(readingData, books);
         var temp = fullPath + ".tmp";
-        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(backup, JsonOptions), cancellationToken);
+        await File.WriteAllTextAsync(temp, Serialize(backup), cancellationToken);
         File.Move(temp, fullPath, true);
+    }
+
+    public static string Serialize(PageArcReadingBackup backup)
+    {
+        ArgumentNullException.ThrowIfNull(backup);
+        ValidateSchema(backup.SchemaVersion);
+        return JsonSerializer.Serialize(backup, JsonOptions);
+    }
+
+    public static PageArcReadingBackup Deserialize(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) throw new InvalidDataException("The PageArc backup is empty or invalid.");
+        var backup = JsonSerializer.Deserialize<PageArcReadingBackup>(json, JsonOptions)
+                     ?? throw new InvalidDataException("The PageArc backup is empty or invalid.");
+        ValidateSchema(backup.SchemaVersion);
+        backup.Books ??= [];
+        backup.Bookmarks ??= [];
+        backup.Annotations ??= [];
+        backup.Progress ??= [];
+        return backup;
+    }
+
+    public static PageArcReadingBackup Merge(PageArcReadingBackup local, PageArcReadingBackup remote)
+    {
+        ArgumentNullException.ThrowIfNull(local);
+        ArgumentNullException.ThrowIfNull(remote);
+        ValidateSchema(local.SchemaVersion);
+        ValidateSchema(remote.SchemaVersion);
+
+        return new PageArcReadingBackup
+        {
+            SchemaVersion = CurrentSchemaVersion,
+            ExportedAt = DateTimeOffset.UtcNow,
+            Books = MergeByKey(local.Books, remote.Books, item => item.BookId, (_, incoming) => incoming),
+            Bookmarks = MergeByKey(local.Bookmarks, remote.Bookmarks, item => item.Id,
+                (existing, incoming) => incoming.CreatedAt >= existing.CreatedAt ? incoming : existing),
+            Annotations = MergeByKey(local.Annotations, remote.Annotations, item => item.Id,
+                (existing, incoming) => incoming.UpdatedAt >= existing.UpdatedAt ? incoming : existing),
+            Progress = MergeByKey(local.Progress, remote.Progress, item => item.BookId,
+                (existing, incoming) => (incoming.LastOpenedAt ?? DateTimeOffset.MinValue) >= (existing.LastOpenedAt ?? DateTimeOffset.MinValue)
+                    ? incoming
+                    : existing)
+        };
     }
 
     public ReadingBackupRestoreResult Restore(
@@ -147,14 +190,23 @@ public sealed class ReadingBackupService
     public static PageArcReadingBackup Read(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Backup path is required.", nameof(path));
-        var backup = JsonSerializer.Deserialize<PageArcReadingBackup>(File.ReadAllText(path), JsonOptions)
-                     ?? throw new InvalidDataException("The PageArc backup is empty or invalid.");
-        ValidateSchema(backup.SchemaVersion);
-        backup.Books ??= [];
-        backup.Bookmarks ??= [];
-        backup.Annotations ??= [];
-        backup.Progress ??= [];
-        return backup;
+        return Deserialize(File.ReadAllText(path));
+    }
+
+    private static List<T> MergeByKey<T>(
+        IEnumerable<T>? local,
+        IEnumerable<T>? remote,
+        Func<T, string> keySelector,
+        Func<T, T, T> resolve)
+    {
+        var result = new Dictionary<string, T>(StringComparer.Ordinal);
+        foreach (var item in (local ?? []).Concat(remote ?? []))
+        {
+            var key = keySelector(item);
+            if (string.IsNullOrWhiteSpace(key)) key = Guid.NewGuid().ToString("N");
+            result[key] = result.TryGetValue(key, out var existing) ? resolve(existing, item) : item;
+        }
+        return result.Values.ToList();
     }
 
     private static void ValidateSchema(int version)

@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Hosting;
 using PageArc.Models;
 using PageArc.Pages;
 using PageArc.Services;
@@ -22,6 +24,15 @@ public sealed partial class MainWindow : Window
     private bool _tabShellReady;
     private bool _isWindowActive = true;
     private SplitView? _navigationSplitView;
+    private bool _shellLoaded;
+    private bool _startupImageReady;
+    private bool _startupSplashRenderRequested;
+    private bool _startupSplashShown;
+    private bool _minimumSplashDurationSatisfied;
+    private bool _shellReadyRaised;
+    private bool _startupWatchdogStarted;
+    private readonly Stopwatch _startupSplashVisibleClock = new();
+    private readonly WindowPlacementService _windowPlacementService;
 
     public MainWindow()
     {
@@ -33,6 +44,9 @@ public sealed partial class MainWindow : Window
             Title = "PageArc";
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
+            AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
+            _windowPlacementService = new WindowPlacementService(AppWindow, App.Settings);
+            _windowPlacementService.Restore();
 
             RootGrid.Loaded += (_, _) =>
             {
@@ -40,6 +54,9 @@ public sealed partial class MainWindow : Window
                 ApplyNavigationPaneBackground();
                 ApplyLocalizedNavigation();
                 RefreshTabVisuals();
+                _shellLoaded = true;
+                StartupDiagnostics.Log("Startup.MainContentLoaded");
+                TryCompleteStartupVisual();
             };
             RootGrid.ActualThemeChanged += RootGrid_ActualThemeChanged;
             Activated += MainWindow_Activated;
@@ -150,6 +167,11 @@ public sealed partial class MainWindow : Window
             BorderThickness = new Thickness(0),
             Child = layer
         };
+        container.Transitions =
+        [
+            new EntranceThemeTransition { FromHorizontalOffset = 12 },
+            new RepositionThemeTransition()
+        ];
         ShellTabItems.Children.Add(container);
         return new ShellTabVisual(container, headerText);
     }
@@ -245,7 +267,148 @@ public sealed partial class MainWindow : Window
                 : ColorHelper.FromArgb(51, 117, 117, 117));
             visual.HeaderText.FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal;
             visual.HeaderText.Opacity = selected ? 0.9 : 0.68;
+            if (selected) AnimateSelectedTab(visual.Container);
         }
+    }
+
+    private void OnWindowRootLoaded(object sender, RoutedEventArgs e)
+    {
+        StartStartupSafetyNets();
+    }
+
+    private void StartStartupSafetyNets()
+    {
+        if (_startupWatchdogStarted) return;
+        _startupWatchdogStarted = true;
+        _ = EnsureLogoGateAsync();
+        _ = WatchStartupAsync();
+    }
+
+    private async Task EnsureLogoGateAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(1));
+        if (_startupImageReady || _shellReadyRaised) return;
+        _startupImageReady = true;
+        StartupDiagnostics.Log("Startup.LogoImageFallback");
+        StartMinimumSplashDurationAfterFirstRender();
+        TryCompleteStartupVisual();
+    }
+
+    private async Task WatchStartupAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        if (_shellReadyRaised) return;
+        StartupDiagnostics.Log("StartupWatchdogTriggered");
+        PresentMainContent("Startup.WatchdogFailOpen");
+    }
+
+    private void OnStartupLogoImageOpened(object sender, RoutedEventArgs e)
+    {
+        _startupImageReady = true;
+        StartupDiagnostics.Log("Startup.LogoImageOpened");
+        StartMinimumSplashDurationAfterFirstRender();
+        TryCompleteStartupVisual();
+    }
+
+    private void OnStartupLogoImageFailed(object sender, ExceptionRoutedEventArgs e)
+    {
+        _startupImageReady = true;
+        StartupDiagnostics.Log("Startup.LogoImageFailed");
+        StartMinimumSplashDurationAfterFirstRender();
+        TryCompleteStartupVisual();
+    }
+
+    private void StartMinimumSplashDurationAfterFirstRender()
+    {
+        if (_startupSplashRenderRequested) return;
+        _startupSplashRenderRequested = true;
+        CompositionTarget.Rendering += OnStartupSplashRendered;
+    }
+
+    private void OnStartupSplashRendered(object? sender, object e)
+    {
+        CompositionTarget.Rendering -= OnStartupSplashRendered;
+        StartupDiagnostics.Log("Startup.FirstOverlayFrameRendered");
+        StartMinimumSplashDuration();
+    }
+
+    private void StartMinimumSplashDuration()
+    {
+        if (_startupSplashShown) return;
+        _startupSplashShown = true;
+        _startupSplashVisibleClock.Start();
+        StartupDiagnostics.Log("Startup.MinimumTimerStarted");
+        _ = CompleteMinimumSplashDurationAsync();
+    }
+
+    private async Task CompleteMinimumSplashDurationAsync()
+    {
+        var remaining = StartupSplashTiming.RemainingMinimumVisibleDuration(_startupSplashVisibleClock);
+        if (remaining > TimeSpan.Zero) await Task.Delay(remaining);
+        _minimumSplashDurationSatisfied = true;
+        StartupDiagnostics.Log("Startup.MinimumTimerCompleted");
+        TryCompleteStartupVisual();
+    }
+
+    private void TryCompleteStartupVisual()
+    {
+        if (!_shellLoaded || !_startupImageReady || !_minimumSplashDurationSatisfied || _shellReadyRaised) return;
+        PresentMainContent("Startup.DismissConditionsSatisfied");
+    }
+
+    private void PresentMainContent(string reason)
+    {
+        if (_shellReadyRaised) return;
+        _shellReadyRaised = true;
+        StartupDiagnostics.Log(reason);
+        MainContent.Opacity = 1;
+        _ = FadeOutStartupOverlayAsync();
+    }
+
+    private async Task FadeOutStartupOverlayAsync()
+    {
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            StartupDiagnostics.Log("Startup.FadeStarted");
+            var storyboard = new Storyboard();
+            var fade = new DoubleAnimation
+            {
+                From = 1,
+                To = 0,
+                Duration = new Duration(StartupSplashTiming.FadeOutDuration),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            Storyboard.SetTarget(fade, StartupOverlay);
+            Storyboard.SetTargetProperty(fade, nameof(UIElement.Opacity));
+            storyboard.Children.Add(fade);
+            storyboard.Completed += (_, _) => completion.TrySetResult(true);
+            storyboard.Begin();
+
+            if (await Task.WhenAny(completion.Task, Task.Delay(StartupSplashTiming.FadeOutFallbackDuration)) != completion.Task)
+                StartupDiagnostics.Log("Startup.FadeFallback");
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("Startup.FadeFailed", ex);
+        }
+        finally
+        {
+            StartupOverlay.Visibility = Visibility.Collapsed;
+            StartupOverlay.Opacity = 1;
+            MainContent.IsHitTestVisible = true;
+            StartupDiagnostics.Log("Startup.FadeCompleted");
+        }
+    }
+
+    private static void AnimateSelectedTab(UIElement element)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(element);
+        var animation = visual.Compositor.CreateScalarKeyFrameAnimation();
+        animation.InsertKeyFrame(0, 0.72f);
+        animation.InsertKeyFrame(1, 1f);
+        animation.Duration = TimeSpan.FromMilliseconds(150);
+        visual.StartAnimation("Opacity", animation);
     }
 
     private ShellTabSession EnsureHomeTabSelected()
@@ -285,6 +448,8 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        _windowPlacementService.Save();
+        _windowPlacementService.Dispose();
         foreach (var frame in _readerFrames.Values)
         {
             if (frame.Content is ReaderPage reader) reader.PrepareForClose();
@@ -295,32 +460,11 @@ public sealed partial class MainWindow : Window
         Closed -= MainWindow_Closed;
     }
 
+    internal void SaveWindowPlacement() => _windowPlacementService.Save();
+
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
-        DispatcherQueue.TryEnqueue(ReloadLocalizedShell);
-    }
-
-    private void ReloadLocalizedShell()
-    {
-        var navigationTag = App.PendingNavigationTag;
-        var wasPaneOpen = AppNavigation.IsPaneOpen;
-        var displayMode = AppNavigation.DisplayMode;
-
-        ApplyLocalizedNavigation();
-        UpdateTabHeaders();
-
-        if (SelectedSession()?.Kind == ShellTabKind.Reader)
-        {
-            AppNavigation.IsPaneOpen = wasPaneOpen && displayMode != NavigationViewDisplayMode.Minimal;
-            ApplyNavigationPaneBackground();
-            return;
-        }
-
-        NavigateTo(navigationTag, suppressTransition: true);
-        ContentFrame.BackStack.Clear();
-        AppNavigation.IsPaneOpen = wasPaneOpen && AppNavigation.DisplayMode != NavigationViewDisplayMode.Minimal;
-        ApplyNavigationPaneBackground();
-        StartupDiagnostics.Log($"Localized shell reloaded in place: {navigationTag}; window bounds unchanged.");
+        DispatcherQueue.TryEnqueue(() => App.ReloadMainWindow(App.PendingNavigationTag));
     }
 
     private void ApplyLocalizedNavigation()
@@ -361,12 +505,14 @@ public sealed partial class MainWindow : Window
 
     public void ApplyAppTheme(string theme)
     {
-        RootGrid.RequestedTheme = theme switch
+        var requestedTheme = theme switch
         {
             "light" => ElementTheme.Light,
             "dark" => ElementTheme.Dark,
             _ => ElementTheme.Default
         };
+        WindowRoot.RequestedTheme = requestedTheme;
+        RootGrid.RequestedTheme = requestedTheme;
         ConfigureTitleBar();
         QueueNavigationPaneBackgroundUpdate();
         RefreshTabVisuals();
@@ -389,19 +535,19 @@ public sealed partial class MainWindow : Window
         var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
         var isDark = AppNavigation.ActualTheme == ElementTheme.Dark;
 
-        if (!highContrast && _isWindowActive)
-        {
-            var activeColor = isDark
-                ? ColorHelper.FromArgb(255, 26, 35, 35)
-                : ColorHelper.FromArgb(255, 229, 249, 249);
-            _navigationSplitView.PaneBackground = new SolidColorBrush(activeColor);
-            return;
-        }
-
         var themeKey = highContrast ? "HighContrast" : isDark ? "Dark" : "Light";
         var themeResources = Application.Current.Resources.ThemeDictionaries[themeKey] as ResourceDictionary;
         if (themeResources?["PageArcNavigationPaneRestBrush"] is Brush restingBrush)
             _navigationSplitView.PaneBackground = restingBrush;
+    }
+
+    private void WorkspaceHost_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var wide = e.NewSize.Width >= 1280;
+        var mode = wide ? NavigationViewPaneDisplayMode.Left : NavigationViewPaneDisplayMode.LeftCompact;
+        if (AppNavigation.PaneDisplayMode != mode) AppNavigation.PaneDisplayMode = mode;
+        AppNavigation.IsPaneOpen = wide;
+        QueueNavigationPaneBackgroundUpdate();
     }
 
     private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject

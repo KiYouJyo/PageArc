@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 
@@ -23,8 +24,10 @@ public sealed partial class SettingsPage
         if (!_loaded || ReadingThemeCombo.SelectedItem is not ComboBoxItem { Tag: string theme }) return;
         App.Settings.Update(settings =>
         {
-            settings.ReadingTheme = theme;
-            settings.ReadingThemeFollowsApp = false;
+            settings.ReadingThemeFollowsApp = theme == "app";
+            settings.ReadingTheme = theme == "app"
+                ? (ActualTheme == ElementTheme.Dark ? "dark" : "light")
+                : theme;
         });
     }
 }

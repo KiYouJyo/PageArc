@@ -31,6 +31,11 @@ public partial class App : Application
         _lifecycle.ActivationReceived += Lifecycle_ActivationReceived;
         try
         {
+            // Apply the persisted override before the first XAML resource context is
+            // created. Applying it in OnLaunched leaves x:Uid values stuck in English.
+            Settings.Load();
+            Localization.ApplyPersistedLanguage(Settings.Current);
+            StartupDiagnostics.Log("Settings and localization initialized before XAML.");
             InitializeComponent();
             StartupDiagnostics.Log("App.InitializeComponent completed.");
         }
@@ -54,13 +59,11 @@ public partial class App : Application
                 return;
             }
 
-            Settings.Load();
-            StartupDiagnostics.Log("Settings.Load completed.");
-            Localization.ApplyPersistedLanguage(Settings.Current);
-            StartupDiagnostics.Log("Localization.ApplyPersistedLanguage completed.");
             Library.DuplicateDetectionEnabled = Settings.Current.DuplicateDetection;
             Library.Load();
             StartupDiagnostics.Log("Library.Load completed.");
+            var repairedCovers = await Library.EnsureImportedCoversAsync();
+            StartupDiagnostics.Log($"Library cover cache ready; repaired={repairedCovers}.");
             ImportFolders.Load();
             StartupDiagnostics.Log("ImportFolders.Load completed.");
             Categories.Load(Library.Books);
@@ -175,6 +178,7 @@ public partial class App : Application
     {
         PendingNavigationTag = navigationTag;
         var previous = MainWindow;
+        previous?.SaveWindowPlacement();
         CreateMainWindow();
         previous?.Close();
     }

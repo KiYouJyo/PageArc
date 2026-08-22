@@ -9,7 +9,8 @@ public enum UpdateCheckStatus
     InvalidResponse,
     ConnectionFailed,
     TimedOut,
-    RequestFailed
+    RequestFailed,
+    StoreManaged
 }
 
 public sealed record UpdateCheckResult(
@@ -18,4 +19,7 @@ public sealed record UpdateCheckResult(
     Version? RemoteVersion = null,
     Uri? ReleaseUri = null,
     string? ReleaseName = null,
-    string? ReleaseNotes = null);
+    string? ReleaseNotes = null,
+    Uri? InstallerUri = null,
+    string? InstallerName = null,
+    long InstallerSize = 0);

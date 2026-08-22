@@ -155,4 +155,5 @@
   <data name="Reader_BookmarkSaved" xml:space="preserve"><value>Bookmark saved for the current chapter.</value></data>
   <data name="Reader_OpenFailed" xml:space="preserve"><value>The reader could not be opened.</value></data>
   <data name="Reader_ChapterLoadFailed" xml:space="preserve"><value>The EPUB chapter could not be loaded ({0}).</value></data>
+  <data name="ReadingTheme_App.Content" xml:space="preserve"><value>Current app theme</value></data>
 </root>

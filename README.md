@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-0.9.5-005fb8)
+![Version](https://img.shields.io/badge/version-1.0-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -11,9 +11,9 @@
 
 **PageArc** 是一个专注于流式电子书格式的 Windows 阅读器，采用 WinUI 3 / Windows App SDK 构建。界面以 PAGEARC Figma 为设计基准，优先保持本地、原文件不修改的阅读体验。
 
-## v0.9.5
+## v1.0
 
-v0.9.5 在 v0.9.3 多标签阅读基础上补齐数据恢复、内置转换运行时与正文兼容交互：
+v1.0 在 v0.9.5 功能基础上完成阅读器、书库、设置、更新和 Windows 分发体验的正式版收敛：
 
 - 阅读数据备份升级到 schema v2，并提供“合并 / 覆盖”恢复；换机后可按 PageArc ID、内容指纹或唯一书籍身份重新匹配阅读进度、书签和笔记；
 - 官方 x64 包内置固定版本的 calibre 9.13.0 本地转换运行时，PageArc 默认直接提供 EPUB / FB2 / MOBI / AZW3 / LIT 的 20 个有向互转组合，用户无需另装转换软件；外部 calibre 仅保留为开发/兼容后备；

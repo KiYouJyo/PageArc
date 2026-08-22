@@ -8,6 +8,23 @@ namespace PageArc.Tests;
 public sealed class BookMetadataServiceTests
 {
     [Fact]
+    public void UnsupportedNativeFormats_UseBundledCalibreCoverExtractionAndPersistedLibraryRepair()
+    {
+        var root = FindRepoRoot();
+        var metadata = File.ReadAllText(Path.Combine(root, "Services", "BookMetadataService.cs"));
+        var library = File.ReadAllText(Path.Combine(root, "Services", "LibraryService.cs"));
+        var app = File.ReadAllText(Path.Combine(root, "App.xaml.cs"));
+        var covers = File.ReadAllText(Path.Combine(root, "Pages", "LibraryPage.Covers.cs"));
+
+        Assert.Contains("ebook-meta.exe", metadata, StringComparison.Ordinal);
+        Assert.Contains("--get-cover", metadata, StringComparison.Ordinal);
+        Assert.Contains("WriteCoverAsync", metadata, StringComparison.Ordinal);
+        Assert.Contains("EnsureImportedCoversAsync", library, StringComparison.Ordinal);
+        Assert.Contains("Library.EnsureImportedCoversAsync", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("BookMetadataService.ReadAsync", covers, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task EpubMetadata_ExtractsRichFieldsAndCover()
     {
         var id = Guid.NewGuid().ToString("N");
@@ -111,5 +128,17 @@ public sealed class BookMetadataServiceTests
         {
             try { File.Delete(path); } catch { }
         }
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "PageArc.csproj"))) return directory.FullName;
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate the repository root.");
     }
 }

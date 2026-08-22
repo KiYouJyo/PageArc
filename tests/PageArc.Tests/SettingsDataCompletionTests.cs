@@ -16,6 +16,38 @@ public sealed class SettingsDataCompletionTests
         Assert.Equal("grid", settings.LibraryView);
         Assert.True(settings.ShowRecentBooks);
         Assert.True(settings.DuplicateDetection);
+        Assert.Equal(string.Empty, settings.WebDavEndpoint);
+        Assert.Equal(string.Empty, settings.WebDavUsername);
+    }
+
+    [Fact]
+    public void WebDavSettings_RequireAnAbsoluteHttpEndpoint()
+    {
+        Assert.Equal("https", new WebDavConnectionSettings("https://example.com/dav/pagearc.json", "reader").GetEndpointUri().Scheme);
+        Assert.Throws<ArgumentException>(() => new WebDavConnectionSettings("pagearc.json", "reader").GetEndpointUri());
+        Assert.Throws<ArgumentException>(() => new WebDavConnectionSettings("file:///pagearc.json", "reader").GetEndpointUri());
+    }
+
+    [Fact]
+    public void ReadingBackupMerge_PrefersNewerProgressAndAnnotations()
+    {
+        var older = new DateTimeOffset(2026, 8, 20, 1, 0, 0, TimeSpan.Zero);
+        var newer = older.AddHours(2);
+        var local = new PageArcReadingBackup
+        {
+            Annotations = [new ReaderAnnotation { Id = "note", BookId = "book", Note = "old", UpdatedAt = older }],
+            Progress = [new BookReadingProgressBackup { BookId = "book", Progress = 0.25, LastOpenedAt = older }]
+        };
+        var remote = new PageArcReadingBackup
+        {
+            Annotations = [new ReaderAnnotation { Id = "note", BookId = "book", Note = "new", UpdatedAt = newer }],
+            Progress = [new BookReadingProgressBackup { BookId = "book", Progress = 0.75, LastOpenedAt = newer }]
+        };
+
+        var merged = ReadingBackupService.Merge(local, remote);
+
+        Assert.Equal("new", Assert.Single(merged.Annotations).Note);
+        Assert.Equal(0.75, Assert.Single(merged.Progress).Progress, 6);
     }
 
     [Fact]

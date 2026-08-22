@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-0.9.5-005fb8)
+![Version](https://img.shields.io/badge/version-1.0-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -11,9 +11,9 @@
 
 **PageArc** は、リフロー型電子書籍に特化した WinUI 3 / Windows App SDK 製 Windows リーダーです。PAGEARC Figma を UI の基準とし、ローカル優先・元ファイル非変更の読書体験を重視します。
 
-## v0.9.5
+## v1.0
 
-v0.9.5 では、v0.9.3 のマルチタブ Reader を土台に、データ復元、内蔵変換ランタイム、本文互換性と読書操作を補完します。
+v1.0 では、v0.9.5 を土台に Reader、ライブラリ、設定、更新、Windows 配布の正式版体験を統合します。
 
 - 読書データのバックアップを schema v2 に更新し、「マージ / 置換」で復元可能。端末や保存場所が変わっても、PageArc ID、内容フィンガープリント、固有の書誌情報から進捗・しおり・ノートを再照合します。
 - 公式 x64 パッケージに固定版 calibre 9.13.0 のローカル変換ランタイムを同梱し、EPUB / FB2 / MOBI / AZW3 / LIT の方向付き 20 通りの変換を追加インストールなしで利用できます。外部 calibre は開発・互換用フォールバックとしてのみ残します。

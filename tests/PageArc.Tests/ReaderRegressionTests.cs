@@ -36,19 +36,18 @@ public sealed class ReaderRegressionTests
     }
 
     [Fact]
-    public void LanguageSwitchKeepsExistingWindowAndReloadsOnlyLocalizedContent()
+    public void LanguageSwitchRebuildsTheXamlTreeAfterUpdatingTheLanguageContext()
     {
         var root = FindRepoRoot();
         var settingsCode = File.ReadAllText(Path.Combine(root, "Pages", "SettingsPage.xaml.cs"));
         var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
         var localizationCode = File.ReadAllText(Path.Combine(root, "Services", "LocalizationService.cs"));
 
-        Assert.DoesNotContain("ReloadMainWindow", settingsCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("new MainWindow", settingsCode, StringComparison.Ordinal);
         Assert.Contains("LanguageChanged", localizationCode, StringComparison.Ordinal);
         Assert.Contains("App.Localization.LanguageChanged += OnLanguageChanged", windowCode, StringComparison.Ordinal);
-        Assert.Contains("ReloadLocalizedShell", windowCode, StringComparison.Ordinal);
-        Assert.Contains("SuppressNavigationTransitionInfo", windowCode, StringComparison.Ordinal);
-        Assert.DoesNotContain("new MainWindow", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("App.ReloadMainWindow(App.PendingNavigationTag)", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReloadLocalizedShell", windowCode, StringComparison.Ordinal);
     }
 
     [Fact]
