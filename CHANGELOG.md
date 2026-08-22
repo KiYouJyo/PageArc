@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.5] - 2026-08-18
+
+### Added
+- Reading-data restore with schema-v2 book identities, Merge/Replace semantics, v1 compatibility and remapping by exact PageArc ID, content fingerprint or unique title/author/format identity.
+- A pinned calibre 9.13.0 runtime for official x64 packages, exposed as the preferred `PageArcBundledConversionProvider` so the complete 20-pair EPUB / FB2 / MOBI / AZW3 / LIT conversion matrix works without a separate converter installation.
+- Persistent shell-session storage for Home/Reader tab order, identity and selected tab, with corruption-safe fallback and missing-source filtering during restore.
+- Reflow reader compatibility for strict CJK line breaking, ruby text, vertical writing-mode, responsive MathML/SVG and horizontally scrollable wide tables.
+- Same-document footnote popovers with light-dismiss behavior and an explicit jump-to-note action.
+- An in-reader image viewer with wheel/button zoom, pointer pan, fit-to-window, 100% mode and safe Windows-picker Save.
+
+### Changed
+- Reading backup format advances from schema v1 to v2 while retaining import compatibility with existing v1 backups.
+- LIT normalization and conversion now prefer the runtime shipped with official x64 builds; an externally installed calibre copy remains a development/compatibility fallback.
+- Settings keeps the existing PAGEARC Data & storage card and adds Restore beside Backup rather than introducing a new settings surface.
+- Reader enhancements are injected into the existing document surface, keeping the v0.9.3 permanent Reader chrome unchanged.
+- The application/package version advances to `0.9.5` / `0.9.5.0`.
+
+### Validation
+- 121/121 unit tests passed together with Debug x64, Release x64 and whitespace validation before the signed-acceptance pass.
+- The signed-acceptance workflow additionally prepares the pinned conversion runtime, executes all 20 directed cross-format conversions, verifies runtime inclusion in the MSIX, signs/verifies the package, and installs/launch-smoke-tests the packaged app.
+
 ## [0.9.3] - 2026-08-17
 
 ### Added
@@ -11,7 +32,7 @@
 - Reader top chrome is reduced to the sidebar toggle, current book title and `Aa`; the obsolete overflow control and visible previous/next page buttons are removed.
 - Reader toolbar, left pane, right settings pane and surrounding reading area now reveal the same Mica backdrop as the custom title bar, while the document page continues to follow the selected reading theme.
 - The 260 px left Reader sidebar and 260 px right `Aa` pane now open/close with a smooth cubic ease-out width/fade transition.
-- Selection annotation UI is temporarily note-only: typing debounce-saves one stable note, dismissal flushes pending text, clearing the note removes the annotation, and note-bearing text uses one muted low-saturation red mark.
+- Selection annotation UI is temporarily note-only: typing debounce-saves one stable note, dismissal flushes pending text, clearing the note removes that annotation, and note-bearing text uses one muted low-saturation red mark.
 
 ### Validation
 - 116/116 tests passed together with Debug x64, Release x64 and whitespace validation.
@@ -102,7 +123,7 @@
 - File activation for EPUB / FB2 / MOBI / AZW / AZW3 / LIT routed into the existing library/import and reader pipeline.
 - `pagearc:` protocol activation for stable book IDs and explicit local ebook paths.
 - Windows Jump List recent-book integration backed by `pagearc://book/<id>` deep links.
-- Packaged manifest template declaring all six ebook file associations and the `pagearc` protocol.
+- Packaged manifest template declaring all six ebook file associations plus the `pagearc` protocol.
 - Pure activation parsing tests for quoted Windows paths, all associated extensions, protocol round-tripping and manifest declarations.
 - Signed Windows-integration acceptance covering package signing/install, registered shell associations, protocol launch, import routing and same-PID single-instance redirection.
 
@@ -120,13 +141,13 @@
 
 ### Added
 - Figma-derived 410 px book-details side panel with reading progress, file information, favorites and bookmark/highlight/note counts.
-- Figma-derived library book context menu with open, continue, favorite, category, details, file-location and safe library-removal actions.
+- Figma-derived book context menu with open, continue, favorite, category, details, file-location and safe library-removal actions.
 - Figma three-stage import experience: chooser/drop zone, per-file progress/cancellation, and added/skipped/error completion summary.
 - Persistent watched-folder management with recursive supported-format scans, repeat-safe rescans, availability state and per-folder counts.
 - SHA-256 content fingerprints for duplicate detection across different source paths.
 - Structured single/batch import results and progress contracts.
 - Rich EPUB/FB2 metadata extraction including language, publisher, description and embedded cover cache.
-- Kindle cover data-URL caching and persistence when MOBI/AZW3 parsing runs; normalized LIT/Kindle fallback metadata and cover persistence when those paths run.
+- Kindle cover data-URL caching and persistence when MOBI/AZW3 parsing runs; normalized LIT/Kindle fallback metadata and covers when those paths run.
 - Missing-source tracking without silently dropping library records.
 - Persistent library filter/sort/view preferences.
 - Large-library regression coverage with 2,000 legacy records.

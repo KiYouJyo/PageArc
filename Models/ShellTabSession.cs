@@ -33,6 +33,23 @@ public sealed class ShellTabSessionManager
         return (session, true);
     }
 
+    public void ReplaceAll(IEnumerable<ShellTabSession> sessions)
+    {
+        ArgumentNullException.ThrowIfNull(sessions);
+        _tabs.Clear();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var readerBooks = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var session in sessions)
+        {
+            if (session is null || string.IsNullOrWhiteSpace(session.Id) || !ids.Add(session.Id)) continue;
+            if (session.Kind == ShellTabKind.Reader)
+            {
+                if (string.IsNullOrWhiteSpace(session.BookId) || !readerBooks.Add(session.BookId)) continue;
+            }
+            _tabs.Add(session);
+        }
+    }
+
     public bool Close(string id)
     {
         var index = _tabs.FindIndex(tab => string.Equals(tab.Id, id, StringComparison.Ordinal));

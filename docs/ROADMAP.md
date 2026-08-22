@@ -94,4 +94,14 @@
 - [x] Run end-to-end regression coverage across library → import → categories → reader → annotations → backup → conversion → Windows activation contracts
 - [x] Produce a signed x64 acceptance build after v0.7-v0.9 functional gates are green (run `31988316528`, artifact `PageArc-v0.9.0-x64-signed-acceptance`)
 
+## v0.9.5 — Reader, data and local-runtime completion
+
+- [x] Upgrade reading-data backup to schema v2 and add Merge / Replace restore with exact-ID, content-fingerprint and unique book-identity remapping while retaining v1 import compatibility
+- [x] Make the official x64 package self-contained for DRM-free conversion by bundling a pinned calibre 9.13.0 runtime behind `PageArcBundledConversionProvider`, with external calibre retained only as a development/compatibility fallback
+- [x] Add a reflow EPUB/CJK compatibility layer for strict Chinese/Japanese line breaking, ruby, vertical writing-mode, responsive MathML/SVG and wide-table overflow without modifying source ebooks
+- [x] Persist and restore Home/Reader tab order, identity and selected tab while safely skipping missing source books
+- [x] Add lightweight same-document footnote popovers with an explicit jump-to-note action
+- [x] Add an in-reader image viewer with zoom, pan, fit-to-window, 100% and safe native Save
+- [x] Add regression coverage for backup remapping/replace semantics, session persistence, bundled conversion capability and the reader enhancement contracts
+
 > UI/experience polish that is not required to make a planned control functional remains deferred until after the v0.9 functional-completion pass. New visible surfaces must continue to derive from the PAGEARC Figma file rather than introducing an unrelated design language.

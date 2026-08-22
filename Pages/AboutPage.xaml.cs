@@ -18,9 +18,9 @@ public sealed partial class AboutPage : Page
         var localizedTemplate = App.Localization.GetString("About_Version.Text");
         AboutVersionText.Text = Regex.Replace(localizedTemplate, @"\d+\.\d+\.\d+", version, RegexOptions.CultureInvariant);
         LicenseBodyText.Text = RuntimeText.Current(
-            "内置：foliate-js（MIT）、fflate（MIT）。calibre 仅作为可选外部转换提供程序，不随 PageArc 分发。详见 THIRD_PARTY_NOTICES.md。",
-            "同梱：foliate-js（MIT）、fflate（MIT）。calibre は任意の外部変換プロバイダーで、PageArc には同梱されません。詳細は THIRD_PARTY_NOTICES.md を参照してください。",
-            "Bundled: foliate-js (MIT) and fflate (MIT). calibre is an optional external conversion provider and is not distributed with PageArc. See THIRD_PARTY_NOTICES.md.");
+            "内置：foliate-js（MIT）、fflate（MIT）；官方 x64 包同时内置 calibre 9.13.0 转换运行时（GPLv3），对应源码与许可信息随验收/发布产物提供。详见 THIRD_PARTY_NOTICES.md。",
+            "同梱：foliate-js（MIT）、fflate（MIT）。公式 x64 パッケージには calibre 9.13.0 変換ランタイム（GPLv3）も同梱し、対応するソースとライセンス情報を検証/リリース成果物に含めます。詳細は THIRD_PARTY_NOTICES.md を参照してください。",
+            "Bundled: foliate-js (MIT), fflate (MIT), and in official x64 packages the calibre 9.13.0 conversion runtime (GPLv3). Corresponding source and license information ship with acceptance/release assets. See THIRD_PARTY_NOTICES.md.");
     }
 
     private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
