@@ -54,6 +54,11 @@ dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 
 ## 文档
 
+- [应用主页（GitHub Pages）](https://kiyoujyo.github.io/PageArc/)
+- [公开隐私政策](https://kiyoujyo.github.io/PageArc/privacy/)
+- [支持与问题反馈](https://kiyoujyo.github.io/PageArc/support/)
+- [Microsoft Store 发布边界与检查清单](docs/STORE_PUBLISHING.md)
+
 - [路线图](docs/ROADMAP.md)
 - [v0.9.5 功能记录](docs/V095_FEATURES.md)
 - [架构](docs/ARCHITECTURE.md)
@@ -65,6 +70,8 @@ dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 - [数据与存储](docs/DATA_STORAGE.md)
 - [第三方组件](THIRD_PARTY_NOTICES.md)
 - [隐私政策](PRIVACY.md)
+- [安全披露](SECURITY.md)
+- [行为准则](CODE_OF_CONDUCT.md)
 - [贡献指南](CONTRIBUTING.md)
 - [更新日志](CHANGELOG.md)
 

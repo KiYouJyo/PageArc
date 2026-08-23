@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PageArc — 面向流式电子书格式的离线优先 Windows 阅读器。">
+  <title>PageArc · Windows 电子书阅读器</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.65; --accent: #4cc2ff; --surface: #202928; --surface-2: #303a38; --text: #f4f7f5; --muted: #b9c5c1; }
+    @media (prefers-color-scheme: light) { :root { --surface: #f4fbfa; --surface-2: #fff; --text: #17211f; --muted: #5f6c68; --accent: #0078d4; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--surface); color: var(--text); }
+    .shell { max-width: 72rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    header { padding: 2rem 0 1rem; }
+    .brand { display: flex; gap: 1rem; align-items: center; }
+    .logo { width: 4rem; height: 4rem; border-radius: 1rem; background: #d7e1d8; display: grid; place-items: center; box-shadow: 0 8px 24px #0003; }
+    .logo svg { width: 2.8rem; height: 2.8rem; }
+    h1 { font-size: clamp(2.2rem, 6vw, 4rem); line-height: 1.1; margin: 0; letter-spacing: -.04em; }
+    h2 { margin: 0 0 .35rem; font-size: 1.55rem; }
+    h3 { margin: 0 0 .35rem; }
+    .lead { max-width: 54rem; color: var(--muted); font-size: 1.15rem; margin: 1.25rem 0 0; }
+    nav { display: flex; flex-wrap: wrap; gap: .7rem 1rem; margin: 2rem 0; }
+    a { color: var(--accent); }
+    nav a { color: var(--text); font-weight: 650; text-decoration: none; padding: .45rem .8rem; border-radius: .6rem; background: color-mix(in srgb, var(--surface-2) 85%, transparent); }
+    nav a:hover, nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+    .card { background: var(--surface-2); border-radius: .9rem; padding: 1.25rem 1.35rem; margin: 1rem 0; box-shadow: 0 8px 24px #0002; }
+    .card p { color: var(--muted); margin: .35rem 0; }
+    .pill { display: inline-block; color: var(--text); background: color-mix(in srgb, var(--accent) 28%, var(--surface-2)); padding: .25rem .6rem; border-radius: 999px; font-size: .9rem; }
+    .language { margin-top: .8rem; }
+    .language strong { display: block; color: var(--text); }
+    footer { color: var(--muted); margin-top: 3rem; font-size: .92rem; }
+    @media (max-width: 38rem) { .shell { padding-top: 1rem; } .card { padding: 1rem; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-label="PageArc logo">
+          <svg viewBox="0 0 64 64" role="img" aria-hidden="true"><rect x="8" y="8" width="48" height="48" rx="14" fill="#d7e1d8"/><path d="M22 20 45 45" stroke="#708076" stroke-width="5" stroke-linecap="round"/></svg>
+        </div>
+        <div><h1>PageArc</h1><span class="pill">v1.0 · Windows</span></div>
+      </div>
+      <p class="lead">专注于流式电子书格式的离线优先 Windows 阅读器。以原生 WinUI 3 体验阅读 EPUB、MOBI、AZW3、FB2 与 LIT，并保持原始电子书文件不被修改。</p>
+      <p class="lead" lang="ja">流れる電子書籍形式に集中した、オフライン優先の Windows リーダー。元の電子書籍を変更せず、原生 WinUI 3 で読書できます。</p>
+      <p class="lead" lang="en">An offline-first Windows reader for flowing ebook formats. Read EPUB, MOBI, AZW3, FB2, and LIT with a native WinUI 3 experience while keeping original files untouched.</p>
+    </header>
+    <nav aria-label="Site navigation">
+      <a href="https://github.com/KiYouJyo/PageArc/releases/latest">最新版本 / 最新リリース / Latest release</a>
+      <a href="privacy/">隐私政策 / プライバシー / Privacy</a>
+      <a href="support/">支持 / サポート / Support</a>
+      <a href="https://github.com/KiYouJyo/PageArc">GitHub 仓库 / GitHub リポジトリ / Repository</a>
+    </nav>
+    <main>
+      <section aria-labelledby="distribution"><h2 id="distribution">获取 PageArc / Get PageArc</h2>
+        <div class="grid">
+          <article class="card"><h3>Microsoft Store</h3><p>商店发布后，这里将提供官方安装入口与自动更新。</p><p lang="ja">Store 公開後、公式のインストールと自動更新を提供します。</p><p lang="en">The official installation and automatic updates will be available here after Store publication.</p><p><span class="pill">Store listing pending publication</span></p></article>
+          <article class="card"><h3>GitHub Releases</h3><p>提供需要手动下载的 GitHub 旁加载版本。两个渠道使用独立身份，不能互相覆盖升级。</p><p lang="ja">手動ダウンロード用の GitHub サイドロード版を提供します。Store 版とは別の ID です。</p><p lang="en">GitHub provides a sideloading build for manual download. Its identity is separate from the Store channel.</p><p><a href="https://github.com/KiYouJyo/PageArc/releases/latest">打开 GitHub Releases</a></p></article>
+        </div>
+      </section>
+      <section aria-labelledby="features"><h2 id="features">核心能力 / Highlights</h2>
+        <div class="grid">
+          <article class="card"><h3>本地优先</h3><p>书库、进度、笔记、书签、封面和缓存默认留在本机。</p></article>
+          <article class="card"><h3>流式阅读</h3><p>支持目录、搜索、标注、主题、缩放与稳定的单页阅读。</p></article>
+          <article class="card"><h3>安全转换</h3><p>使用随包运行时生成新文件，不修改原始电子书。</p></article>
+        </div>
+      </section>
+    </main>
+    <footer>PageArc · MIT License · <a href="https://github.com/KiYouJyo/PageArc/blob/main/PRIVACY.md">隐私政策源文件</a></footer>
+  </div>
+</body>
+</html>

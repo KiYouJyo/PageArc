@@ -24,7 +24,7 @@ public sealed partial class AboutPage : Page
         UpdateAvailableVersionText.Text = "—";
         AboutChannelText.Text = DistributionChannel.Name;
         PackageVersionText.Text = GetPackageVersion(version);
-        PublisherText.Text = LocalText("发布者 · KiYouJyo", "発行元 · KiYouJyo", "Publisher · KiYouJyo");
+        PublisherText.Text = LocalText("发布者 · Jo Kiyō", "発行元 · Jo Kiyō", "Publisher · Jo Kiyō");
         ArchitectureText.Text = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
         StackText.Text = "C# · WinUI 3 · Windows App SDK · MSIX";
         ProductTaglineText.Text = LocalText("为 Windows 打造的流式电子书阅读器", "Windows 向けリフロー型電子書籍リーダー", "A reflow-first ebook reader for Windows");

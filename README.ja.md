@@ -45,7 +45,7 @@ dotnet build PageArc.slnx -c Debug -p:Platform=x64
 dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 ```
 
-詳しくは [docs/ROADMAP.md](docs/ROADMAP.md)、[docs/V095_FEATURES.md](docs/V095_FEATURES.md)、[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、[docs/ENGINE_ARCHITECTURE.md](docs/ENGINE_ARCHITECTURE.md)、[docs/WINDOWS_INTEGRATION.md](docs/WINDOWS_INTEGRATION.md)、[docs/FORMAT_SUPPORT.md](docs/FORMAT_SUPPORT.md)、[docs/TABBED_SHELL_0.9.3.md](docs/TABBED_SHELL_0.9.3.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)、[PRIVACY.md](PRIVACY.md)、[CONTRIBUTING.md](CONTRIBUTING.md)、[CHANGELOG.md](CHANGELOG.md) を参照してください。
+アプリの [ホームページ](https://kiyoujyo.github.io/PageArc/)、[公開プライバシーポリシー](https://kiyoujyo.github.io/PageArc/privacy/)、[サポートページ](https://kiyoujyo.github.io/PageArc/support/)、[Microsoft Store 公開チェックリスト](docs/STORE_PUBLISHING.md) を参照してください。技術資料は [docs/ROADMAP.md](docs/ROADMAP.md)、[docs/V095_FEATURES.md](docs/V095_FEATURES.md)、[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、[docs/ENGINE_ARCHITECTURE.md](docs/ENGINE_ARCHITECTURE.md)、[docs/WINDOWS_INTEGRATION.md](docs/WINDOWS_INTEGRATION.md)、[docs/FORMAT_SUPPORT.md](docs/FORMAT_SUPPORT.md)、[docs/TABBED_SHELL_0.9.3.md](docs/TABBED_SHELL_0.9.3.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)、[PRIVACY.md](PRIVACY.md)、[SECURITY.md](SECURITY.md)、[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)、[CONTRIBUTING.md](CONTRIBUTING.md)、[CHANGELOG.md](CHANGELOG.md) です。
 
 ## License
 

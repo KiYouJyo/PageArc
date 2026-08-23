@@ -25,6 +25,13 @@
     <DefineConstants Condition="'$(PageArcDistributionChannel)' == 'Store'">$(DefineConstants);PAGEARC_STORE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Microsoft Store packages use the Store-assigned identity and publisher.
+         GitHub/side-load builds intentionally continue to use Package.appxmanifest. -->
+    <AppxManifest Include="Package.Store.appxmanifest" Condition="'$(PageArcDistributionChannel)' == 'Store'">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Remove="tests\**\*.cs" />
   </ItemGroup>
   <ItemGroup>

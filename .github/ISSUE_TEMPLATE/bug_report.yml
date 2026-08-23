@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a reproducible PageArc problem
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: For example, 1.0.0 (Microsoft Store) or 1.0.0 (GitHub sideload).
+    validations:
+      required: true
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Installation channel
+      options:
+        - Microsoft Store
+        - GitHub sideload
+        - Local development build
+    validations:
+      required: true
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows version
+      description: Include the Windows build number when possible.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Optional diagnostics
+      description: Remove ebook contents, personal data, credentials, WebDAV passwords, and unnecessary local paths. Never upload signing material.
