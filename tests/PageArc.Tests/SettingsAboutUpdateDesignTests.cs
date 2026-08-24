@@ -62,13 +62,24 @@ public sealed class SettingsAboutUpdateDesignTests
         var project = File.ReadAllText(Path.Combine(root, "PageArc.csproj"));
         var service = File.ReadAllText(Path.Combine(root, "Services", "GitHubUpdateService.cs"));
         var channel = File.ReadAllText(Path.Combine(root, "Services", "DistributionChannel.cs"));
+        var githubManifest = File.ReadAllText(Path.Combine(root, "Package.appxmanifest"));
+        var storeManifest = File.ReadAllText(Path.Combine(root, "Package.Store.appxmanifest"));
 
         Assert.Contains("PageArcDistributionChannel", project, StringComparison.Ordinal);
         Assert.Contains("PAGEARC_STORE", project, StringComparison.Ordinal);
         Assert.Contains("DistributionChannel.IsStore", service, StringComparison.Ordinal);
-        Assert.Contains(".appinstaller", service, StringComparison.Ordinal);
         Assert.Contains(".msixbundle", service, StringComparison.Ordinal);
+        Assert.Contains("Do not select .appinstaller", service, StringComparison.Ordinal);
         Assert.Contains("DownloadInstallerAsync", service, StringComparison.Ordinal);
+        Assert.Contains("StoreContext.GetDefault", service, StringComparison.Ordinal);
+        Assert.Contains("InitializeWithWindow.Initialize", service, StringComparison.Ordinal);
+        Assert.Contains("RequestDownloadAndInstallStorePackageUpdatesAsync", service, StringComparison.Ordinal);
+        Assert.Contains("AddPackageByUriAsync", service, StringComparison.Ordinal);
+        Assert.Contains("DeferRegistrationWhenPackagesAreInUse", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("Launcher.LaunchUriAsync", File.ReadAllText(Path.Combine(root, "Pages", "AboutPage.xaml.cs")), StringComparison.Ordinal);
+        Assert.DoesNotContain("Launcher.LaunchFileAsync", File.ReadAllText(Path.Combine(root, "Pages", "AboutPage.xaml.cs")), StringComparison.Ordinal);
+        Assert.Contains("packageManagement", githubManifest, StringComparison.Ordinal);
+        Assert.DoesNotContain("packageManagement", storeManifest, StringComparison.Ordinal);
         Assert.Contains("Microsoft Store", channel, StringComparison.Ordinal);
         Assert.Contains("GitHub Releases", channel, StringComparison.Ordinal);
     }

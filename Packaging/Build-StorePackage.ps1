@@ -23,10 +23,13 @@ $display = $manifest.Package.Properties.PublisherDisplayName
 if ($display -ne $expectedDisplayName) { throw "Store PublisherDisplayName mismatch: $display" }
 
 $out = [IO.Path]::GetFullPath((Join-Path $repo $OutputDirectory))
+if (-not $ValidationOnly -and (Test-Path $out)) {
+    Remove-Item -LiteralPath $out -Recurse -Force
+}
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $args = @(
-    'build', (Join-Path $repo 'PageArc.csproj'), '-c', $Configuration,
-    ('-p:Platform=' + $Platform), '--no-restore',
+    (Join-Path $repo 'PageArc.csproj'), '-t:Rebuild',
+    ('-p:Configuration=' + $Configuration), ('-p:Platform=' + $Platform),
     '-p:PageArcDistributionChannel=Store', '-p:WindowsPackageType=MSIX',
     '-p:GenerateAppxPackageOnBuild=true', '-p:AppxPackageSigningEnabled=false',
     '-p:AppxBundle=Always', ('-p:AppxBundlePlatforms=' + $Platform),
@@ -34,20 +37,37 @@ $args = @(
     ('-p:AppxPackageDir=' + ($out.TrimEnd('\') + '\'))
 )
 if (-not $ValidationOnly) {
-    & dotnet @args
+    & dotnet msbuild @args
     if ($LASTEXITCODE -ne 0) { throw "Store candidate build failed with exit code $LASTEXITCODE" }
 }
 
-$packages = @(Get-ChildItem -LiteralPath $out -Filter 'PageArc_*.msix' -Recurse -File)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$bundle = Get-ChildItem -LiteralPath $out -Filter '*.msixbundle' -Recurse -File | Select-Object -First 1
-$extractRoot = $null
-if ($packages.Count -eq 0 -and $null -ne $bundle) {
-    $extractRoot = Join-Path ([IO.Path]::GetTempPath()) ('pagearc-store-bundle-' + [guid]::NewGuid().ToString('N'))
-    [IO.Compression.ZipFile]::ExtractToDirectory($bundle.FullName, $extractRoot)
-    $packages = @(Get-ChildItem -LiteralPath $extractRoot -Filter 'PageArc_*.msix' -Recurse -File)
-}
-if ($packages.Count -eq 0) { throw "No MSIX package found under $out" }
+$version = $identity.Version
+$runtimeIdentifier = 'win-' + $Platform.ToLowerInvariant()
+$buildRoot = Join-Path $repo "bin\$Platform\$Configuration\net10.0-windows10.0.26100.0\$runtimeIdentifier\Upload"
+$mainPackage = Join-Path $buildRoot "PageArc_${version}\PageArc_${version}_$Platform.msix"
+if (-not (Test-Path $mainPackage)) { throw "StoreUpload main package not found: $mainPackage" }
+# The SDK also emits a same-named package outside Upload. Never bundle that
+# package: it can contain a stale/minimal PRI and only EN-US in its manifest.
+# The SDK's scale packages also repeat Assets\StoreLogo.png. The StoreUpload
+# main package already contains the complete resource set (including all
+# declared languages), so adding those scale packages makes MakeAppx reject
+# the bundle for duplicate resources.
+$stage = Join-Path ([IO.Path]::GetTempPath()) ('pagearc-store-stage-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $stage | Out-Null
+Copy-Item -LiteralPath $mainPackage -Destination (Join-Path $stage (Split-Path $mainPackage -Leaf))
+$bundlePath = Join-Path $out "PageArc_${version}_x64_bundle.msixbundle"
+& 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\makeappx.exe' bundle /d $stage /p $bundlePath /o
+if ($LASTEXITCODE -ne 0) { throw 'Store bundle creation failed.' }
+$uploadPath = Join-Path $out "PageArc_${version}_x64_bundle.msixupload"
+$uploadPath | ForEach-Object { if (Test-Path $_) { Remove-Item -LiteralPath $_ -Force } }
+$uploadStage = Join-Path ([IO.Path]::GetTempPath()) ('pagearc-store-upload-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $uploadStage | Out-Null
+Copy-Item -LiteralPath $bundlePath -Destination $uploadStage
+[IO.Compression.ZipFile]::CreateFromDirectory($uploadStage, $uploadPath)
+$bundle = Get-Item $bundlePath
+$packages = @(Get-ChildItem -LiteralPath $stage -Filter 'PageArc_*.msix' -File)
+
 $results = foreach ($package in $packages) {
     $zip = [IO.Compression.ZipFile]::OpenRead($package.FullName)
     try {
@@ -56,6 +76,8 @@ $results = foreach ($package in $packages) {
         $reader = [IO.StreamReader]::new($entry.Open())
         try { [xml]$packageManifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
         $packageIdentity = $packageManifest.Package.Identity
+        $languages = @($packageManifest.Package.Resources.Resource | Where-Object { $_.Language } | ForEach-Object { $_.Language.ToUpperInvariant() })
+        $isMainPackage = $package.Name -eq (Split-Path $mainPackage -Leaf)
         [pscustomobject]@{
             File = $package.FullName
             Name = $packageIdentity.Name
@@ -63,12 +85,14 @@ $results = foreach ($package in $packages) {
             Version = $packageIdentity.Version
             NameValid = ($packageIdentity.Name -eq $expectedName)
             PublisherValid = ($packageIdentity.Publisher -eq $expectedPublisher)
+            Languages = ($languages -join ',')
+            LanguagesValid = (-not $isMainPackage) -or ((@('EN-US','JA-JP','ZH-CN') | Where-Object { $languages -notcontains $_ }).Count -eq 0)
         }
     } finally { $zip.Dispose() }
 }
-if ($results.NameValid -contains $false -or $results.PublisherValid -contains $false) {
+if ($results.NameValid -contains $false -or $results.PublisherValid -contains $false -or $results.LanguagesValid -contains $false) {
     $results | Format-Table | Out-String | Write-Error
-    throw 'Store package identity validation failed.'
+    throw 'Store package identity or language validation failed.'
 }
 $metadata = [ordered]@{
     channel = 'Microsoft Store'
@@ -76,10 +100,10 @@ $metadata = [ordered]@{
     identityName = $expectedName
     publisher = $expectedPublisher
     publisherDisplayName = $expectedDisplayName
-    storeUploadPackage = if ($null -ne $bundle) { $bundle.FullName } else { $null }
+    storeUploadPackage = if (Test-Path $uploadPath) { $uploadPath } else { $null }
     packages = @($results)
     storeUpload = 'Generated by UapAppxPackageBuildMode=StoreUpload with symbol package generation disabled.'
 }
 $metadata | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $out 'store-package-validation.json')
 $metadata | ConvertTo-Json -Depth 5
-if ($null -ne $extractRoot) { Remove-Item -LiteralPath $extractRoot -Recurse -Force -ErrorAction SilentlyContinue }
+Remove-Item -LiteralPath $stage, $uploadStage -Recurse -Force -ErrorAction SilentlyContinue

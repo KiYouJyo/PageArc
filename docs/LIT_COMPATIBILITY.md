@@ -23,7 +23,7 @@ PageArc ships a dedicated `LitFlowAdapter`, but LIT payload normalization is pro
 5. Open the normalized EPUB through the same `FlowDocument` engine used by all other PageArc formats.
 6. If the provider reports DRM/encryption, raise `DrmProtectedEbookException` and stop. PageArc never attempts DRM removal.
 
-The default provider is local calibre `ebook-convert` when calibre is already installed or explicitly configured. calibre is not bundled with PageArc.
+Official x64 packages use the bundled pinned calibre `ebook-convert` runtime by default. Source/development builds can still use an installed or explicitly configured external calibre runtime.
 
 ## Conversion matrix
 

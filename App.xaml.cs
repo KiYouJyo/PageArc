@@ -169,6 +169,7 @@ public partial class App : Application
     {
         StartupDiagnostics.Log("Creating MainWindow.");
         MainWindow = new MainWindow();
+        Updates.InitializeForWindow(MainWindow);
         StartupDiagnostics.Log("MainWindow constructed; activating.");
         MainWindow.Activate();
         StartupDiagnostics.Log("MainWindow activated.");

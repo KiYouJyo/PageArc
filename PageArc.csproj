@@ -7,8 +7,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <Platforms>x64;ARM64</Platforms>
-    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <RuntimeIdentifier Condition="'$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <RuntimeIdentifiers Condition="'$(RuntimeIdentifier)' == ''">win-x64;win-arm64</RuntimeIdentifiers>
     <UseRidGraph>true</UseRidGraph>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
@@ -16,11 +17,11 @@
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-    <ApplicationVersion>16</ApplicationVersion>
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <ApplicationDisplayVersion>1.1</ApplicationDisplayVersion>
+    <ApplicationVersion>17</ApplicationVersion>
     <PageArcDistributionChannel Condition="'$(PageArcDistributionChannel)' == ''">GitHub</PageArcDistributionChannel>
     <DefineConstants Condition="'$(PageArcDistributionChannel)' == 'Store'">$(DefineConstants);PAGEARC_STORE</DefineConstants>
   </PropertyGroup>
@@ -33,6 +34,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tests\**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Branding masters are kept in source control for future asset generation but
+         are not referenced by the running app or either manifest. -->
+    <Content Remove="Assets\AppLogo.png;Assets\AppLogoSource.png;Assets\AppLogoSourceClean.png" />
+    <None Include="Assets\AppLogo.png;Assets\AppLogoSource.png;Assets\AppLogoSourceClean.png" />
   </ItemGroup>
   <ItemGroup>
     <!-- Windows App SDK/MSIX currently embeds XBF resources using their filename only.

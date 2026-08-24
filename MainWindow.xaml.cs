@@ -533,7 +533,11 @@ public sealed partial class MainWindow : Window
         if (_navigationSplitView is null) return;
 
         var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
-        var isDark = AppNavigation.ActualTheme == ElementTheme.Dark;
+        // NavigationView's template can still report the process' previous/system theme
+        // during the first layout pass.  The root theme is already resolved at this point
+        // and is also what the navigation labels use, so keep the pane surface in lockstep
+        // with it.  Activation used to hide this mismatch by recalculating the pane later.
+        var isDark = RootGrid.ActualTheme == ElementTheme.Dark;
 
         var themeKey = highContrast ? "HighContrast" : isDark ? "Dark" : "Light";
         var themeResources = Application.Current.Resources.ThemeDictionaries[themeKey] as ResourceDictionary;

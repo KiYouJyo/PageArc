@@ -9,17 +9,17 @@ Store 包必须使用 `Package.Store.appxmanifest` 中的身份：
 - Name：`JoKiy.PageArc`
 - Publisher：`CN=C4E4B33A-7B77-4121-897C-7D720A5471F8`
 - PublisherDisplayName：`Jo Kiyō`
-- 当前包版本：`1.0.0.0`
+- 当前包版本：`1.1.0.0`
 
 GitHub 侧载包继续使用独立的包身份和更新通道，不得把侧载包上传到 Store。
 
 ## 本地生成与验证
 
 ```powershell
-pwsh -File .\Packaging\Build-StorePackage.ps1 -Configuration Release -Platform x64 -Version 1.0.0.0
+pwsh -File .\Packaging\Build-StorePackage.ps1 -Configuration Release -Platform x64 -OutputDirectory artifacts\store-package-v1.1-release
 ```
 
-脚本会验证最终 MSIX 内嵌 manifest，并在 `artifacts/store-package-v1.0-x64-final/store-package-validation.json` 写出身份证据。提交前还应运行：
+脚本会验证最终 MSIX 内嵌 manifest，并在 `artifacts/store-package-v1.1-release/store-package-validation.json` 写出身份证据。提交前还应运行：
 
 ```powershell
 dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore --nologo

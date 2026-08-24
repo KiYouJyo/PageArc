@@ -1,0 +1,116 @@
+name: Microsoft Store Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Discover the Partner Center app ID or submit the validated package
+        required: true
+        type: choice
+        options:
+          - discover
+          - submit
+        default: discover
+      product_id:
+        description: Partner Center product ID returned by discovery (required for submit)
+        required: false
+        type: string
+      confirmation:
+        description: Enter SUBMIT to commit a Store submission
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pagearc-store-release
+  cancel-in-progress: false
+
+jobs:
+  partner-center:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 75
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        if: inputs.mode == 'submit'
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Microsoft Store Developer CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+
+      - name: Authenticate to Partner Center
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          msstore reconfigure `
+            --tenantId '${{ secrets.AZURE_AD_TENANT_ID }}' `
+            --sellerId '${{ secrets.SELLER_ID }}' `
+            --clientId '${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}' `
+            --clientSecret '${{ secrets.AZURE_AD_APPLICATION_SECRET }}'
+          if ($LASTEXITCODE -ne 0) { throw "Partner Center authentication failed: $LASTEXITCODE" }
+
+      - name: List Partner Center applications
+        if: inputs.mode == 'discover'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          msstore apps list
+          if ($LASTEXITCODE -ne 0) { throw "Could not list Partner Center applications: $LASTEXITCODE" }
+
+      - name: Validate submission authorization
+        if: inputs.mode == 'submit'
+        shell: pwsh
+        run: |
+          if ('${{ inputs.confirmation }}' -cne 'SUBMIT') { throw 'Store submission requires confirmation=SUBMIT.' }
+          if ([string]::IsNullOrWhiteSpace('${{ inputs.product_id }}')) { throw 'Store submission requires a Partner Center product ID.' }
+
+      - name: Test and build Microsoft Store package
+        if: inputs.mode == 'submit'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$manifest = Get-Content -Raw Package.Store.appxmanifest
+          if ($manifest.Package.Identity.Name -cne 'JoKiy.PageArc') { throw "Store identity mismatch: $($manifest.Package.Identity.Name)" }
+          if ($manifest.Package.Identity.Version -ne '1.1.0.0') { throw "Store version mismatch: $($manifest.Package.Identity.Version)" }
+          dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\Packaging\Build-StorePackage.ps1 -Configuration Release -Platform x64 -OutputDirectory artifacts\store-package-v1.1-release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $upload = Get-ChildItem artifacts\store-package-v1.1-release -Filter '*.msixupload' -File | Select-Object -First 1
+          if (-not $upload) { throw 'The Store MSIX upload package was not generated.' }
+          "STORE_UPLOAD=$($upload.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload validated Store candidate
+        if: inputs.mode == 'submit'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PageArc-v1.1-Microsoft-Store
+          path: artifacts/store-package-v1.1-release
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Submit package for Microsoft certification
+        if: inputs.mode == 'submit'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          msstore publish "$env:GITHUB_WORKSPACE" `
+            --inputFile "$env:STORE_UPLOAD" `
+            --appId '${{ inputs.product_id }}'
+          if ($LASTEXITCODE -ne 0) { throw "Microsoft Store submission failed: $LASTEXITCODE" }
+
+      - name: Read submission status
+        if: inputs.mode == 'submit'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          msstore submission status '${{ inputs.product_id }}'
+          if ($LASTEXITCODE -ne 0) { throw "Could not read Store submission status: $LASTEXITCODE" }

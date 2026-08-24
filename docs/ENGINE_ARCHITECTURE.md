@@ -38,7 +38,7 @@ Five formats produce 20 ordered cross-format pairs. `GetRequiredCapabilityMatrix
 1. Does PageArc model this format pair?
 2. Is a provider capable of performing it installed on this machine?
 
-The default full-matrix provider is local calibre `ebook-convert` when calibre is installed or explicitly configured. calibre is not bundled in PageArc: PageArc is MIT-licensed while calibre is GPLv3, so the process/file boundary is intentional. DRM-protected input is reported as unsupported; PageArc never attempts removal.
+Official x64 packages bundle the pinned calibre `ebook-convert` runtime behind `PageArcBundledConversionProvider`; source/development builds retain the external-calibre fallback. PageArc remains MIT-licensed and calls the GPLv3 runtime across a process/file boundary. DRM-protected input is reported as unsupported; PageArc never attempts removal.
 
 The same provider abstraction is used by the LIT flow adapter. A LIT source is converted into PageArc's local normalized cache, stamped with source size/mtime, and then opened through the EPUB adapter. Original LIT files remain read-only.
 
@@ -47,7 +47,7 @@ The same provider abstraction is used by the LIT flow adapter. A LIT source is c
 - PageArc main executable: MIT.
 - Vendored foliate-js MOBI parser subset: MIT, exact commit/blob pinned in `ThirdParty/foliate-js/PIN.md`.
 - Vendored fflate runtime: MIT.
-- calibre: optional external GPL provider, not bundled.
+- calibre: bundled GPLv3 runtime in official x64 packages, with an optional external fallback for development builds.
 - ConvertLIT: not copied/linked into the PageArc executable; see `docs/LIT_COMPATIBILITY.md`.
 
 ## Version boundaries

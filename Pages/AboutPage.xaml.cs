@@ -4,13 +4,13 @@ using Microsoft.UI.Xaml.Controls;
 using PageArc.Models;
 using PageArc.Services;
 using Windows.ApplicationModel;
-using Windows.System;
 
 namespace PageArc.Pages;
 
 public sealed partial class AboutPage : Page
 {
     private UpdateCheckResult? _pendingUpdate;
+    private bool _restartRequired;
 
     public AboutPage()
     {
@@ -31,7 +31,7 @@ public sealed partial class AboutPage : Page
         DisplayVersionLabel.Text = LocalText("显示版本与通道", "表示バージョンとチャネル", "Display version and channel");
         PackageVersionLabel.Text = LocalText("软件包版本与发布者", "パッケージ バージョンと発行元", "Package version and publisher");
         ArchitectureLabel.Text = LocalText("体系结构与技术栈", "アーキテクチャと技術スタック", "Architecture and stack");
-        UpdateSectionHint.Text = LocalText("检查、下载并交由 Windows 安装更新", "更新を確認、ダウンロードし Windows でインストール", "Check, download, and hand updates to Windows Installer");
+        UpdateSectionHint.Text = LocalText("在 PageArc 内检查、下载并安装更新", "PageArc 内で更新を確認、ダウンロード、インストール", "Check, download, and install updates inside PageArc");
         CurrentVersionLabel.Text = LocalText("当前版本", "現在のバージョン", "Current version");
         AvailableVersionLabel.Text = LocalText("可用版本", "利用可能なバージョン", "Available version");
         UpdateStatusLabel.Text = LocalText("状态与发行说明", "状態とリリース ノート", "Status and release notes");
@@ -49,8 +49,8 @@ public sealed partial class AboutPage : Page
 
         if (DistributionChannel.IsStore)
         {
-            UpdateStatusText.Text = LocalText("更新由 Microsoft Store 提供。", "更新は Microsoft Store から提供されます。", "Updates are provided by Microsoft Store.");
-            UpdateActionText.Text = LocalText("打开 Microsoft Store", "Microsoft Store を開く", "Open Microsoft Store");
+            UpdateStatusText.Text = LocalText("由 Microsoft Store 提供更新，可直接在 PageArc 内安装。", "Microsoft Store の更新を PageArc 内で直接インストールできます。", "Microsoft Store updates can be installed directly inside PageArc.");
+            ResetUpdateAction();
         }
         else if (App.Updates.LastResult is { } priorResult)
         {
@@ -60,14 +60,17 @@ public sealed partial class AboutPage : Page
 
     private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
     {
-        if (DistributionChannel.IsStore)
+        if (_restartRequired)
         {
-            await Launcher.LaunchUriAsync(new Uri("ms-windows-store://search/?query=PageArc"));
+            Microsoft.Windows.AppLifecycle.AppInstance.Restart(string.Empty);
+            // A successful restart terminates this process. Reaching this line means
+            // Windows could not restart it automatically, so keep a truthful fallback.
+            UpdateStatusText.Text = LocalText("请关闭并重新打开 PageArc 以完成更新。", "更新を完了するには PageArc を閉じて再度開いてください。", "Close and reopen PageArc to finish the update.");
             return;
         }
         if (_pendingUpdate is { Status: UpdateCheckStatus.UpdateAvailable } pending)
         {
-            await DownloadOrOpenUpdateAsync(pending);
+            await DownloadAndInstallUpdateAsync(pending);
             return;
         }
 
@@ -98,13 +101,15 @@ public sealed partial class AboutPage : Page
                 UpdateStatusText.Text = string.Format(App.Localization.GetString("Update_Available"), result.RemoteVersion);
                 UpdateInfoBar.Severity = InfoBarSeverity.Success;
                 UpdateInfoBar.Title = App.Localization.GetString("Update_AvailableTitle");
-                UpdateInfoBar.Message = result.InstallerUri is null
-                    ? LocalText("此版本没有兼容的安装资产，将打开发布页。", "互換インストーラーがないためリリース ページを開きます。", "No compatible installer asset was found; the release page will open.")
+                UpdateInfoBar.Message = DistributionChannel.IsStore
+                    ? LocalText("Microsoft Store 更新已就绪", "Microsoft Store の更新を利用できます", "A Microsoft Store update is ready")
+                    : result.InstallerUri is null
+                    ? LocalText("此版本没有可在应用内安装的 MSIX 包。", "このバージョンにはアプリ内インストール対応の MSIX パッケージがありません。", "This release has no MSIX package supported for in-app installation.")
                     : LocalText($"已找到 {result.InstallerName}", $"{result.InstallerName} が見つかりました", $"Found {result.InstallerName}");
                 UpdateInfoBar.IsOpen = showNotification;
-                UpdateActionText.Text = result.InstallerUri is null
-                    ? App.Localization.GetString("Update_OpenRelease")
-                    : LocalText("下载并安装", "ダウンロードしてインストール", "Download and install");
+                UpdateActionText.Text = DistributionChannel.IsStore || result.InstallerUri is not null
+                    ? LocalText("下载并安装", "ダウンロードしてインストール", "Download and install")
+                    : App.Localization.GetString("About_CheckUpdatesText.Text");
                 break;
             case UpdateCheckStatus.UpToDate:
                 UpdateStatusText.Text = App.Localization.GetString("Update_UpToDate");
@@ -139,30 +144,44 @@ public sealed partial class AboutPage : Page
         UpdateCheckProgressRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private async Task DownloadOrOpenUpdateAsync(UpdateCheckResult update)
+    private async Task DownloadAndInstallUpdateAsync(UpdateCheckResult update)
     {
-        if (update.InstallerUri is null)
+        if (!DistributionChannel.IsStore && update.InstallerUri is null)
         {
-            if (update.ReleaseUri is not null) await Launcher.LaunchUriAsync(update.ReleaseUri);
+            UpdateStatusText.Text = LocalText("此版本没有可在应用内安装的 MSIX 包。", "このバージョンにはアプリ内でインストールできる MSIX パッケージがありません。", "This release has no MSIX package that can be installed in-app.");
             return;
         }
 
         CheckUpdatesButton.IsEnabled = false;
         DownloadProgress.Visibility = Visibility.Visible;
         DownloadProgress.Value = 0;
-        UpdateStatusText.Text = LocalText("正在下载安装包…", "インストーラーをダウンロードしています…", "Downloading installer…");
+        UpdateStatusText.Text = LocalText("正在下载并安装更新…", "更新をダウンロードしてインストールしています…", "Downloading and installing the update…");
         try
         {
             var progress = new Progress<double>(value => DownloadProgress.Value = value);
-            var file = await App.Updates.DownloadInstallerAsync(update, progress);
-            UpdateStatusText.Text = LocalText("下载完成，正在打开 Windows 安装器。", "ダウンロード完了。Windows インストーラーを開きます。", "Download complete. Opening Windows Installer.");
-            await Launcher.LaunchFileAsync(file);
+            var result = await App.Updates.DownloadAndInstallAsync(update, progress);
+            switch (result.Status)
+            {
+                case UpdateInstallStatus.Completed:
+                case UpdateInstallStatus.RestartRequired:
+                    _restartRequired = true;
+                    _pendingUpdate = null;
+                    UpdateStatusText.Text = LocalText("更新已安装，重启 PageArc 后生效。", "更新をインストールしました。PageArc の再起動後に反映されます。", "The update is installed and will take effect after PageArc restarts.");
+                    UpdateActionText.Text = LocalText("重启 PageArc", "PageArc を再起動", "Restart PageArc");
+                    break;
+                case UpdateInstallStatus.Canceled:
+                    UpdateStatusText.Text = LocalText("更新已取消。", "更新をキャンセルしました。", "The update was canceled.");
+                    break;
+                default:
+                    StartupDiagnostics.Log($"In-app update failed: {result.ErrorMessage}");
+                    UpdateStatusText.Text = App.Localization.GetString("Update_Failed");
+                    break;
+            }
         }
         catch (Exception ex)
         {
-            StartupDiagnostics.Log("Update installer download failed", ex);
+            StartupDiagnostics.Log("In-app update failed", ex);
             UpdateStatusText.Text = App.Localization.GetString("Update_Failed");
-            if (update.ReleaseUri is not null) await Launcher.LaunchUriAsync(update.ReleaseUri);
         }
         finally
         {

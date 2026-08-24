@@ -3,7 +3,10 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.UI.Xaml;
 using PageArc.Models;
+using Windows.Management.Deployment;
+using Windows.Services.Store;
 using Windows.Storage;
 
 namespace PageArc.Services;
@@ -12,8 +15,18 @@ public sealed class GitHubUpdateService
 {
     public static readonly Uri LatestReleaseApi = new("https://api.github.com/repos/KiYouJyo/PageArc/releases/latest");
     private static readonly HttpClient Client = CreateClient();
+    private StoreContext? _storeContext;
+    private IReadOnlyList<StorePackageUpdate> _pendingStoreUpdates = [];
 
     public UpdateCheckResult? LastResult { get; private set; }
+
+    public void InitializeForWindow(Window window)
+    {
+        if (!DistributionChannel.IsStore) return;
+        _storeContext = StoreContext.GetDefault();
+        var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        WinRT.Interop.InitializeWithWindow.Initialize(_storeContext, windowHandle);
+    }
 
     public async Task<UpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
@@ -25,7 +38,7 @@ public sealed class GitHubUpdateService
     {
         var localVersion = GetCurrentVersion();
         if (DistributionChannel.IsStore)
-            return new(UpdateCheckStatus.StoreManaged, localVersion);
+            return await CheckStoreUpdatesAsync(localVersion);
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, LatestReleaseApi);
@@ -101,6 +114,99 @@ public sealed class GitHubUpdateService
         return file;
     }
 
+    public async Task<UpdateInstallResult> DownloadAndInstallAsync(
+        UpdateCheckResult update,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (DistributionChannel.IsStore)
+            return await InstallStoreUpdatesAsync(progress, cancellationToken);
+
+        try
+        {
+            var downloadProgress = progress is null
+                ? null
+                : new Progress<double>(value => progress.Report(value * 0.8d));
+            var file = await DownloadInstallerAsync(update, downloadProgress, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            var manager = new PackageManager();
+            var options = new AddPackageOptions
+            {
+                // PageArc is part of the package being replaced. Stage and register the
+                // signed update as soon as this process closes instead of opening App Installer.
+                DeferRegistrationWhenPackagesAreInUse = true
+            };
+            var deploymentOperation = manager.AddPackageByUriAsync(new Uri(file.Path), options);
+            deploymentOperation.Progress = (_, value) => progress?.Report(80d + value.percentage * 0.2d);
+            var deployment = await deploymentOperation;
+            if (deployment.ExtendedErrorCode is { } error && error != default)
+                return new(UpdateInstallStatus.Failed, deployment.ErrorText ?? error.Message);
+            return new(UpdateInstallStatus.RestartRequired);
+        }
+        catch (OperationCanceledException)
+        {
+            return new(UpdateInstallStatus.Canceled);
+        }
+        catch (Exception ex)
+        {
+            return new(UpdateInstallStatus.Failed, ex.Message);
+        }
+    }
+
+    private async Task<UpdateCheckResult> CheckStoreUpdatesAsync(Version localVersion)
+    {
+        if (_storeContext is null)
+            return new(UpdateCheckStatus.RequestFailed, localVersion);
+        try
+        {
+            _pendingStoreUpdates = await _storeContext.GetAppAndOptionalStorePackageUpdatesAsync();
+            if (_pendingStoreUpdates.Count == 0)
+                return new(UpdateCheckStatus.UpToDate, localVersion, localVersion);
+
+            var packageVersion = _pendingStoreUpdates
+                .Select(item => item.Package.Id.Version)
+                .Select(value => new Version(value.Major, value.Minor, value.Build, value.Revision))
+                .OrderByDescending(value => value)
+                .First();
+            return new(UpdateCheckStatus.UpdateAvailable, localVersion, packageVersion);
+        }
+        catch
+        {
+            _pendingStoreUpdates = [];
+            return new(UpdateCheckStatus.RequestFailed, localVersion);
+        }
+    }
+
+    private async Task<UpdateInstallResult> InstallStoreUpdatesAsync(
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (_storeContext is null || _pendingStoreUpdates.Count == 0)
+            return new(UpdateInstallStatus.Failed, "No Microsoft Store update is ready to install.");
+        try
+        {
+            var operation = _storeContext.RequestDownloadAndInstallStorePackageUpdatesAsync(_pendingStoreUpdates);
+            operation.Progress = (_, status) => progress?.Report(status.TotalDownloadProgress * 100d);
+            using var registration = cancellationToken.Register(operation.Cancel);
+            var result = await operation;
+            progress?.Report(100);
+            return result.OverallState switch
+            {
+                StorePackageUpdateState.Completed => new(UpdateInstallStatus.Completed),
+                StorePackageUpdateState.Canceled => new(UpdateInstallStatus.Canceled),
+                _ => new(UpdateInstallStatus.Failed, result.OverallState.ToString())
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return new(UpdateInstallStatus.Canceled);
+        }
+        catch (Exception ex)
+        {
+            return new(UpdateInstallStatus.Failed, ex.Message);
+        }
+    }
+
     private static Version GetCurrentVersion()
     {
         var assemblyVersion = typeof(App).Assembly.GetName().Version;
@@ -125,10 +231,12 @@ public sealed class GitHubUpdateService
     private static int InstallerPriority(string name)
     {
         var lower = name.ToLowerInvariant();
-        if (lower.EndsWith(".appinstaller", StringComparison.Ordinal)) return 0;
-        if (lower.EndsWith(".msixbundle", StringComparison.Ordinal)) return 1;
-        if (lower.Contains("x64", StringComparison.Ordinal) && lower.EndsWith(".msix", StringComparison.Ordinal)) return 2;
-        if (lower.EndsWith(".msix", StringComparison.Ordinal)) return 3;
+        // Direct package assets can be deployed by PackageManager without leaving PageArc.
+        // Do not select .appinstaller: PackageManager only gained support for it after
+        // PageArc's Windows 10 2004 minimum, and it can reference external package URLs.
+        if (lower.EndsWith(".msixbundle", StringComparison.Ordinal)) return 0;
+        if (lower.Contains("x64", StringComparison.Ordinal) && lower.EndsWith(".msix", StringComparison.Ordinal)) return 1;
+        if (lower.EndsWith(".msix", StringComparison.Ordinal)) return 2;
         return int.MaxValue;
     }
 

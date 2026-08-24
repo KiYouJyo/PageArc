@@ -19,6 +19,8 @@ public sealed class NavigationPaneStateTests
         Assert.Contains("WindowActivationState.Deactivated", windowCode, StringComparison.Ordinal);
         Assert.Contains("_isWindowActive", windowCode, StringComparison.Ordinal);
         Assert.Contains("PaneBackground = restingBrush", windowCode, StringComparison.Ordinal);
+        Assert.Contains("RootGrid.ActualTheme == ElementTheme.Dark", windowCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppNavigation.ActualTheme == ElementTheme.Dark", windowCode, StringComparison.Ordinal);
         Assert.DoesNotContain("ColorHelper.FromArgb(255, 26, 35, 35)", windowCode, StringComparison.Ordinal);
         Assert.DoesNotContain("ColorHelper.FromArgb(255, 229, 249, 249)", windowCode, StringComparison.Ordinal);
         Assert.DoesNotContain("forceActive", windowCode, StringComparison.Ordinal);

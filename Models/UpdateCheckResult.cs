@@ -23,3 +23,13 @@ public sealed record UpdateCheckResult(
     Uri? InstallerUri = null,
     string? InstallerName = null,
     long InstallerSize = 0);
+
+public enum UpdateInstallStatus
+{
+    Completed,
+    RestartRequired,
+    Canceled,
+    Failed
+}
+
+public sealed record UpdateInstallResult(UpdateInstallStatus Status, string? ErrorMessage = null);
