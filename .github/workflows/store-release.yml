@@ -102,8 +102,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $inputDirectory = Split-Path -Parent $env:STORE_UPLOAD
           msstore publish "$env:GITHUB_WORKSPACE" `
-            --inputFile "$env:STORE_UPLOAD" `
+            --inputDirectory "$inputDirectory" `
             --appId '${{ inputs.product_id }}'
           if ($LASTEXITCODE -ne 0) { throw "Microsoft Store submission failed: $LASTEXITCODE" }
 
