@@ -87,8 +87,8 @@ jobs:
           $expectedId = '${{ inputs.submission_id }}'
           if ([string]::IsNullOrWhiteSpace($expectedId) -or '${{ inputs.confirmation }}' -cne "DELETE-$expectedId") { throw 'Cancellation requires confirmation=DELETE-<exact audited submission ID>.' }
           if ('${{ inputs.product_id }}' -cne '9NTHMP210H9B') { throw 'Cancellation is restricted to the PageArc product.' }
-          $details = msstore submission get '${{ inputs.product_id }}' | Out-String | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or [string]$details.Id -cne $expectedId) { throw "Pending submission changed; expected $expectedId but found $($details.Id)." }
+          $details = msstore submission get '${{ inputs.product_id }}' | Out-String
+          if ($LASTEXITCODE -ne 0 -or $details -notmatch ('"Id"\s*:\s*"' + [regex]::Escape($expectedId) + '"')) { throw "Pending submission changed; expected $expectedId." }
           msstore submission delete '${{ inputs.product_id }}' --no-confirm
           if ($LASTEXITCODE -ne 0) { throw "Could not cancel the audited Store submission: $LASTEXITCODE" }
           msstore submission status '${{ inputs.product_id }}'
