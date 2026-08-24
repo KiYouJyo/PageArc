@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using PageArc.Services;
 
 namespace PageArc;
 
@@ -18,6 +19,28 @@ public sealed partial class MainWindow
         // cached template part in case WinUI recreated the template during startup.
         _navigationSplitView = null;
         ApplyNavigationPaneBackground();
-        QueueNavigationPaneBackgroundUpdate();
+
+        // Loaded can precede NavigationView's final template layout. Synchronize once more
+        // from the first stable LayoutUpdated notification, then detach instead of keeping a
+        // permanent per-frame workaround.
+        if (!_navigationPaneStartupLayoutPending)
+        {
+            _navigationPaneStartupLayoutPending = true;
+            AppNavigation.LayoutUpdated += AppNavigation_StartupLayoutUpdated;
+        }
+    }
+
+    private void AppNavigation_StartupLayoutUpdated(object? sender, object e)
+    {
+        if (!_navigationPaneStartupLayoutPending) return;
+        _navigationPaneStartupLayoutPending = false;
+        AppNavigation.LayoutUpdated -= AppNavigation_StartupLayoutUpdated;
+        _navigationSplitView = null;
+        ApplyNavigationPaneBackground();
+
+        StartupDiagnostics.Log(
+            $"Navigation pane startup settled: requested={_requestedAppTheme}; " +
+            $"rootActual={RootGrid.ActualTheme}; navigationActual={AppNavigation.ActualTheme}; " +
+            $"splitViewFound={_navigationSplitView is not null}.");
     }
 }

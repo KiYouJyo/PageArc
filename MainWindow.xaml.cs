@@ -24,6 +24,8 @@ public sealed partial class MainWindow : Window
     private bool _tabShellReady;
     private bool _isWindowActive = true;
     private SplitView? _navigationSplitView;
+    private ElementTheme _requestedAppTheme = ElementTheme.Default;
+    private bool _navigationPaneStartupLayoutPending;
     private bool _shellLoaded;
     private bool _startupImageReady;
     private bool _startupSplashRenderRequested;
@@ -511,10 +513,12 @@ public sealed partial class MainWindow : Window
             "dark" => ElementTheme.Dark,
             _ => ElementTheme.Default
         };
+        _requestedAppTheme = requestedTheme;
         WindowRoot.RequestedTheme = requestedTheme;
         RootGrid.RequestedTheme = requestedTheme;
+        AppNavigation.RequestedTheme = requestedTheme;
         ConfigureTitleBar();
-        QueueNavigationPaneBackgroundUpdate();
+        ApplyNavigationPaneBackground();
         RefreshTabVisuals();
     }
 
@@ -525,23 +529,25 @@ public sealed partial class MainWindow : Window
         ApplyNavigationPaneBackground();
     }
 
-    private void QueueNavigationPaneBackgroundUpdate() => DispatcherQueue.TryEnqueue(ApplyNavigationPaneBackground);
+    private void QueueNavigationPaneBackgroundUpdate() =>
+        DispatcherQueue.TryEnqueue(() => ApplyNavigationPaneBackground());
 
     private void ApplyNavigationPaneBackground()
     {
-        _navigationSplitView ??= FindDescendant<SplitView>(AppNavigation);
-        if (_navigationSplitView is null) return;
-
         var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
-        // NavigationView's template can still report the process' previous/system theme
-        // during the first layout pass.  The root theme is already resolved at this point
-        // and is also what the navigation labels use, so keep the pane surface in lockstep
-        // with it.  Activation used to hide this mismatch by recalculating the pane later.
-        var isDark = RootGrid.ActualTheme == ElementTheme.Dark;
+        // RequestedTheme is authoritative during construction: ActualTheme can still report
+        // the system theme until the first layout pass has completed.
+        var effectiveTheme = _requestedAppTheme == ElementTheme.Default
+            ? RootGrid.ActualTheme
+            : _requestedAppTheme;
+        var isDark = effectiveTheme == ElementTheme.Dark;
 
         var themeKey = highContrast ? "HighContrast" : isDark ? "Dark" : "Light";
         var themeResources = Application.Current.Resources.ThemeDictionaries[themeKey] as ResourceDictionary;
-        if (themeResources?["PageArcNavigationPaneRestBrush"] is Brush restingBrush)
+        if (themeResources?["PageArcNavigationPaneRestBrush"] is not Brush restingBrush) return;
+
+        _navigationSplitView ??= FindDescendant<SplitView>(AppNavigation);
+        if (_navigationSplitView is not null)
             _navigationSplitView.PaneBackground = restingBrush;
     }
 

@@ -71,11 +71,28 @@
                 DisplayModeChanged="AppNavigation_DisplayModeChanged"
                 SelectionChanged="AppNavigation_SelectionChanged">
                 <NavigationView.Resources>
-                    <!-- WinUI's NavigationView template otherwise supplies its own pane surface,
-                         which is visibly lighter than the custom title bar. -->
-                    <StaticResource x:Key="NavigationViewDefaultPaneBackground" ResourceKey="PageArcToolbarBrush"/>
-                    <StaticResource x:Key="NavigationViewExpandedPaneBackground" ResourceKey="PageArcToolbarBrush"/>
-                    <StaticResource x:Key="NavigationViewTopPaneBackground" ResourceKey="PageArcToolbarBrush"/>
+                    <ResourceDictionary>
+                        <!-- Flat StaticResource aliases are resolved while InitializeComponent is
+                             still using the system theme and remain stale after the saved app theme
+                             is applied. Local theme dictionaries keep the template keys dynamic. -->
+                        <ResourceDictionary.ThemeDictionaries>
+                            <ResourceDictionary x:Key="Light">
+                                <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#FFEAF5F5"/>
+                                <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#FFEAF5F5"/>
+                                <SolidColorBrush x:Key="NavigationViewTopPaneBackground" Color="#FFEAF5F5"/>
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="Dark">
+                                <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#FF132020"/>
+                                <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#FF132020"/>
+                                <SolidColorBrush x:Key="NavigationViewTopPaneBackground" Color="#FF132020"/>
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="HighContrast">
+                                <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="{ThemeResource SystemColorWindowColor}"/>
+                                <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="{ThemeResource SystemColorWindowColor}"/>
+                                <SolidColorBrush x:Key="NavigationViewTopPaneBackground" Color="{ThemeResource SystemColorWindowColor}"/>
+                            </ResourceDictionary>
+                        </ResourceDictionary.ThemeDictionaries>
+                    </ResourceDictionary>
                 </NavigationView.Resources>
                 <NavigationView.MenuItems>
                     <NavigationViewItem x:Uid="Nav_Library" Tag="library">
