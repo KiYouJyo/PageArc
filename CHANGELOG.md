@@ -6,11 +6,11 @@
 - GitHub and Microsoft Store builds now check, download, and install their own channel updates from inside PageArc; the update page no longer opens a Release page, App Installer, or Microsoft Store.
 - Light-mode startup now derives the NavigationView pane surface from the resolved root theme, preventing the initial dark-pane/black-label mismatch.
 - x64 and ARM64 packages now include only their target Windows runtime architecture, and source-only branding masters are excluded from MSIX payloads.
-- The application/package version advances to `1.1` / `1.1.0.0`.
+- The application and GitHub package advance to `1.1` / `1.1.0.0`; the Store package uses monotonic identity version `2026.824.138.0` because the published Store baseline is `2026.824.137.0`.
 
 ### Validation
 - 156/156 automated tests pass and the Release x64 application build succeeds.
-- Separate unsigned GitHub and Microsoft Store x64 packages were generated; both report version `1.1.0.0` and contain `zh-CN`, `ja-JP`, and `en-US` resources. Store identity/publisher validation passes.
+- Separate GitHub and Microsoft Store x64 packages were generated with their channel-specific monotonic versions and `zh-CN`, `ja-JP`, and `en-US` resources. Store identity/publisher validation passes.
 - The final Store MSIX bundle is 302.42 MB, down from 338.02 MB for the 1.0 baseline. Signing, install/launch checks, live update E2E, upload, submission, and publication remain separate acceptance/release gates.
 
 ## [1.0] - 2026-08-22

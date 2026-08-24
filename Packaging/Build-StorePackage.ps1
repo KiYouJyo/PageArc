@@ -78,6 +78,7 @@ $results = foreach ($package in $packages) {
         $packageIdentity = $packageManifest.Package.Identity
         $languages = @($packageManifest.Package.Resources.Resource | Where-Object { $_.Language } | ForEach-Object { $_.Language.ToUpperInvariant() })
         $isMainPackage = $package.Name -eq (Split-Path $mainPackage -Leaf)
+        $calibreBundled = $null -ne ($zip.Entries | Where-Object { $_.FullName -match 'ThirdParty/calibre/runtime/ebook-convert\.exe$' } | Select-Object -First 1)
         [pscustomobject]@{
             File = $package.FullName
             Name = $packageIdentity.Name
@@ -87,12 +88,13 @@ $results = foreach ($package in $packages) {
             PublisherValid = ($packageIdentity.Publisher -eq $expectedPublisher)
             Languages = ($languages -join ',')
             LanguagesValid = (-not $isMainPackage) -or ((@('EN-US','JA-JP','ZH-CN') | Where-Object { $languages -notcontains $_ }).Count -eq 0)
+            CalibreBundled = (-not $isMainPackage) -or $calibreBundled
         }
     } finally { $zip.Dispose() }
 }
-if ($results.NameValid -contains $false -or $results.PublisherValid -contains $false -or $results.LanguagesValid -contains $false) {
+if ($results.NameValid -contains $false -or $results.PublisherValid -contains $false -or $results.LanguagesValid -contains $false -or $results.CalibreBundled -contains $false) {
     $results | Format-Table | Out-String | Write-Error
-    throw 'Store package identity or language validation failed.'
+    throw 'Store package identity, language, or bundled-calibre validation failed.'
 }
 $metadata = [ordered]@{
     channel = 'Microsoft Store'

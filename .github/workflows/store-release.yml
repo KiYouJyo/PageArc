@@ -76,7 +76,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
           [xml]$manifest = Get-Content -Raw Package.Store.appxmanifest
           if ($manifest.Package.Identity.Name -cne 'JoKiy.PageArc') { throw "Store identity mismatch: $($manifest.Package.Identity.Name)" }
-          if ($manifest.Package.Identity.Version -ne '1.1.0.0') { throw "Store version mismatch: $($manifest.Package.Identity.Version)" }
+          if ($manifest.Package.Identity.Version -ne '2026.824.138.0') { throw "Store version mismatch: $($manifest.Package.Identity.Version)" }
+          $source = Join-Path $env:RUNNER_TEMP 'calibre-9.13.0.tar.xz'
+          .\eng\prepare-calibre-runtime.ps1 -Version '9.13.0' -DownloadSource -SourceDestination $source
+          $converter = Resolve-Path 'ThirdParty\calibre\runtime\ebook-convert.exe'
+          & $converter --version
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $source) -or (Get-Item $source).Length -lt 1MB) { throw 'Pinned calibre runtime/source preparation failed.' }
           dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore --nologo
@@ -85,6 +90,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $upload = Get-ChildItem artifacts\store-package-v1.1-release -Filter '*.msixupload' -File | Select-Object -First 1
           if (-not $upload) { throw 'The Store MSIX upload package was not generated.' }
+          if ($upload.Length -lt 250MB) { throw "Store upload package is unexpectedly small and may be missing calibre: $($upload.Length) bytes" }
           "STORE_UPLOAD=$($upload.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload validated Store candidate
@@ -105,7 +111,8 @@ jobs:
           $inputDirectory = Split-Path -Parent $env:STORE_UPLOAD
           msstore publish "$env:GITHUB_WORKSPACE" `
             --inputDirectory "$inputDirectory" `
-            --appId '${{ inputs.product_id }}'
+            --appId '${{ inputs.product_id }}' `
+            --uploadTimeout 1800
           if ($LASTEXITCODE -ne 0) { throw "Microsoft Store submission failed: $LASTEXITCODE" }
 
       - name: Read submission status

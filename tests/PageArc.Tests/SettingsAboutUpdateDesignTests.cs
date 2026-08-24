@@ -80,6 +80,9 @@ public sealed class SettingsAboutUpdateDesignTests
         Assert.DoesNotContain("Launcher.LaunchFileAsync", File.ReadAllText(Path.Combine(root, "Pages", "AboutPage.xaml.cs")), StringComparison.Ordinal);
         Assert.Contains("packageManagement", githubManifest, StringComparison.Ordinal);
         Assert.DoesNotContain("packageManagement", storeManifest, StringComparison.Ordinal);
+        Assert.Contains("Version=\"2026.824.138.0\"", storeManifest, StringComparison.Ordinal);
+        Assert.Contains("prepare-calibre-runtime.ps1", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
+        Assert.Contains("CalibreBundled", File.ReadAllText(Path.Combine(root, "Packaging", "Build-StorePackage.ps1")), StringComparison.Ordinal);
         Assert.Contains("Microsoft Store", channel, StringComparison.Ordinal);
         Assert.Contains("GitHub Releases", channel, StringComparison.Ordinal);
     }

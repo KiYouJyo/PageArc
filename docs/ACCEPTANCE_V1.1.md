@@ -19,7 +19,7 @@ The local artifacts are unsigned preparation candidates. Do not treat package ge
 
 - Upload the generated `.msixupload` only after signing/Partner Center preflight as applicable; wait for an actual flight/listing update newer than the installed Store package.
 - From a Store-installed lower-version build, check for updates. Confirm the OS consent UI is owned by the PageArc window and no Store application/page is opened.
-- Complete download/install, restart, and verify package version `1.1.0.0`, retained LocalState/library data, and correct behavior for cancel, offline, Store service unavailable, and no-update states.
+- Complete download/install, restart, and verify Store package version `2026.824.138.0` with display/application version `1.1`, retained LocalState/library data, and correct behavior for cancel, offline, Store service unavailable, and no-update states.
 
 ## Package and feature smoke tests
 
