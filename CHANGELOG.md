@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1] - 2026-08-24
+
+### Fixed
+- Corrected the light-theme NavigationView resource initialization so a cold launch no longer retains the dark pane surface until the window is minimized or restored.
+
+### Release
+- GitHub package version advances to `1.1.1.0` and Microsoft Store identity version advances to `2026.824.460.0`.
+- This patch supersedes the earlier v1.1.0 package while preserving the accepted GitHub and Microsoft Store in-app update behavior and bundled calibre runtime.
+
 ## [1.1] - 2026-08-24
 
 ### Changed

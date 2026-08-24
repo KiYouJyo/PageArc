@@ -13,13 +13,13 @@ The local artifacts are unsigned preparation candidates. Do not treat package ge
 - Sign the 1.1 GitHub MSIX with the same trusted publisher certificate as the installed lower-version GitHub build.
 - Publish a test Release containing a directly downloadable x64 `.msixbundle` or `.msix`; do not rely on `.appinstaller` or a ZIP wrapper.
 - From the signed lower-version build, check for updates. Confirm PageArc stays in-app through check, download, deployment progress, and the restart-required state.
-- Restart from the update button and verify package/application version `1.1.0.0`, retained LocalState/library data, file/protocol activation, and rollback/error messaging for an invalid signature or interrupted download.
+- Restart from the update button and verify package/application version `1.1.1.0`, retained LocalState/library data, file/protocol activation, and rollback/error messaging for an invalid signature or interrupted download.
 
 ## Microsoft Store channel update
 
 - Upload the generated `.msixupload` only after signing/Partner Center preflight as applicable; wait for an actual flight/listing update newer than the installed Store package.
 - From a Store-installed lower-version build, check for updates. Confirm the OS consent UI is owned by the PageArc window and no Store application/page is opened.
-- Complete download/install, restart, and verify Store package version `2026.824.138.0` with display/application version `1.1`, retained LocalState/library data, and correct behavior for cancel, offline, Store service unavailable, and no-update states.
+- Complete download/install, restart, and verify Store package version `2026.824.460.0` with display/application version `1.1.1`, retained LocalState/library data, and correct behavior for cancel, offline, Store service unavailable, and no-update states.
 
 ## Package and feature smoke tests
 

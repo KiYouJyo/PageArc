@@ -9,8 +9,8 @@ Store 包必须使用 `Package.Store.appxmanifest` 中的身份：
 - Name：`JoKiy.PageArc`
 - Publisher：`CN=C4E4B33A-7B77-4121-897C-7D720A5471F8`
 - PublisherDisplayName：`Jo Kiyō`
-- 当前显示版本：`1.1`
-- 当前 Store 包身份版本：`2026.824.138.0`（必须高于已发布基线 `2026.824.137.0`）
+- 当前显示版本：`1.1.1`
+- 当前 Store 包身份版本：`2026.824.460.0`（必须高于当前已发布版本）
 
 GitHub 侧载包继续使用独立的包身份和更新通道，不得把侧载包上传到 Store。
 
