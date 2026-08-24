@@ -140,10 +140,15 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $publishRoot = Join-Path $env:RUNNER_TEMP 'pagearc-store-publish'
+          $publishLeaf = Join-Path $publishRoot 'candidate'
+          New-Item -ItemType Directory -Path $publishLeaf -Force | Out-Null
+          Copy-Item -LiteralPath $env:STORE_UPLOAD -Destination $publishLeaf
           msstore publish "$env:GITHUB_WORKSPACE" `
-            --inputFile "$env:STORE_UPLOAD" `
+            --inputDirectory "$publishRoot" `
             --appId '${{ inputs.product_id }}' `
-            --uploadTimeout 1800
+            --uploadTimeout 1800 `
+            --verbose
           if ($LASTEXITCODE -ne 0) { throw "Microsoft Store submission failed: $LASTEXITCODE" }
 
       - name: Read submission status
