@@ -11,5 +11,13 @@ public sealed partial class MainWindow
         // desktop geometry measured from Figma nodes 16:3 and 16:346.
         AppNavigation.OpenPaneLength = 240;
         AppNavigation.CompactPaneLength = 64;
+
+        // RootGrid can finish loading before NavigationView has materialized its internal
+        // SplitView.  Refresh again from the control's own Loaded event so a persisted Light
+        // theme cannot leave the initial pane using the process/system Dark brush.  Reset the
+        // cached template part in case WinUI recreated the template during startup.
+        _navigationSplitView = null;
+        ApplyNavigationPaneBackground();
+        QueueNavigationPaneBackgroundUpdate();
     }
 }

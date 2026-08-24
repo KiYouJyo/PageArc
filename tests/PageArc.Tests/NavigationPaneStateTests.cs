@@ -10,6 +10,7 @@ public sealed class NavigationPaneStateTests
         var root = FindRepoRoot();
         var appXaml = File.ReadAllText(Path.Combine(root, "App.xaml"));
         var windowCode = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
+        var navigationLoadedCode = File.ReadAllText(Path.Combine(root, "MainWindow.FigmaConvergence.cs"));
 
         Assert.Contains("#FFEAF5F5", appXaml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("#FF132020", appXaml, StringComparison.OrdinalIgnoreCase);
@@ -27,6 +28,15 @@ public sealed class NavigationPaneStateTests
         Assert.DoesNotContain("AppNavigation.IsPaneOpen || AppNavigation.DisplayMode == NavigationViewDisplayMode.Expanded", windowCode, StringComparison.Ordinal);
         Assert.DoesNotContain("PaneOpening +=", windowCode, StringComparison.Ordinal);
         Assert.DoesNotContain("PaneClosed +=", windowCode, StringComparison.Ordinal);
+
+        var loadedHandler = navigationLoadedCode.IndexOf("AppNavigation_Loaded", StringComparison.Ordinal);
+        var resetTemplatePart = navigationLoadedCode.IndexOf("_navigationSplitView = null", StringComparison.Ordinal);
+        var immediateRefresh = navigationLoadedCode.IndexOf("ApplyNavigationPaneBackground();", StringComparison.Ordinal);
+        var queuedRefresh = navigationLoadedCode.IndexOf("QueueNavigationPaneBackgroundUpdate();", StringComparison.Ordinal);
+        Assert.True(loadedHandler >= 0 && resetTemplatePart > loadedHandler,
+            "NavigationView.Loaded must invalidate the SplitView cached before applying the startup theme.");
+        Assert.True(immediateRefresh > resetTemplatePart && queuedRefresh > immediateRefresh,
+            "NavigationView.Loaded must refresh the pane immediately and again after the current layout pass.");
     }
 
     private static string FindRepoRoot()
