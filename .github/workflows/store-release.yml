@@ -4,11 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Discover the Partner Center app ID or submit the validated package
+        description: Discover, inspect, cancel, or submit the validated package
         required: true
         type: choice
         options:
           - discover
+          - status
+          - cancel
           - submit
         default: discover
       product_id:
@@ -16,7 +18,11 @@ on:
         required: false
         type: string
       confirmation:
-        description: Enter SUBMIT to commit a Store submission
+        description: Enter SUBMIT to commit, or DELETE-<submission ID> to cancel
+        required: false
+        type: string
+      submission_id:
+        description: Exact audited pending submission ID (required for cancel)
         required: false
         type: string
 
@@ -61,6 +67,32 @@ jobs:
           $ErrorActionPreference = 'Stop'
           msstore apps list
           if ($LASTEXITCODE -ne 0) { throw "Could not list Partner Center applications: $LASTEXITCODE" }
+
+      - name: Inspect current Partner Center submission
+        if: inputs.mode == 'status'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace('${{ inputs.product_id }}')) { throw 'Status inspection requires a Partner Center product ID.' }
+          msstore submission status '${{ inputs.product_id }}'
+          if ($LASTEXITCODE -ne 0) { throw "Could not read Store submission status: $LASTEXITCODE" }
+          msstore submission get '${{ inputs.product_id }}'
+          if ($LASTEXITCODE -ne 0) { throw "Could not read Store submission details: $LASTEXITCODE" }
+
+      - name: Cancel audited Partner Center submission
+        if: inputs.mode == 'cancel'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedId = '${{ inputs.submission_id }}'
+          if ([string]::IsNullOrWhiteSpace($expectedId) -or '${{ inputs.confirmation }}' -cne "DELETE-$expectedId") { throw 'Cancellation requires confirmation=DELETE-<exact audited submission ID>.' }
+          if ('${{ inputs.product_id }}' -cne '9NTHMP210H9B') { throw 'Cancellation is restricted to the PageArc product.' }
+          $details = msstore submission get '${{ inputs.product_id }}' | Out-String | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or [string]$details.Id -cne $expectedId) { throw "Pending submission changed; expected $expectedId but found $($details.Id)." }
+          msstore submission delete '${{ inputs.product_id }}' --no-confirm
+          if ($LASTEXITCODE -ne 0) { throw "Could not cancel the audited Store submission: $LASTEXITCODE" }
+          msstore submission status '${{ inputs.product_id }}'
+          if ($LASTEXITCODE -ne 0) { throw "Could not verify Store submission cancellation: $LASTEXITCODE" }
 
       - name: Validate submission authorization
         if: inputs.mode == 'submit'
@@ -108,9 +140,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $inputDirectory = Split-Path -Parent $env:STORE_UPLOAD
           msstore publish "$env:GITHUB_WORKSPACE" `
-            --inputDirectory "$inputDirectory" `
+            --inputFile "$env:STORE_UPLOAD" `
             --appId '${{ inputs.product_id }}' `
             --uploadTimeout 1800
           if ($LASTEXITCODE -ne 0) { throw "Microsoft Store submission failed: $LASTEXITCODE" }
