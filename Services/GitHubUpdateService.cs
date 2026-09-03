@@ -259,16 +259,18 @@ public sealed class GitHubUpdateService
 
             var manager = new PackageManager();
             var operation = manager.AddPackageAsync(new Uri(packagePath), null, DeploymentOptions.ForceApplicationShutdown);
-            operation.Progress = (_, value) =>
+            var deploymentProgress = new Progress<DeploymentProgress>(value =>
             {
                 if (value.percentage is >= 0 and <= 100)
                     progress?.Report(value.percentage);
-            };
-
-            var deployment = await operation;
+            });
+            var deployment = await operation.AsTask(cancellationToken, deploymentProgress);
             Debug.WriteLine($"PageArc update deployment returned: Registered={deployment.IsRegistered}; Error={deployment.ExtendedErrorCode}; Text={deployment.ErrorText}");
-            if (!deployment.IsRegistered || deployment.ExtendedErrorCode is { } error && error != default)
-                return new(UpdateInstallStatus.Failed, deployment.ErrorText ?? error?.Message ?? "Windows package deployment failed.");
+
+            if (!deployment.IsRegistered)
+                return new(UpdateInstallStatus.Failed, deployment.ErrorText ?? "Windows package deployment did not register the update.");
+            if (deployment.ExtendedErrorCode is { } deploymentError && deploymentError != default)
+                return new(UpdateInstallStatus.Failed, deployment.ErrorText ?? deploymentError.Message);
 
             ClearPendingState(deletePackage: true);
             progress?.Report(100);
@@ -394,7 +396,7 @@ public sealed class GitHubUpdateService
 
     private static ReleaseAsset? SelectChecksum(IReadOnlyList<ReleaseAssetPayload>? assets)
     {
-        var checksum = assets?.SingleOrDefault(asset =>
+        var checksum = assets?.FirstOrDefault(asset =>
             string.Equals(asset.Name, "SHA256SUMS.txt", StringComparison.Ordinal) &&
             !string.IsNullOrWhiteSpace(asset.BrowserDownloadUrl) &&
             Uri.TryCreate(asset.BrowserDownloadUrl, UriKind.Absolute, out _));
