@@ -22,7 +22,9 @@ public sealed record UpdateCheckResult(
     string? ReleaseNotes = null,
     Uri? InstallerUri = null,
     string? InstallerName = null,
-    long InstallerSize = 0);
+    long InstallerSize = 0,
+    string? ReleaseTag = null,
+    Uri? ChecksumUri = null);
 
 public enum UpdateInstallStatus
 {

@@ -1,10 +1,14 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.UI.Xaml;
 using PageArc.Models;
+using Windows.ApplicationModel;
 using Windows.Management.Deployment;
 using Windows.Services.Store;
 using Windows.Storage;
@@ -13,12 +17,26 @@ namespace PageArc.Services;
 
 public sealed class GitHubUpdateService
 {
+    public const string ExpectedSignerSubject = "CN=AppPublisher";
+    public const string ExpectedSignerThumbprint = "BD85AD77A651C86CA01A480C8E9BC64952993F98";
     public static readonly Uri LatestReleaseApi = new("https://api.github.com/repos/KiYouJyo/PageArc/releases/latest");
+
     private static readonly HttpClient Client = CreateClient();
+    private readonly IMsixPackageSignatureVerifier _signatureVerifier = new MsixPackageSignatureVerifier();
     private StoreContext? _storeContext;
     private IReadOnlyList<StorePackageUpdate> _pendingStoreUpdates = [];
+    private string? _pendingInstallerPath;
+    private string? _pendingReleaseTag;
+
+    private static string UpdateCacheRoot => Path.Combine(ApplicationData.Current.LocalCacheFolder.Path, "Updates");
+    private static string PendingStatePath => Path.Combine(UpdateCacheRoot, "github-pending-update.json");
 
     public UpdateCheckResult? LastResult { get; private set; }
+
+    public bool IsGitHubUpdateReadyToInstall =>
+        !DistributionChannel.IsStore &&
+        !string.IsNullOrWhiteSpace(_pendingInstallerPath) &&
+        File.Exists(_pendingInstallerPath);
 
     public void InitializeForWindow(Window window)
     {
@@ -31,6 +49,13 @@ public sealed class GitHubUpdateService
     public async Task<UpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
         LastResult = await CheckForUpdatesCoreAsync(cancellationToken);
+        if (!DistributionChannel.IsStore)
+        {
+            if (LastResult.Status == UpdateCheckStatus.UpdateAvailable)
+                LoadPendingState(LastResult);
+            else
+                ClearPendingState(deletePackage: true);
+        }
         return LastResult;
     }
 
@@ -39,6 +64,7 @@ public sealed class GitHubUpdateService
         var localVersion = GetCurrentVersion();
         if (DistributionChannel.IsStore)
             return await CheckStoreUpdatesAsync(localVersion);
+
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, LatestReleaseApi);
@@ -57,14 +83,26 @@ public sealed class GitHubUpdateService
             var payload = await response.Content.ReadFromJsonAsync<ReleasePayload>(cancellationToken: cancellationToken);
             if (payload is null ||
                 !VersionParser.TryParseTag(payload.TagName, out var remoteVersion) ||
+                string.IsNullOrWhiteSpace(payload.TagName) ||
                 string.IsNullOrWhiteSpace(payload.HtmlUrl) ||
                 !Uri.TryCreate(payload.HtmlUrl, UriKind.Absolute, out var releaseUri))
                 return new(UpdateCheckStatus.InvalidResponse, localVersion);
 
             var installer = SelectInstaller(payload.Assets);
+            var checksum = SelectChecksum(payload.Assets);
             return remoteVersion.CompareTo(VersionParser.Normalize(localVersion)) > 0
-                ? new(UpdateCheckStatus.UpdateAvailable, localVersion, remoteVersion, releaseUri, payload.Name, payload.Body,
-                    installer?.Uri, installer?.Name, installer?.Size ?? 0)
+                ? new(
+                    UpdateCheckStatus.UpdateAvailable,
+                    localVersion,
+                    remoteVersion,
+                    releaseUri,
+                    payload.Name,
+                    payload.Body,
+                    installer?.Uri,
+                    installer?.Name,
+                    installer?.Size ?? 0,
+                    payload.TagName,
+                    checksum?.Uri)
                 : new(UpdateCheckStatus.UpToDate, localVersion, remoteVersion, releaseUri, payload.Name, payload.Body);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -91,16 +129,18 @@ public sealed class GitHubUpdateService
         if (update.InstallerUri is null || string.IsNullOrWhiteSpace(update.InstallerName))
             throw new InvalidOperationException("The release does not contain a compatible Windows installer asset.");
 
+        Directory.CreateDirectory(UpdateCacheRoot);
         var safeName = Path.GetFileName(update.InstallerName);
-        var file = await ApplicationData.Current.TemporaryFolder.CreateFileAsync(safeName, CreationCollisionOption.ReplaceExisting);
+        var packagePath = Path.Combine(UpdateCacheRoot, safeName);
+        var file = await StorageFile.GetFileFromPathAsync(await EnsurePackageFileAsync(packagePath));
+
         using var request = new HttpRequestMessage(HttpMethod.Get, update.InstallerUri);
         request.Headers.UserAgent.ParseAdd($"PageArc/{update.LocalVersion.Major}.{update.LocalVersion.Minor}.{update.LocalVersion.Build}");
         using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
         var total = response.Content.Headers.ContentLength;
         await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var destination = await file.OpenStreamForWriteAsync();
-        destination.SetLength(0);
+        await using var destination = new FileStream(packagePath, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, useAsync: true);
         var buffer = new byte[128 * 1024];
         long received = 0;
         int count;
@@ -114,33 +154,66 @@ public sealed class GitHubUpdateService
         return file;
     }
 
-    public async Task<UpdateInstallResult> DownloadAndInstallAsync(
+    /// <summary>
+    /// GitHub channel phase 1: download the package, verify SHA-256 and the pinned
+    /// signing certificate, then persist the verified package for the explicit
+    /// "Restart to update" action. No registration is attempted while PageArc is running.
+    /// </summary>
+    public async Task<UpdateInstallResult> DownloadAndPrepareAsync(
         UpdateCheckResult update,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (DistributionChannel.IsStore)
             return await InstallStoreUpdatesAsync(progress, cancellationToken);
+        if (update.InstallerUri is null || string.IsNullOrWhiteSpace(update.InstallerName) ||
+            update.ChecksumUri is null || string.IsNullOrWhiteSpace(update.ReleaseTag))
+            return new(UpdateInstallStatus.Failed, "The release is missing its MSIX package or SHA256SUMS.txt.");
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            var expectedHash = await DownloadExpectedHashAsync(update, cancellationToken);
+            if (expectedHash is null)
+                return new(UpdateInstallStatus.Failed, "SHA256SUMS.txt does not contain the selected package hash.");
+
             var downloadProgress = progress is null
                 ? null
-                : new Progress<double>(value => progress.Report(value * 0.8d));
+                : new Progress<double>(value => progress.Report(value * 0.85d));
             var file = await DownloadInstallerAsync(update, downloadProgress, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            var manager = new PackageManager();
-            var options = new AddPackageOptions
+
+            progress?.Report(88);
+            string actualHash;
+            await using (var stream = File.OpenRead(file.Path))
+                actualHash = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken));
+            if (!actualHash.Equals(expectedHash, StringComparison.OrdinalIgnoreCase))
             {
-                // PageArc is part of the package being replaced. Stage and register the
-                // signed update as soon as this process closes instead of opening App Installer.
-                DeferRegistrationWhenPackagesAreInUse = true
-            };
-            var deploymentOperation = manager.AddPackageByUriAsync(new Uri(file.Path), options);
-            deploymentOperation.Progress = (_, value) => progress?.Report(80d + value.percentage * 0.2d);
-            var deployment = await deploymentOperation;
-            if (deployment.ExtendedErrorCode is { } error && error != default)
-                return new(UpdateInstallStatus.Failed, deployment.ErrorText ?? error.Message);
+                TryDeleteFile(file.Path);
+                return new(UpdateInstallStatus.Failed, "The downloaded package failed SHA-256 verification.");
+            }
+
+            progress?.Report(94);
+            var signature = _signatureVerifier.Verify(file.Path);
+            if (!signature.IsValid ||
+                !ExpectedSignerSubject.Equals(signature.SignerSubject, StringComparison.Ordinal) ||
+                !ExpectedSignerThumbprint.Equals(signature.SignerThumbprint, StringComparison.OrdinalIgnoreCase))
+            {
+                TryDeleteFile(file.Path);
+                var reason = !signature.IsValid
+                    ? signature.FailureCode
+                    : !ExpectedSignerSubject.Equals(signature.SignerSubject, StringComparison.Ordinal)
+                        ? "SignerSubjectMismatch"
+                        : "SignerThumbprintMismatch";
+                return new(UpdateInstallStatus.Failed, $"Package signature verification failed: {reason}.");
+            }
+
+            if (!string.Equals(_pendingInstallerPath, file.Path, StringComparison.OrdinalIgnoreCase))
+                TryDeleteFile(_pendingInstallerPath);
+            _pendingInstallerPath = file.Path;
+            _pendingReleaseTag = update.ReleaseTag;
+            SavePendingState(update.ReleaseTag, file.Path);
+            progress?.Report(100);
             return new(UpdateInstallStatus.RestartRequired);
         }
         catch (OperationCanceledException)
@@ -151,6 +224,91 @@ public sealed class GitHubUpdateService
         {
             return new(UpdateInstallStatus.Failed, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// GitHub channel phase 2. This deliberately mirrors SpatialViewer: Windows
+    /// PackageManager owns shutdown of the in-use old package, while
+    /// RegisterApplicationRestart asks Windows to launch the newly registered package.
+    /// This avoids the previous race between deferred registration and AppInstance.Restart.
+    /// </summary>
+    public async Task<UpdateInstallResult> InstallPreparedUpdateAsync(
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (DistributionChannel.IsStore)
+            return new(UpdateInstallStatus.Failed, "Microsoft Store updates are installed through StoreContext.");
+
+        if (!IsGitHubUpdateReadyToInstall)
+        {
+            if (LastResult is { Status: UpdateCheckStatus.UpdateAvailable } update)
+                LoadPendingState(update);
+            if (!IsGitHubUpdateReadyToInstall)
+                return new(UpdateInstallStatus.Failed, "No verified update is ready to install.");
+        }
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var packagePath = _pendingInstallerPath!;
+            var packageInfo = new FileInfo(packagePath);
+            Debug.WriteLine($"PageArc update deployment starting: Package={packagePath}; Bytes={packageInfo.Length}; Current={Package.Current.Id.FullName}");
+
+            using var restart = ApplicationRestartRegistration.Register(out var restartHresult);
+            Debug.WriteLine($"RegisterApplicationRestart HRESULT=0x{restartHresult:X8}");
+
+            var manager = new PackageManager();
+            var operation = manager.AddPackageAsync(new Uri(packagePath), null, DeploymentOptions.ForceApplicationShutdown);
+            var deploymentProgress = new Progress<DeploymentProgress>(value =>
+            {
+                if (value.percentage is >= 0 and <= 100)
+                    progress?.Report(value.percentage);
+            });
+            var deployment = await operation.AsTask(cancellationToken, deploymentProgress);
+            Debug.WriteLine($"PageArc update deployment returned: Registered={deployment.IsRegistered}; Error={deployment.ExtendedErrorCode}; Text={deployment.ErrorText}");
+
+            if (!deployment.IsRegistered)
+                return new(UpdateInstallStatus.Failed, deployment.ErrorText ?? "Windows package deployment did not register the update.");
+            if (deployment.ExtendedErrorCode is { } deploymentError && deploymentError != default)
+                return new(UpdateInstallStatus.Failed, deployment.ErrorText ?? deploymentError.Message);
+
+            ClearPendingState(deletePackage: true);
+            progress?.Report(100);
+            return new(UpdateInstallStatus.Completed);
+        }
+        catch (OperationCanceledException)
+        {
+            return new(UpdateInstallStatus.Canceled);
+        }
+        catch (COMException ex)
+        {
+            return new(UpdateInstallStatus.Failed, $"0x{ex.HResult:X8}: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return new(UpdateInstallStatus.Failed, ex.Message);
+        }
+    }
+
+    // Backward-compatible entry point retained for Store and older callers. On the
+    // GitHub channel it now performs only the verified preparation phase.
+    public Task<UpdateInstallResult> DownloadAndInstallAsync(
+        UpdateCheckResult update,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        DistributionChannel.IsStore
+            ? InstallStoreUpdatesAsync(progress, cancellationToken)
+            : DownloadAndPrepareAsync(update, progress, cancellationToken);
+
+    private async Task<string?> DownloadExpectedHashAsync(UpdateCheckResult update, CancellationToken cancellationToken)
+    {
+        if (update.ChecksumUri is null || string.IsNullOrWhiteSpace(update.InstallerName)) return null;
+        using var request = new HttpRequestMessage(HttpMethod.Get, update.ChecksumUri);
+        request.Headers.UserAgent.ParseAdd($"PageArc/{update.LocalVersion.Major}.{update.LocalVersion.Minor}.{update.LocalVersion.Build}");
+        using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var checksumText = await response.Content.ReadAsStringAsync(cancellationToken);
+        return ParseChecksum(checksumText, update.InstallerName);
     }
 
     private async Task<UpdateCheckResult> CheckStoreUpdatesAsync(Version localVersion)
@@ -209,8 +367,16 @@ public sealed class GitHubUpdateService
 
     private static Version GetCurrentVersion()
     {
-        var assemblyVersion = typeof(App).Assembly.GetName().Version;
-        return VersionParser.Normalize(assemblyVersion ?? new Version(0, 1, 0));
+        try
+        {
+            var packageVersion = Package.Current.Id.Version;
+            return VersionParser.Normalize(new Version(packageVersion.Major, packageVersion.Minor, packageVersion.Build, packageVersion.Revision));
+        }
+        catch
+        {
+            var assemblyVersion = typeof(App).Assembly.GetName().Version;
+            return VersionParser.Normalize(assemblyVersion ?? new Version(0, 1, 0));
+        }
     }
 
     private static ReleaseAsset? SelectInstaller(IReadOnlyList<ReleaseAssetPayload>? assets)
@@ -228,6 +394,17 @@ public sealed class GitHubUpdateService
             .FirstOrDefault();
     }
 
+    private static ReleaseAsset? SelectChecksum(IReadOnlyList<ReleaseAssetPayload>? assets)
+    {
+        var checksum = assets?.FirstOrDefault(asset =>
+            string.Equals(asset.Name, "SHA256SUMS.txt", StringComparison.Ordinal) &&
+            !string.IsNullOrWhiteSpace(asset.BrowserDownloadUrl) &&
+            Uri.TryCreate(asset.BrowserDownloadUrl, UriKind.Absolute, out _));
+        return checksum is null
+            ? null
+            : new ReleaseAsset(checksum.Name!, new Uri(checksum.BrowserDownloadUrl!), checksum.Size, 0);
+    }
+
     private static int InstallerPriority(string name)
     {
         var lower = name.ToLowerInvariant();
@@ -238,6 +415,85 @@ public sealed class GitHubUpdateService
         if (lower.Contains("x64", StringComparison.Ordinal) && lower.EndsWith(".msix", StringComparison.Ordinal)) return 1;
         if (lower.EndsWith(".msix", StringComparison.Ordinal)) return 2;
         return int.MaxValue;
+    }
+
+    private static string? ParseChecksum(string content, string fileName)
+    {
+        foreach (var rawLine in content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var line = rawLine.Trim();
+            var separator = line.IndexOfAny([' ', '\t']);
+            if (separator <= 0) continue;
+            var hash = line[..separator].Trim();
+            var name = line[separator..].Trim().TrimStart('*');
+            if (hash.Length == 64 && name.Equals(fileName, StringComparison.Ordinal) && hash.All(Uri.IsHexDigit))
+                return hash.ToUpperInvariant();
+        }
+        return null;
+    }
+
+    private void LoadPendingState(UpdateCheckResult update)
+    {
+        _pendingInstallerPath = null;
+        _pendingReleaseTag = null;
+        try
+        {
+            if (!File.Exists(PendingStatePath)) return;
+            var state = JsonSerializer.Deserialize<PendingUpdateState>(File.ReadAllText(PendingStatePath));
+            if (state is null ||
+                !string.Equals(state.ReleaseTag, update.ReleaseTag, StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(state.PackagePath) ||
+                !File.Exists(state.PackagePath))
+                return;
+            _pendingInstallerPath = state.PackagePath;
+            _pendingReleaseTag = state.ReleaseTag;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"PageArc pending update state load failed: {ex.Message}");
+        }
+    }
+
+    private static void SavePendingState(string releaseTag, string packagePath)
+    {
+        Directory.CreateDirectory(UpdateCacheRoot);
+        File.WriteAllText(PendingStatePath, JsonSerializer.Serialize(new PendingUpdateState(releaseTag, packagePath)));
+    }
+
+    private void ClearPendingState(bool deletePackage)
+    {
+        var packagePath = _pendingInstallerPath;
+        _pendingInstallerPath = null;
+        _pendingReleaseTag = null;
+        if (deletePackage) TryDeleteFile(packagePath);
+        try
+        {
+            if (File.Exists(PendingStatePath)) File.Delete(PendingStatePath);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"PageArc pending update state cleanup failed: {ex.Message}");
+        }
+    }
+
+    private static async Task<string> EnsurePackageFileAsync(string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        if (!File.Exists(path))
+            await File.WriteAllBytesAsync(path, []);
+        return path;
+    }
+
+    private static void TryDeleteFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        try
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch
+        {
+        }
     }
 
     private static HttpClient CreateClient() => new() { Timeout = TimeSpan.FromMinutes(10) };
@@ -255,4 +511,27 @@ public sealed class GitHubUpdateService
         [property: JsonPropertyName("size")] long Size);
 
     private sealed record ReleaseAsset(string Name, Uri Uri, long Size, int Priority);
+    private sealed record PendingUpdateState(string ReleaseTag, string PackagePath);
+}
+
+internal static class ApplicationRestartRegistration
+{
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern int RegisterApplicationRestart(string? commandLine, uint flags);
+
+    public static IDisposable Register(out int hresult)
+    {
+        hresult = RegisterApplicationRestart(null, 0);
+        if (hresult != 0) Marshal.ThrowExceptionForHR(hresult);
+        return new Registration();
+    }
+
+    private sealed class Registration : IDisposable
+    {
+        public void Dispose()
+        {
+            var result = RegisterApplicationRestart(string.Empty, 0);
+            if (result != 0) Debug.WriteLine($"RegisterApplicationRestart cleanup returned 0x{result:X8}.");
+        }
+    }
 }

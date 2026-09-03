@@ -62,12 +62,16 @@ public sealed partial class AboutPage : Page
     {
         if (_restartRequired)
         {
-            Microsoft.Windows.AppLifecycle.AppInstance.Restart(string.Empty);
-            // A successful restart terminates this process. Reaching this line means
-            // Windows could not restart it automatically, so keep a truthful fallback.
-            UpdateStatusText.Text = LocalText("请关闭并重新打开 PageArc 以完成更新。", "更新を完了するには PageArc を閉じて再度開いてください。", "Close and reopen PageArc to finish the update.");
+            if (!DistributionChannel.IsStore && App.Updates.IsGitHubUpdateReadyToInstall)
+            {
+                await InstallPreparedGitHubUpdateAsync();
+                return;
+            }
+
+            RestartAfterCompletedDeployment();
             return;
         }
+
         if (_pendingUpdate is { Status: UpdateCheckStatus.UpdateAvailable } pending)
         {
             await DownloadAndInstallUpdateAsync(pending);
@@ -95,6 +99,15 @@ public sealed partial class AboutPage : Page
             ? $"v{result.RemoteVersion.Major}.{result.RemoteVersion.Minor}.{result.RemoteVersion.Build}"
             : "—";
         ReleaseNotesText.Text = ReleaseNotesPresentation.ForLanguage(result.ReleaseNotes, App.Localization.CurrentLanguage);
+
+        if (!DistributionChannel.IsStore &&
+            result.Status == UpdateCheckStatus.UpdateAvailable &&
+            App.Updates.IsGitHubUpdateReadyToInstall)
+        {
+            ShowPreparedGitHubUpdateState();
+            return;
+        }
+
         switch (result.Status)
         {
             case UpdateCheckStatus.UpdateAvailable:
@@ -105,11 +118,15 @@ public sealed partial class AboutPage : Page
                     ? LocalText("Microsoft Store 更新已就绪", "Microsoft Store の更新を利用できます", "A Microsoft Store update is ready")
                     : result.InstallerUri is null
                     ? LocalText("此版本没有可在应用内安装的 MSIX 包。", "このバージョンにはアプリ内インストール対応の MSIX パッケージがありません。", "This release has no MSIX package supported for in-app installation.")
+                    : result.ChecksumUri is null
+                    ? LocalText("此版本缺少 SHA256SUMS.txt，已阻止应用内更新。", "SHA256SUMS.txt がないためアプリ内更新を停止しました。", "SHA256SUMS.txt is missing, so in-app update was blocked.")
                     : LocalText($"已找到 {result.InstallerName}", $"{result.InstallerName} が見つかりました", $"Found {result.InstallerName}");
                 UpdateInfoBar.IsOpen = showNotification;
-                UpdateActionText.Text = DistributionChannel.IsStore || result.InstallerUri is not null
+                UpdateActionText.Text = DistributionChannel.IsStore
                     ? LocalText("下载并安装", "ダウンロードしてインストール", "Download and install")
-                    : App.Localization.GetString("About_CheckUpdatesText.Text");
+                    : result.InstallerUri is not null && result.ChecksumUri is not null
+                        ? LocalText("下载并验证", "ダウンロードして検証", "Download and verify")
+                        : App.Localization.GetString("About_CheckUpdatesText.Text");
                 break;
             case UpdateCheckStatus.UpToDate:
                 UpdateStatusText.Text = App.Localization.GetString("Update_UpToDate");
@@ -130,8 +147,20 @@ public sealed partial class AboutPage : Page
         }
     }
 
+    private void ShowPreparedGitHubUpdateState()
+    {
+        _restartRequired = true;
+        _pendingUpdate = null;
+        UpdateStatusText.Text = LocalText(
+            "更新包已完成 SHA-256 与签名验证，点击“重启并更新”后由 Windows 安装并重新启动 PageArc。",
+            "更新パッケージの SHA-256 と署名を検証済みです。「再起動して更新」を押すと Windows がインストールして PageArc を再起動します。",
+            "The update package passed SHA-256 and signature verification. Restart to update lets Windows install it and relaunch PageArc.");
+        UpdateActionText.Text = LocalText("重启并更新", "再起動して更新", "Restart to update");
+    }
+
     private void ResetUpdateAction()
     {
+        _restartRequired = false;
         UpdateActionText.Text = App.Localization.GetString("About_CheckUpdatesText.Text");
         UpdateInfoBar.IsOpen = false;
     }
@@ -146,35 +175,46 @@ public sealed partial class AboutPage : Page
 
     private async Task DownloadAndInstallUpdateAsync(UpdateCheckResult update)
     {
-        if (!DistributionChannel.IsStore && update.InstallerUri is null)
+        if (!DistributionChannel.IsStore && (update.InstallerUri is null || update.ChecksumUri is null))
         {
-            UpdateStatusText.Text = LocalText("此版本没有可在应用内安装的 MSIX 包。", "このバージョンにはアプリ内でインストールできる MSIX パッケージがありません。", "This release has no MSIX package that can be installed in-app.");
+            UpdateStatusText.Text = LocalText(
+                "此版本缺少可验证的 MSIX 包或 SHA256SUMS.txt，无法在应用内更新。",
+                "検証可能な MSIX パッケージまたは SHA256SUMS.txt がないため、アプリ内で更新できません。",
+                "This release is missing a verifiable MSIX package or SHA256SUMS.txt and cannot be updated in-app.");
             return;
         }
 
         CheckUpdatesButton.IsEnabled = false;
         DownloadProgress.Visibility = Visibility.Visible;
         DownloadProgress.Value = 0;
-        UpdateStatusText.Text = LocalText("正在下载并安装更新…", "更新をダウンロードしてインストールしています…", "Downloading and installing the update…");
+        UpdateStatusText.Text = DistributionChannel.IsStore
+            ? LocalText("正在下载并安装更新…", "更新をダウンロードしてインストールしています…", "Downloading and installing the update…")
+            : LocalText("正在下载并验证更新…", "更新をダウンロードして検証しています…", "Downloading and verifying the update…");
         try
         {
             var progress = new Progress<double>(value => DownloadProgress.Value = value);
-            var result = await App.Updates.DownloadAndInstallAsync(update, progress);
+            var result = DistributionChannel.IsStore
+                ? await App.Updates.DownloadAndInstallAsync(update, progress)
+                : await App.Updates.DownloadAndPrepareAsync(update, progress);
             switch (result.Status)
             {
-                case UpdateInstallStatus.Completed:
-                case UpdateInstallStatus.RestartRequired:
+                case UpdateInstallStatus.Completed when DistributionChannel.IsStore:
                     _restartRequired = true;
                     _pendingUpdate = null;
-                    UpdateStatusText.Text = LocalText("更新已安装，重启 PageArc 后生效。", "更新をインストールしました。PageArc の再起動後に反映されます。", "The update is installed and will take effect after PageArc restarts.");
+                    UpdateStatusText.Text = LocalText("Microsoft Store 更新已安装，重启 PageArc 后生效。", "Microsoft Store の更新をインストールしました。PageArc の再起動後に反映されます。", "The Microsoft Store update is installed and will take effect after PageArc restarts.");
                     UpdateActionText.Text = LocalText("重启 PageArc", "PageArc を再起動", "Restart PageArc");
+                    break;
+                case UpdateInstallStatus.RestartRequired when !DistributionChannel.IsStore:
+                    ShowPreparedGitHubUpdateState();
                     break;
                 case UpdateInstallStatus.Canceled:
                     UpdateStatusText.Text = LocalText("更新已取消。", "更新をキャンセルしました。", "The update was canceled.");
                     break;
                 default:
                     StartupDiagnostics.Log($"In-app update failed: {result.ErrorMessage}");
-                    UpdateStatusText.Text = App.Localization.GetString("Update_Failed");
+                    UpdateStatusText.Text = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                        ? App.Localization.GetString("Update_Failed")
+                        : LocalText($"更新失败：{result.ErrorMessage}", $"更新に失敗しました：{result.ErrorMessage}", $"Update failed: {result.ErrorMessage}");
                     break;
             }
         }
@@ -188,6 +228,61 @@ public sealed partial class AboutPage : Page
             DownloadProgress.Visibility = Visibility.Collapsed;
             CheckUpdatesButton.IsEnabled = true;
         }
+    }
+
+    private async Task InstallPreparedGitHubUpdateAsync()
+    {
+        CheckUpdatesButton.IsEnabled = false;
+        DownloadProgress.Visibility = Visibility.Visible;
+        DownloadProgress.Value = 0;
+        UpdateStatusText.Text = LocalText(
+            "正在将已验证更新交给 Windows 安装。PageArc 将自动关闭并重新启动…",
+            "検証済みの更新を Windows に渡してインストールしています。PageArc は自動的に終了して再起動します…",
+            "Installing the verified update through Windows. PageArc will close and relaunch automatically…");
+        try
+        {
+            var progress = new Progress<double>(value => DownloadProgress.Value = value);
+            var result = await App.Updates.InstallPreparedUpdateAsync(progress);
+            if (result.Status == UpdateInstallStatus.Completed)
+            {
+                // ForceApplicationShutdown normally terminates this process before the
+                // deployment await returns. If Windows completed registration without
+                // terminating us, a normal AppInstance restart is now safe because the
+                // new package is already fully registered (unlike the old deferred flow).
+                RestartAfterCompletedDeployment();
+                return;
+            }
+
+            if (result.Status == UpdateInstallStatus.Canceled)
+            {
+                UpdateStatusText.Text = LocalText("更新已取消。", "更新をキャンセルしました。", "The update was canceled.");
+                return;
+            }
+
+            StartupDiagnostics.Log($"Verified package deployment failed: {result.ErrorMessage}");
+            UpdateStatusText.Text = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                ? App.Localization.GetString("Update_Failed")
+                : LocalText($"Windows 安装更新失败：{result.ErrorMessage}", $"Windows による更新のインストールに失敗しました：{result.ErrorMessage}", $"Windows failed to install the update: {result.ErrorMessage}");
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("Verified package deployment failed", ex);
+            UpdateStatusText.Text = App.Localization.GetString("Update_Failed");
+        }
+        finally
+        {
+            DownloadProgress.Visibility = Visibility.Collapsed;
+            CheckUpdatesButton.IsEnabled = true;
+        }
+    }
+
+    private void RestartAfterCompletedDeployment()
+    {
+        var failureReason = Microsoft.Windows.AppLifecycle.AppInstance.Restart(string.Empty);
+        UpdateStatusText.Text = LocalText(
+            $"更新已完成，但自动重启失败（{failureReason}）。请关闭并重新打开 PageArc。",
+            $"更新は完了しましたが、自動再起動に失敗しました（{failureReason}）。PageArc を閉じて再度開いてください。",
+            $"The update completed, but automatic restart failed ({failureReason}). Close and reopen PageArc.");
     }
 
     private static string GetPackageVersion(Version fallback)
