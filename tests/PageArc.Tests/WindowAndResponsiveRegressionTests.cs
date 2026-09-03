@@ -22,18 +22,32 @@ public sealed class WindowAndResponsiveRegressionTests
     }
 
     [Fact]
-    public void LibraryAndLightThemeUseResponsiveNonOverlayLayout()
+    public void LibraryAndNavigationUseSpatialViewerNativeResponsiveLifecycle()
     {
         var root = FindRepoRoot();
         var library = File.ReadAllText(Path.Combine(root, "Pages", "LibraryPage.xaml"));
+        var mainWindowXaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
+        var convergence = File.ReadAllText(Path.Combine(root, "MainWindow.FigmaConvergence.cs"));
         var window = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
         var appXaml = File.ReadAllText(Path.Combine(root, "App.xaml"));
 
         Assert.Contains("x:Name=\"LibraryWidthStates\"", library, StringComparison.Ordinal);
         Assert.Contains("AdaptiveTrigger MinWindowWidth=\"1200\"", library, StringComparison.Ordinal);
         Assert.Contains("HeaderActions.(Grid.Row)", library, StringComparison.Ordinal);
-        Assert.Contains("NavigationViewPaneDisplayMode.Left", window, StringComparison.Ordinal);
-        Assert.Contains("NavigationViewPaneDisplayMode.LeftCompact", window, StringComparison.Ordinal);
+
+        // SpatialViewer lets NavigationView.Auto own the hamburger state. PageArc must
+        // not reopen/collapse the pane from a SizeChanged or DisplayModeChanged callback.
+        Assert.Contains("PaneDisplayMode=\"Auto\"", mainWindowXaml, StringComparison.Ordinal);
+        Assert.Contains("OpenPaneLength=\"252\"", mainWindowXaml, StringComparison.Ordinal);
+        Assert.Contains("CompactPaneLength=\"64\"", mainWindowXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("SizeChanged=\"WorkspaceHost_SizeChanged\"", mainWindowXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("DisplayModeChanged=\"AppNavigation_DisplayModeChanged\"", mainWindowXaml, StringComparison.Ordinal);
+        Assert.Contains("AppNavigation.OpenPaneLength = 252", convergence, StringComparison.Ordinal);
+        Assert.Contains("AppNavigation.CompactPaneLength = 64", convergence, StringComparison.Ordinal);
+        Assert.Contains("AppNavigation.PaneOpening", convergence, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppNavigation.IsPaneOpen", convergence, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppNavigation.PaneDisplayMode", convergence, StringComparison.Ordinal);
+
         Assert.Contains("PageArcWindowBackgroundBrush", appXaml, StringComparison.Ordinal);
         Assert.DoesNotContain("229, 249, 249", window, StringComparison.Ordinal);
     }
