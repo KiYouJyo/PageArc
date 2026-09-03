@@ -45,7 +45,7 @@ jobs:
           $service = Get-Content Services\GitHubUpdateService.cs -Raw
           $about = Get-Content Pages\AboutPage.xaml.cs -Raw
           $verifier = Get-Content Services\MsixPackageSignatureVerifier.cs -Raw
-          foreach ($required in @('DeploymentOptions.ForceApplicationShutdown','ApplicationRestartRegistration.Register','SHA256SUMS.txt','InstallPendingUpdateAsync')) {
+          foreach ($required in @('DeploymentOptions.ForceApplicationShutdown','ApplicationRestartRegistration.Register','SHA256SUMS.txt','InstallPreparedUpdateAsync')) {
             if (-not ($service.Contains($required) -or $about.Contains($required))) { throw "Updater contract missing: $required" }
           }
           foreach ($required in @('WinVerifyTrust','AppxSignature.p7x','SignedCms')) {
