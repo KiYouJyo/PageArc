@@ -76,9 +76,11 @@
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
+            <!-- Legacy content cards now use the same neutral Fluent surface as Settings/About.
+                 Keep PageArcCardStyle for compatibility so existing pages change color without layout churn. -->
             <Style x:Key="PageArcCardStyle" TargetType="Border">
-                <Setter Property="Background" Value="{ThemeResource PageArcCardBrush}"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource PageArcCardStrokeBrush}"/>
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="Padding" Value="16"/>
