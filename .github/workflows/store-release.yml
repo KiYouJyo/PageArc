@@ -25,6 +25,9 @@ on:
         description: Exact audited pending submission ID (required for cancel)
         required: false
         type: string
+  push:
+    branches:
+      - publish/v1.2-one-shot
 
 permissions:
   contents: read
@@ -37,12 +40,14 @@ jobs:
   partner-center:
     runs-on: windows-2025-vs2026
     timeout-minutes: 75
+    env:
+      STORE_PRODUCT_ID: ${{ github.event_name == 'push' && '9NTHMP210H9B' || inputs.product_id }}
 
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v5
-        if: inputs.mode == 'submit'
+        if: github.event_name == 'push' || inputs.mode == 'submit'
         with:
           dotnet-version: 10.0.x
 
@@ -61,7 +66,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Partner Center authentication failed: $LASTEXITCODE" }
 
       - name: List Partner Center applications
-        if: inputs.mode == 'discover'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'discover'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -69,46 +74,52 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Could not list Partner Center applications: $LASTEXITCODE" }
 
       - name: Inspect current Partner Center submission
-        if: inputs.mode == 'status'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'status'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          if ([string]::IsNullOrWhiteSpace('${{ inputs.product_id }}')) { throw 'Status inspection requires a Partner Center product ID.' }
-          msstore submission status '${{ inputs.product_id }}'
+          if ([string]::IsNullOrWhiteSpace('$env:STORE_PRODUCT_ID')) { throw 'Status inspection requires a Partner Center product ID.' }
+          msstore submission status $env:STORE_PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "Could not read Store submission status: $LASTEXITCODE" }
-          msstore submission get '${{ inputs.product_id }}'
+          msstore submission get $env:STORE_PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "Could not read Store submission details: $LASTEXITCODE" }
 
       - name: Cancel audited Partner Center submission
-        if: inputs.mode == 'cancel'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'cancel'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $expectedId = '${{ inputs.submission_id }}'
           if ([string]::IsNullOrWhiteSpace($expectedId) -or '${{ inputs.confirmation }}' -cne "DELETE-$expectedId") { throw 'Cancellation requires confirmation=DELETE-<exact audited submission ID>.' }
-          if ('${{ inputs.product_id }}' -cne '9NTHMP210H9B') { throw 'Cancellation is restricted to the PageArc product.' }
-          $details = msstore submission get '${{ inputs.product_id }}' | Out-String
+          if ($env:STORE_PRODUCT_ID -cne '9NTHMP210H9B') { throw 'Cancellation is restricted to the PageArc product.' }
+          $details = msstore submission get $env:STORE_PRODUCT_ID | Out-String
           if ($LASTEXITCODE -ne 0 -or $details -notmatch ('"Id"\s*:\s*"' + [regex]::Escape($expectedId) + '"')) { throw "Pending submission changed; expected $expectedId." }
-          msstore submission delete '${{ inputs.product_id }}' --no-confirm
+          msstore submission delete $env:STORE_PRODUCT_ID --no-confirm
           if ($LASTEXITCODE -ne 0) { throw "Could not cancel the audited Store submission: $LASTEXITCODE" }
-          msstore submission status '${{ inputs.product_id }}'
+          msstore submission status $env:STORE_PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "Could not verify Store submission cancellation: $LASTEXITCODE" }
 
       - name: Validate submission authorization
-        if: inputs.mode == 'submit'
+        if: github.event_name == 'push' || inputs.mode == 'submit'
         shell: pwsh
         run: |
-          if ('${{ inputs.confirmation }}' -cne 'SUBMIT') { throw 'Store submission requires confirmation=SUBMIT.' }
-          if ([string]::IsNullOrWhiteSpace('${{ inputs.product_id }}')) { throw 'Store submission requires a Partner Center product ID.' }
+          if ('${{ github.event_name }}' -eq 'push') {
+            if ('${{ github.ref }}' -cne 'refs/heads/publish/v1.2-one-shot') { throw 'Automatic Store publication is restricted to the one-shot v1.2 release branch.' }
+            if ($env:STORE_PRODUCT_ID -cne '9NTHMP210H9B') { throw 'Automatic Store publication resolved an unexpected product ID.' }
+          }
+          else {
+            if ('${{ inputs.confirmation }}' -cne 'SUBMIT') { throw 'Store submission requires confirmation=SUBMIT.' }
+            if ([string]::IsNullOrWhiteSpace($env:STORE_PRODUCT_ID)) { throw 'Store submission requires a Partner Center product ID.' }
+          }
 
       - name: Test and build Microsoft Store package
-        if: inputs.mode == 'submit'
+        if: github.event_name == 'push' || inputs.mode == 'submit'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           [xml]$manifest = Get-Content -Raw Package.Store.appxmanifest
           if ($manifest.Package.Identity.Name -cne 'JoKiy.PageArc') { throw "Store identity mismatch: $($manifest.Package.Identity.Name)" }
-          if ($manifest.Package.Identity.Version -ne '2026.824.460.0') { throw "Store version mismatch: $($manifest.Package.Identity.Version)" }
+          if ($manifest.Package.Identity.Version -ne '2026.903.120.0') { throw "Store version mismatch: $($manifest.Package.Identity.Version)" }
           $source = Join-Path $env:RUNNER_TEMP 'calibre-9.13.0.tar.xz'
           .\eng\prepare-calibre-runtime.ps1 -Version '9.13.0' -DownloadSource -SourceDestination $source
           $converter = Resolve-Path 'ThirdParty\calibre\runtime\ebook-convert.exe'
@@ -118,25 +129,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .\Packaging\Build-StorePackage.ps1 -Configuration Release -Platform x64 -OutputDirectory artifacts\store-package-v1.1.1-release
+          .\Packaging\Build-StorePackage.ps1 -Configuration Release -Platform x64 -OutputDirectory artifacts\store-package-v1.2-release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $upload = Get-ChildItem artifacts\store-package-v1.1.1-release -Filter '*.msixupload' -File | Select-Object -First 1
+          $upload = Get-ChildItem artifacts\store-package-v1.2-release -Filter '*.msixupload' -File | Select-Object -First 1
           if (-not $upload) { throw 'The Store MSIX upload package was not generated.' }
           if ($upload.Length -lt 250MB) { throw "Store upload package is unexpectedly small and may be missing calibre: $($upload.Length) bytes" }
           "STORE_UPLOAD=$($upload.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload validated Store candidate
-        if: inputs.mode == 'submit'
+        if: github.event_name == 'push' || inputs.mode == 'submit'
         uses: actions/upload-artifact@v4
         with:
-          name: PageArc-v1.1.1-Microsoft-Store
-          path: artifacts/store-package-v1.1.1-release
+          name: PageArc-v1.2-Microsoft-Store
+          path: artifacts/store-package-v1.2-release
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
 
       - name: Submit package for Microsoft certification
-        if: inputs.mode == 'submit'
+        if: github.event_name == 'push' || inputs.mode == 'submit'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -146,15 +157,15 @@ jobs:
           Copy-Item -LiteralPath $env:STORE_UPLOAD -Destination $publishLeaf
           msstore publish "$env:GITHUB_WORKSPACE" `
             --inputDirectory "$publishRoot" `
-            --appId '${{ inputs.product_id }}' `
+            --appId $env:STORE_PRODUCT_ID `
             --uploadTimeout 1800 `
             --verbose
           if ($LASTEXITCODE -ne 0) { throw "Microsoft Store submission failed: $LASTEXITCODE" }
 
       - name: Read submission status
-        if: inputs.mode == 'submit'
+        if: github.event_name == 'push' || inputs.mode == 'submit'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          msstore submission status '${{ inputs.product_id }}'
+          msstore submission status $env:STORE_PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "Could not read Store submission status: $LASTEXITCODE" }
