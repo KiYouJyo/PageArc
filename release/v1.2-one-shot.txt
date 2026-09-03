@@ -1,0 +1,4 @@
+PageArc v1.2 one-shot publication trigger.
+
+Source main commit: ca9e67fc43bf9ae5751b5a956cc72d39e7fdaa65
+Channels: GitHub signed release + Microsoft Store submission
