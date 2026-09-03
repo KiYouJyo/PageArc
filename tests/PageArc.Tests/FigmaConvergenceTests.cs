@@ -5,13 +5,16 @@ namespace PageArc.Tests;
 public sealed class FigmaConvergenceTests
 {
     [Fact]
-    public void Shell_UsesMeasuredFigmaPaneGeometryAtRuntime()
+    public void Shell_UsesSpatialViewerPaneGeometryAndNativeAutoLifecycle()
     {
         var root = FindRepoRoot();
         var code = File.ReadAllText(Path.Combine(root, "MainWindow.FigmaConvergence.cs"));
 
-        Assert.Contains("OpenPaneLength = 240", code, StringComparison.Ordinal);
+        Assert.Contains("OpenPaneLength = 252", code, StringComparison.Ordinal);
         Assert.Contains("CompactPaneLength = 64", code, StringComparison.Ordinal);
+        Assert.Contains("AppNavigation.PaneOpening", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppNavigation.IsPaneOpen", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppNavigation.PaneDisplayMode", code, StringComparison.Ordinal);
     }
 
     [Fact]
