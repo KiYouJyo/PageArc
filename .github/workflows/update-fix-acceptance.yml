@@ -44,7 +44,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $service = Get-Content Services\GitHubUpdateService.cs -Raw
           $about = Get-Content Pages\AboutPage.xaml.cs -Raw
-          $verifier = Get-Content Services\MsixBundleSignatureVerifier.cs -Raw
+          $verifier = Get-Content Services\MsixPackageSignatureVerifier.cs -Raw
           foreach ($required in @('DeploymentOptions.ForceApplicationShutdown','ApplicationRestartRegistration.Register','SHA256SUMS.txt','InstallPendingUpdateAsync')) {
             if (-not ($service.Contains($required) -or $about.Contains($required))) { throw "Updater contract missing: $required" }
           }
