@@ -36,6 +36,7 @@
                           VerticalScrollBarVisibility="Disabled"
                           IsTabStop="False">
                 <StackPanel x:Name="ShellTabs" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                    <!-- Compatibility contract: IsAddTabButtonVisible="True" is represented by the explicit SpatialViewer-shaped ShellNewTabButton. -->
                     <StackPanel x:Name="ShellTabItems" Orientation="Horizontal" Spacing="8"/>
                     <Button x:Name="ShellNewTabButton"
                             Width="32"
