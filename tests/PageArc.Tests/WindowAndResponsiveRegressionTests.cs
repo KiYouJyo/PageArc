@@ -47,6 +47,10 @@ public sealed class WindowAndResponsiveRegressionTests
         Assert.Contains("AppNavigation.PaneOpening", convergence, StringComparison.Ordinal);
         Assert.DoesNotContain("AppNavigation.IsPaneOpen", convergence, StringComparison.Ordinal);
         Assert.DoesNotContain("AppNavigation.PaneDisplayMode", convergence, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppNavigation.IsPaneOpen = wide", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("sender.IsPaneOpen = false", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("NavigationViewPaneDisplayMode.LeftCompact", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("NavigationViewPaneDisplayMode.Left;", window, StringComparison.Ordinal);
 
         Assert.Contains("PageArcWindowBackgroundBrush", appXaml, StringComparison.Ordinal);
         Assert.DoesNotContain("229, 249, 249", window, StringComparison.Ordinal);
