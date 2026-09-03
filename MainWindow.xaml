@@ -55,9 +55,10 @@
             </ScrollViewer>
         </Grid>
 
-        <Grid x:Name="WorkspaceHost" Grid.Row="1" SizeChanged="WorkspaceHost_SizeChanged">
+        <Grid x:Name="WorkspaceHost" Grid.Row="1">
             <!-- Match SpatialViewer exactly: title bar and navigation pane share the same
-                 window Mica layer. Do not place an opaque rail behind the hamburger button. -->
+                 window Mica layer. NavigationView.Auto owns compact/expanded transitions;
+                 application resize code must never force IsPaneOpen or PaneDisplayMode. -->
             <NavigationView
                 x:Name="AppNavigation"
                 Background="Transparent"
@@ -65,10 +66,9 @@
                 IsBackButtonVisible="Collapsed"
                 IsPaneToggleButtonVisible="True"
                 PaneDisplayMode="Auto"
-                OpenPaneLength="240"
+                OpenPaneLength="252"
                 CompactPaneLength="64"
                 Loaded="AppNavigation_Loaded"
-                DisplayModeChanged="AppNavigation_DisplayModeChanged"
                 SelectionChanged="AppNavigation_SelectionChanged">
                 <NavigationView.Resources>
                     <!-- Keep WinUI's content surface native and only make the pane chrome transparent,

@@ -5,24 +5,36 @@ namespace PageArc;
 
 public sealed partial class MainWindow
 {
+    private bool _navigationPaneBackgroundHooked;
+
     private void AppNavigation_Loaded(object sender, RoutedEventArgs e)
     {
-        // The previous XAML fallback values are kept for compatibility with the adaptive
-        // shell contract; once the real NavigationView is loaded, use the exact PAGEARC
-        // desktop geometry measured from Figma nodes 16:3 and 16:346.
-        AppNavigation.OpenPaneLength = 240;
+        // Match SpatialViewer's current shell geometry. More importantly, keep the
+        // NavigationView lifecycle native: PaneDisplayMode="Auto" decides when the
+        // pane is expanded, compact or overlaid, and a user collapse is never undone
+        // by a window SizeChanged handler.
+        AppNavigation.OpenPaneLength = 252;
         AppNavigation.CompactPaneLength = 64;
 
+        if (!_navigationPaneBackgroundHooked)
+        {
+            _navigationPaneBackgroundHooked = true;
+            AppNavigation.PaneOpening += (_, _) => QueueNavigationPaneBackgroundUpdate();
+        }
+
         // RootGrid can finish loading before NavigationView has materialized its internal
-        // SplitView.  Refresh again from the control's own Loaded event so a persisted Light
-        // theme cannot leave the initial pane using the process/system Dark brush.  Reset the
-        // cached template part in case WinUI recreated the template during startup.
+        // SplitView. Refresh from the control's own Loaded event and once more on the next
+        // dispatcher turn, mirroring SpatialViewer without mutating IsPaneOpen.
         _navigationSplitView = null;
         ApplyNavigationPaneBackground();
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _navigationSplitView = null;
+            ApplyNavigationPaneBackground();
+        });
 
-        // Loaded can precede NavigationView's final template layout. Synchronize once more
-        // from the first stable LayoutUpdated notification, then detach instead of keeping a
-        // permanent per-frame workaround.
+        // Keep the existing one-shot template-settle guard for cold startup/theme restore.
+        // It only synchronizes the transparent Mica pane brush; it never changes pane state.
         if (!_navigationPaneStartupLayoutPending)
         {
             _navigationPaneStartupLayoutPending = true;

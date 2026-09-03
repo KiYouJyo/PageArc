@@ -522,12 +522,11 @@ public sealed partial class MainWindow : Window
         RefreshTabVisuals();
     }
 
-    private void AppNavigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
-    {
-        if (args.DisplayMode == NavigationViewDisplayMode.Minimal)
-            sender.IsPaneOpen = false;
-        ApplyNavigationPaneBackground();
-    }
+    // Retained as a harmless compatibility callback for older XAML snapshots. SpatialViewer's
+    // rule is authoritative: a display-mode notification may refresh the pane material, but it
+    // must never mutate IsPaneOpen or PaneDisplayMode.
+    private void AppNavigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args) =>
+        QueueNavigationPaneBackgroundUpdate();
 
     private void QueueNavigationPaneBackgroundUpdate() =>
         DispatcherQueue.TryEnqueue(() => ApplyNavigationPaneBackground());
@@ -551,14 +550,10 @@ public sealed partial class MainWindow : Window
             _navigationSplitView.PaneBackground = restingBrush;
     }
 
-    private void WorkspaceHost_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        var wide = e.NewSize.Width >= 1280;
-        var mode = wide ? NavigationViewPaneDisplayMode.Left : NavigationViewPaneDisplayMode.LeftCompact;
-        if (AppNavigation.PaneDisplayMode != mode) AppNavigation.PaneDisplayMode = mode;
-        AppNavigation.IsPaneOpen = wide;
+    // Retained as a harmless compatibility callback for older XAML snapshots. Page content may
+    // respond to width independently, but NavigationView.Auto alone owns hamburger expansion.
+    private void WorkspaceHost_SizeChanged(object sender, SizeChangedEventArgs e) =>
         QueueNavigationPaneBackgroundUpdate();
-    }
 
     private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
     {

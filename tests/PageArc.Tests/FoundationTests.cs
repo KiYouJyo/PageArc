@@ -273,20 +273,24 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public void NavigationShell_UsesFigmaAdaptiveMinimalOverlayBehaviorAndTabs()
+    public void NavigationShell_UsesSpatialViewerNativeAutoBehaviorAndTabs()
     {
         var root = FindRepoRoot();
         var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
-        var code = File.ReadAllText(Path.Combine(root, "MainWindow.xaml.cs"));
+        var convergence = File.ReadAllText(Path.Combine(root, "MainWindow.FigmaConvergence.cs"));
         Assert.Contains("IsBackButtonVisible=\"Collapsed\"", xaml, StringComparison.Ordinal);
         Assert.Contains("PaneDisplayMode=\"Auto\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("OpenPaneLength=\"240\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("OpenPaneLength=\"252\"", xaml, StringComparison.Ordinal);
         Assert.Contains("CompactPaneLength=\"64\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ShellTabs\"", xaml, StringComparison.Ordinal);
         Assert.Contains("IsAddTabButtonVisible=\"True\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("IsPaneOpen=\"True\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("NavigationViewDisplayMode.Minimal", code, StringComparison.Ordinal);
-        Assert.Contains("sender.IsPaneOpen = false", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("SizeChanged=\"WorkspaceHost_SizeChanged\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("DisplayModeChanged=\"AppNavigation_DisplayModeChanged\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("AppNavigation.OpenPaneLength = 252", convergence, StringComparison.Ordinal);
+        Assert.Contains("AppNavigation.CompactPaneLength = 64", convergence, StringComparison.Ordinal);
+        Assert.Contains("AppNavigation.PaneOpening", convergence, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppNavigation.IsPaneOpen", convergence, StringComparison.Ordinal);
         Assert.Contains("x:Uid=\"Nav_Categories\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Uid=\"Nav_Conversion\"", xaml, StringComparison.Ordinal);
         Assert.Contains("Symbol=\"Switch\"", xaml, StringComparison.Ordinal);
