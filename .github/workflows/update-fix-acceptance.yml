@@ -1,0 +1,189 @@
+name: Updater Fix Acceptance
+
+on:
+  push:
+    branches:
+      - acceptance/update-fix
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pagearc-updater-fix-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: Build, sign, install and smoke-test updater fix
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 75
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate source, tests and Release build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate updater contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $service = Get-Content Services\GitHubUpdateService.cs -Raw
+          $about = Get-Content Pages\AboutPage.xaml.cs -Raw
+          foreach ($required in @('DeploymentOptions.ForceApplicationShutdown','ApplicationRestartRegistration.Register','SHA256SUMS.txt','MsixBundleSignatureVerifier','InstallPendingUpdateAsync')) {
+            if (-not ($service.Contains($required) -or $about.Contains($required))) { throw "Updater contract missing: $required" }
+          }
+          foreach ($forbidden in @('DeferRegistrationWhenPackagesAreInUse','AddPackageByUriAsync')) {
+            if ($service.Contains($forbidden)) { throw "Legacy updater path returned: $forbidden" }
+          }
+
+      - name: Prepare bundled calibre runtime and matching source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'PageArc-updater-fix-acceptance'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $source = Join-Path $root 'calibre-9.13.0.tar.xz'
+          .\eng\prepare-calibre-runtime.ps1 -Version '9.13.0' -DownloadSource -SourceDestination $source
+          $converter = Resolve-Path 'ThirdParty\calibre\runtime\ebook-convert.exe'
+          & $converter --version
+          if ($LASTEXITCODE -ne 0) { throw "Bundled ebook-convert runtime failed to start: $LASTEXITCODE" }
+          if (-not (Test-Path $source) -or (Get-Item $source).Length -lt 1MB) { throw 'Matching calibre source archive is missing.' }
+          "ACCEPTANCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CALIBRE_SOURCE=$source" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Load configured PageArc publisher certificate
+        shell: pwsh
+        env:
+          RELEASE_CERTIFICATE_BASE64: ${{ secrets.GH_RELEASE_CERTIFICATE_BASE64 }}
+          RELEASE_CERTIFICATE_PASSWORD: ${{ secrets.GH_RELEASE_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_BASE64) -or [string]::IsNullOrWhiteSpace($env:RELEASE_CERTIFICATE_PASSWORD)) { throw 'Release signing secrets are missing.' }
+          $pfx = Join-Path $env:ACCEPTANCE_ROOT 'release-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:RELEASE_CERTIFICATE_BASE64))
+          $password = ConvertTo-SecureString $env:RELEASE_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          if (-not $cert -or -not $cert.HasPrivateKey) { throw 'Configured certificate could not be imported.' }
+          if ($cert.Subject -cne 'CN=AppPublisher' -or $cert.Thumbprint -cne 'BD85AD77A651C86CA01A480C8E9BC64952993F98') { throw "Unexpected signing certificate: $($cert.Subject) / $($cert.Thumbprint)" }
+          $cer = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-AppPublisher.cer'
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $cert.Thumbprint)) { Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null }
+          Remove-Item $pfx -Force
+          "CERTIFICATE_PATH=$cer" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build x64 MSIX
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:RUNNER_TEMP 'PageArc-updater-fix-AppPackages'
+          dotnet restore PageArc.csproj -p:Configuration=Release -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw "Packaged restore failed: $LASTEXITCODE" }
+          dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore `
+            -p:WindowsPackageType=MSIX `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxPackageSigningEnabled=false `
+            -p:AppxBundle=Never `
+            -p:UapAppxPackageBuildMode=SideloadOnly `
+            -p:AppxPackageDir="$output\"
+          if ($LASTEXITCODE -ne 0) { throw "Packaged build failed: $LASTEXITCODE" }
+          $built = @(Get-ChildItem $output -Recurse -Filter '*.msix' | Where-Object Name -notmatch 'Dependencies' | Sort-Object LastWriteTime -Descending) | Select-Object -First 1
+          if (-not $built) { throw 'No MSIX was produced.' }
+          $msix = Join-Path $env:ACCEPTANCE_ROOT 'PageArc_1.2.0.0_x64_updater-fix-acceptance.msix'
+          Copy-Item $built.FullName $msix -Force
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($msix)
+          try {
+            $entry = $zip.Entries | Where-Object { $_.FullName -match 'ThirdParty/calibre/runtime/ebook-convert\.exe$' } | Select-Object -First 1
+            if (-not $entry -or $entry.Length -eq 0) { throw 'MSIX does not contain bundled ebook-convert.exe.' }
+          } finally { $zip.Dispose() }
+          "MSIX_PATH=$msix" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Sign, verify, install and launch x64 package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $kits = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $signtool = Get-ChildItem (Join-Path $kits 'Windows Kits\10\bin') -Recurse -Filter signtool.exe | Where-Object FullName -match '\\x64\\signtool.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'signtool.exe was not found.' }
+          & $signtool.FullName sign /fd SHA256 /sha1 $env:CERT_THUMBPRINT /tr http://timestamp.digicert.com /td SHA256 $env:MSIX_PATH
+          if ($LASTEXITCODE -ne 0) { throw "Signing failed: $LASTEXITCODE" }
+          & $signtool.FullName verify /pa /v $env:MSIX_PATH
+          if ($LASTEXITCODE -ne 0) { throw "Signature verification failed: $LASTEXITCODE" }
+          $sig = Get-AuthenticodeSignature $env:MSIX_PATH
+          if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -cne $env:CERT_THUMBPRINT) { throw 'Signer verification failed.' }
+          $hash = (Get-FileHash $env:MSIX_PATH -Algorithm SHA256).Hash.ToLowerInvariant()
+          "MSIX_SHA256=$hash" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Get-AppxPackage -Name KiYouJyo.PageArc | Remove-AppxPackage -ErrorAction SilentlyContinue
+          Add-AppxPackage -Path $env:MSIX_PATH -ForceApplicationShutdown
+          $pkg = Get-AppxPackage -Name KiYouJyo.PageArc
+          if (-not $pkg -or $pkg.Version -ne '1.2.0.0') { throw "Installed package validation failed: $($pkg.Version)" }
+          Start-Process explorer.exe -ArgumentList "shell:AppsFolder\$($pkg.PackageFamilyName)!App"
+          Start-Sleep -Seconds 10
+          $process = Get-Process PageArc -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $process) { throw 'Packaged PageArc did not remain running after launch.' }
+          Stop-Process -Id $process.Id -Force
+          Remove-AppxPackage -Package $pkg.PackageFullName -ErrorAction SilentlyContinue
+
+      - name: Assemble acceptance artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v1.2-updater-fix-acceptance'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item $env:MSIX_PATH $dir
+          Copy-Item $env:CERTIFICATE_PATH $dir
+          Copy-Item $env:CALIBRE_SOURCE $dir
+          Copy-Item ThirdParty\calibre\PIN.md (Join-Path $dir 'calibre-PIN.md')
+          Copy-Item THIRD_PARTY_NOTICES.md $dir
+          @'
+          $ErrorActionPreference = 'Stop'
+          function IsAdmin { ([Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
+          if (-not (IsAdmin)) { $p = Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"") -Verb RunAs -Wait -PassThru; exit $p.ExitCode }
+          $root = Split-Path -Parent $PSCommandPath
+          $cert = Join-Path $root 'PageArc-AppPublisher.cer'
+          $msix = Get-ChildItem $root -Filter '*.msix' | Select-Object -First 1
+          $c = [Security.Cryptography.X509Certificates.X509Certificate2]::new($cert)
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue | Where-Object Thumbprint -eq $c.Thumbprint)) { Import-Certificate $cert -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null }
+          Get-AppxPackage -Name KiYouJyo.PageArc | Remove-AppxPackage -ErrorAction SilentlyContinue
+          Add-AppxPackage -Path $msix.FullName -ForceApplicationShutdown
+          Write-Host 'PageArc updater-fix acceptance build installed.' -ForegroundColor Green
+          '@ | ForEach-Object { $_ -replace '(?m)^          ', '' } | Set-Content (Join-Path $dir 'Install.ps1') -Encoding utf8
+          Set-Content (Join-Path $dir 'Install.cmd') -Value @('@echo off','powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1"','if errorlevel 1 pause') -Encoding ascii
+          @(
+            'PageArc v1.2 updater-fix acceptance build',
+            "Source commit: $env:GITHUB_SHA",
+            "Signer: CN=AppPublisher / $env:CERT_THUMBPRINT",
+            "MSIX SHA-256: $env:MSIX_SHA256",
+            'Updater contract: verified two-stage download/install flow, SHA-256 and package signature verification, RegisterApplicationRestart, ForceApplicationShutdown.',
+            'Legacy DeferRegistrationWhenPackagesAreInUse / AddPackageByUriAsync path is absent.',
+            'Validated: tests, Release build, MSIX packaging, signature verification, clean install/version check and packaged launch.',
+            'Install: extract and run Install.cmd. This replaces the currently installed PageArc package for acceptance testing.'
+          ) | Set-Content (Join-Path $dir 'ACCEPTANCE.txt') -Encoding utf8
+          $checksums = foreach ($file in Get-ChildItem $dir -File) { "$((Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($file.Name)" }
+          $checksums | Set-Content (Join-Path $dir 'SHA256SUMS.txt') -Encoding ascii
+          "ARTIFACT_DIR=$dir" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload acceptance package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PageArc-v1.2-updater-fix-acceptance
+          path: ${{ env.ARTIFACT_DIR }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
