@@ -78,7 +78,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          if ([string]::IsNullOrWhiteSpace('$env:STORE_PRODUCT_ID')) { throw 'Status inspection requires a Partner Center product ID.' }
+          if ([string]::IsNullOrWhiteSpace($env:STORE_PRODUCT_ID)) { throw 'Status inspection requires a Partner Center product ID.' }
           msstore submission status $env:STORE_PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "Could not read Store submission status: $LASTEXITCODE" }
           msstore submission get $env:STORE_PRODUCT_ID
