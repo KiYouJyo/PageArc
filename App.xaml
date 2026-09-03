@@ -12,9 +12,9 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="PageArcWindowBackgroundBrush" Color="#00FFFFFF"/>
-                    <!-- Shell chrome is deliberately opaque: book content must never show through navigation. -->
-                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#FFEAF5F5"/>
-                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#FFEAF5F5"/>
+                    <!-- Match SpatialViewer: title bar and navigation pane share the window Mica layer. -->
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="Transparent"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="Transparent"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00FFFFFF"/>
                     <SolidColorBrush x:Key="PageArcPaneBrush" Color="#FFEAF5F5"/>
                     <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#FFEAF5F5"/>
@@ -34,8 +34,8 @@
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="PageArcWindowBackgroundBrush" Color="#00000000"/>
-                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="#FF132020"/>
-                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="#FF132020"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneBrush" Color="Transparent"/>
+                    <SolidColorBrush x:Key="PageArcNavigationPaneRestBrush" Color="Transparent"/>
                     <SolidColorBrush x:Key="PageArcCanvasBrush" Color="#00000000"/>
                     <SolidColorBrush x:Key="PageArcPaneBrush" Color="#FF132020"/>
                     <SolidColorBrush x:Key="PageArcToolbarBrush" Color="#FF132020"/>
@@ -83,18 +83,22 @@
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="Padding" Value="16"/>
             </Style>
+            <!-- Settings/About deliberately mirror SpatialViewer's neutral Fluent double-card hierarchy.
+                 Product teal is shell chrome only; ordinary content cards use WinUI theme resources. -->
             <Style x:Key="PageArcSectionStyle" TargetType="Border">
-                <Setter Property="Background" Value="{ThemeResource PageArcSectionBrush}"/>
-                <Setter Property="BorderBrush" Value="Transparent"/>
-                <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="CornerRadius" Value="10"/>
-                <Setter Property="Padding" Value="20"/>
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="16"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
             </Style>
             <Style x:Key="PageArcInsetStyle" TargetType="Border">
-                <Setter Property="Background" Value="{ThemeResource PageArcInsetBrush}"/>
-                <Setter Property="BorderBrush" Value="Transparent"/>
-                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
             </Style>
         </ResourceDictionary>
     </Application.Resources>

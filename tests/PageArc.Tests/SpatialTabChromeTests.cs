@@ -39,6 +39,20 @@ public sealed class SpatialTabChromeTests
         Assert.Contains("visual.HeaderText.Opacity = 1", chrome, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void NavigationPane_SharesTitleBarMicaWithoutExtraTintLayer()
+    {
+        var root = FindRepoRoot();
+        var xaml = File.ReadAllText(Path.Combine(root, "MainWindow.xaml"));
+        var resources = File.ReadAllText(Path.Combine(root, "App.xaml"));
+
+        Assert.Contains("ResourceKey=\"PageArcNavigationPaneBrush\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("NavigationViewBorderThickness\">0", xaml, StringComparison.Ordinal);
+        Assert.Contains("NavigationViewPaneContentGridMargin\">0", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Background=\"{ThemeResource PageArcToolbarBrush}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"PageArcNavigationPaneBrush\" Color=\"Transparent\"", resources, StringComparison.Ordinal);
+    }
+
     private static string FindRepoRoot()
     {
         string? current = AppContext.BaseDirectory;

@@ -27,7 +27,7 @@ public sealed class SettingsAboutUpdateDesignTests
     }
 
     [Fact]
-    public void SettingsAndAbout_UseFillHierarchyWithoutCardOutlines()
+    public void SettingsAndAbout_MirrorSpatialViewerNeutralFluentDoubleCards()
     {
         var root = FindRepoRoot();
         var resources = File.ReadAllText(Path.Combine(root, "App.xaml"));
@@ -36,10 +36,15 @@ public sealed class SettingsAboutUpdateDesignTests
         Assert.True(sectionStart >= 0 && insetStart > sectionStart);
         var section = resources[sectionStart..insetStart];
         var inset = resources[insetStart..];
-        Assert.Contains("PageArcSectionBrush", section, StringComparison.Ordinal);
-        Assert.Contains("BorderThickness\" Value=\"0\"", section, StringComparison.Ordinal);
-        Assert.Contains("PageArcInsetBrush", inset, StringComparison.Ordinal);
-        Assert.Contains("BorderThickness\" Value=\"0\"", inset, StringComparison.Ordinal);
+
+        Assert.Contains("CardBackgroundFillColorDefaultBrush", section, StringComparison.Ordinal);
+        Assert.Contains("CardStrokeColorDefaultBrush", section, StringComparison.Ordinal);
+        Assert.Contains("BorderThickness\" Value=\"1\"", section, StringComparison.Ordinal);
+        Assert.Contains("ControlFillColorDefaultBrush", inset, StringComparison.Ordinal);
+        Assert.Contains("ControlStrokeColorDefaultBrush", inset, StringComparison.Ordinal);
+        Assert.Contains("BorderThickness\" Value=\"1\"", inset, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageArcSectionBrush", section, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageArcInsetBrush", inset, StringComparison.Ordinal);
     }
 
     [Fact]
