@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - publish/v1.3-one-shot
+      - acceptance/v1.3-data-management
 
 permissions:
   contents: write
