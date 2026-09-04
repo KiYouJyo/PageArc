@@ -136,7 +136,7 @@ public sealed class WebDavSyncService
             var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{settings.Username}:{password}"));
             request.Headers.Authorization = new AuthenticationHeaderValue("Basic", token);
         }
-        request.Headers.UserAgent.ParseAdd("PageArc/1.2");
+        request.Headers.UserAgent.ParseAdd("PageArc/1.3");
         return request;
     }
 }

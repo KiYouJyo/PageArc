@@ -76,6 +76,25 @@
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
+            <!-- PageArc v1.3: exact data-management settings tokens copied from
+                 UrbanPlanToolbox App.xaml @ 249bbf99088e5edc92b9a6f9b7635ca777cf847e. -->
+            <Thickness x:Key="CardContentPadding">16</Thickness>
+            <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
+            <Style x:Key="SettingsSectionCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+                <Setter Property="Padding" Value="{StaticResource CardContentPadding}" />
+            </Style>
+            <Style x:Key="SettingsRowLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+            <Style x:Key="SettingsDescriptionStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Opacity" Value="0.72" />
+            </Style>
+
             <!-- Legacy content cards now use the same neutral Fluent surface as Settings/About.
                  Keep PageArcCardStyle for compatibility so existing pages change color without layout churn. -->
             <Style x:Key="PageArcCardStyle" TargetType="Border">

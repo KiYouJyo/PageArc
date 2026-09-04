@@ -43,7 +43,6 @@ public sealed partial class SettingsPage : Page
         AppearanceSectionHint.Text = LocalText("主题、语言与界面外观", "テーマ、言語、インターフェイスの外観", "Theme, language, and interface appearance");
         LibrarySectionHint.Text = LocalText("管理书库行为与导入偏好", "ライブラリの動作と読み込み設定", "Library behavior and import preferences");
         ReadingSectionHint.Text = LocalText("默认排版与阅读体验", "既定の組版と読書体験", "Default typography and reading experience");
-        DataSectionHint.Text = LocalText("本地备份、WebDAV 云存档与本地缓存", "ローカル バックアップ、WebDAV クラウド保存、ローカル キャッシュ", "Local backup, WebDAV cloud archive, and local cache");
         AccentLabel.Text = LocalText("强调色", "アクセント カラー", "Accent color");
         AccentHint.Text = LocalText("使用 Windows 强调色", "Windows のアクセント カラーを使用します", "Use the Windows accent color");
         WindowsAccentItem.Content = "Windows";
@@ -51,17 +50,32 @@ public sealed partial class SettingsPage : Page
         LibrarySortRecentItem.Content = LocalText("最近打开", "最近開いた順", "Recently opened");
         LibrarySortTitleItem.Content = LocalText("标题", "タイトル", "Title");
 
-        LocalBackupTitle.Text = LocalText("本地备份", "ローカル バックアップ", "Local backup");
-        LocalBackupHint.Text = LocalText("导出或恢复完整 PageArc 备份；包含书本文件、阅读进度、书签、高亮和笔记。", "書籍ファイル、読書位置、しおり、ハイライト、ノートを含む完全な PageArc バックアップを保存・復元します。", "Export or restore a complete PageArc backup with book files, reading positions, bookmarks, highlights, and notes.");
-        LocalBackupStatusLabel.Text = LocalText("状态", "状態", "Status");
-        BackupReadingDataButton.Content = LocalText("导出备份", "バックアップを保存", "Export backup");
-        RestoreReadingDataButton.Content = LocalText("恢复备份", "バックアップを復元", "Restore backup");
+        DataManagementTitle.Text = LocalText("数据管理", "データ管理", "Data management");
+        DataManagementDescription.Text = LocalText(
+            "把本地备份与 WebDAV 云存档并列呈现；本地数据仍是唯一主数据源。",
+            "ローカル バックアップと WebDAV クラウド保存を並列表示します。ローカル データが引き続き唯一の主データです。",
+            "Local backup and WebDAV cloud archive are presented side by side; local data remains the single source of truth.");
 
-        WebDavCardTitle.Text = LocalText("WebDAV 云存档", "WebDAV クラウド保存", "WebDAV cloud archive");
-        WebDavHint.Text = LocalText("把书本文件与阅读数据打包为一个存档并双向同步；密码保存在 Windows 凭据保险库。", "書籍ファイルと読書データを 1 つのアーカイブにまとめて双方向同期します。パスワードは Windows 資格情報コンテナーに保存されます。", "Bundle book files and reading data into one archive for two-way sync. Passwords stay in Windows Password Vault.");
+        LocalBackupTitle.Text = LocalText("本地备份", "ローカル バックアップ", "Local backup");
+        LocalBackupDescription.Text = LocalText(
+            "导出或恢复完整 .pagearcbackup；书本文件与阅读数据会一起打包。",
+            "完全な .pagearcbackup を保存または復元します。書籍ファイルと読書データは一緒にパッケージ化されます。",
+            "Export or restore a complete .pagearcbackup; book files and reading data are bundled together.");
+        LocalBackupStatusLabel.Text = LocalText("状态", "状態", "Status");
+        ExportButton.Content = LocalText("导出数据", "データを書き出す", "Export data");
+        ImportButton.Content = LocalText("导入数据", "データを読み込む", "Import data");
+        ClearDataButton.Content = LocalText("清除缓存", "キャッシュを消去", "Clear cache");
+
+        WebDavTitle.Text = LocalText("WebDAV 云存档", "WebDAV クラウド保存", "WebDAV cloud archive");
+        WebDavDescription.Text = LocalText(
+            "使用完整备份包双向同步书本与阅读数据；凭据由 Windows Credential Locker 保存。",
+            "完全バックアップ パッケージで書籍と読書データを双方向同期します。資格情報は Windows Credential Locker に保存されます。",
+            "Two-way sync books and reading data with the complete backup package; credentials are stored in Windows Credential Locker.");
         WebDavStatusLabel.Text = LocalText("状态", "状態", "Status");
+        WebDavBackupButton.Content = LocalText("立即同步", "今すぐ同期", "Sync now");
+        WebDavRestoreButton.Content = LocalText("从云端恢复", "クラウドから復元", "Restore from cloud");
+        WebDavManageButton.Content = LocalText("管理存档", "アーカイブを管理", "Manage archive");
         WebDavConfigureButton.Content = LocalText("配置", "設定", "Configure");
-        WebDavSyncButton.Content = LocalText("立即同步", "今すぐ同期", "Sync now");
     }
 
     private static void SelectByTag(ComboBox comboBox, string tag)
@@ -132,13 +146,16 @@ public sealed partial class SettingsPage : Page
         {
             await _backupService.ExportPackageAsync(path, App.ReadingData, App.Library.Books);
             UpdateLocalBackupStatus();
+            SetDataStatus(
+                LocalText("完整备份已导出。", "完全バックアップを書き出しました。", "Complete backup exported."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("Full backup failed", ex);
-            await ShowTransientMessageAsync(
-                LocalText("备份失败", "バックアップに失敗しました", "Backup failed"),
-                LocalText("无法写入完整备份；书本文件和阅读数据均未导出到该位置。", "完全バックアップを書き込めませんでした。書籍ファイルと読書データは選択先に保存されていません。", "PageArc could not write the complete backup to the selected location."));
+            SetDataStatus(
+                LocalText("备份失败：无法写入所选位置。", "バックアップ失敗：選択した場所に書き込めません。", "Backup failed: PageArc could not write to the selected location."),
+                InfoBarSeverity.Error);
         }
     }
 
@@ -186,19 +203,19 @@ public sealed partial class SettingsPage : Page
             App.Library.Save();
             UpdateLocalBackupStatus();
 
-            await ShowTransientMessageAsync(
-                LocalText("恢复完成", "復元が完了しました", "Restore complete"),
+            SetDataStatus(
                 LocalText(
-                    $"已恢复/接入 {restoredBookFiles} 个书本文件；匹配 {result.MatchedBooks} 本书，恢复 {result.RestoredBookmarks} 个书签、{result.RestoredAnnotations} 条笔记/标注和 {result.RestoredProgress} 条阅读进度；{result.UnmatchedBooks} 本未匹配。",
-                    $"書籍ファイル {restoredBookFiles} 件を復元/接続し、{result.MatchedBooks} 冊を照合しました。しおり {result.RestoredBookmarks} 件、ノート/注釈 {result.RestoredAnnotations} 件、読書位置 {result.RestoredProgress} 件を復元。未照合は {result.UnmatchedBooks} 冊です。",
-                    $"Restored or reconnected {restoredBookFiles} book files; matched {result.MatchedBooks} books and restored {result.RestoredBookmarks} bookmarks, {result.RestoredAnnotations} notes/annotations, and {result.RestoredProgress} reading positions; {result.UnmatchedBooks} books were not matched."));
+                    $"恢复完成：接入 {restoredBookFiles} 个书本文件，恢复 {result.RestoredBookmarks} 个书签、{result.RestoredAnnotations} 条标注/笔记和 {result.RestoredProgress} 条阅读进度。",
+                    $"復元完了：書籍ファイル {restoredBookFiles} 件、しおり {result.RestoredBookmarks} 件、注釈/ノート {result.RestoredAnnotations} 件、読書位置 {result.RestoredProgress} 件を復元しました。",
+                    $"Restore complete: {restoredBookFiles} book files, {result.RestoredBookmarks} bookmarks, {result.RestoredAnnotations} annotations/notes, and {result.RestoredProgress} reading positions restored."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("Backup restore failed", ex);
-            await ShowTransientMessageAsync(
-                LocalText("恢复失败", "復元に失敗しました", "Restore failed"),
-                LocalText("备份未完整应用；现有本地书本不会被删除。", "バックアップを完全には適用できませんでした。既存のローカル書籍は削除されません。", "The backup could not be fully applied. Existing local books were not deleted."));
+            SetDataStatus(
+                LocalText("恢复失败：现有本地书本不会被删除。", "復元失敗：既存のローカル書籍は削除されません。", "Restore failed: existing local books were not deleted."),
+                InfoBarSeverity.Error);
         }
     }
 
@@ -208,11 +225,17 @@ public sealed partial class SettingsPage : Page
         {
             var changed = CacheMaintenanceService.ClearGeneratedCache(App.Library.Books);
             if (changed > 0) App.Library.Save();
+            UpdateLocalBackupStatus();
+            SetDataStatus(
+                LocalText("生成缓存已清除，书本原文件与阅读数据未删除。", "生成キャッシュを消去しました。書籍ファイルと読書データは削除されていません。", "Generated cache cleared. Book files and reading data were not deleted."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("Cache clear failed", ex);
-            await ShowTransientMessageAsync(LocalText("清理缓存失败", "キャッシュのクリアに失敗しました", "Clear cache failed"), LocalText("部分缓存文件可能仍被占用。", "一部のキャッシュ ファイルが使用中の可能性があります。", "Some cache files may still be in use."));
+            SetDataStatus(
+                LocalText("清理缓存失败：部分缓存文件可能仍被占用。", "キャッシュ消去失敗：一部のファイルが使用中の可能性があります。", "Clear cache failed: some generated files may still be in use."),
+                InfoBarSeverity.Error);
         }
     }
 
@@ -304,12 +327,18 @@ public sealed partial class SettingsPage : Page
         try
         {
             await _webDavSyncService.TestConnectionAsync(settings, password);
-            WebDavStatusText.Text = LocalText("已连接 · 配置已保存", "接続済み · 設定を保存しました", "Connected · configuration saved");
+            WebDavStatusValue.Text = LocalText("已连接 · 配置已保存", "接続済み · 設定を保存しました", "Connected · configuration saved");
+            SetWebDavStatus(
+                LocalText("WebDAV 配置已保存并通过连接测试。", "WebDAV 設定を保存し、接続テストに成功しました。", "WebDAV configuration saved and connection test passed."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("WebDAV connection test failed", ex);
-            WebDavStatusText.Text = LocalText("连接测试失败 · 请检查文件夹地址和凭据", "接続テスト失敗 · フォルダー URL と資格情報を確認してください", "Connection test failed · check the folder URL and credentials");
+            WebDavStatusValue.Text = LocalText("连接测试失败 · 请检查文件夹地址和凭据", "接続テスト失敗 · フォルダー URL と資格情報を確認してください", "Connection test failed · check the folder URL and credentials");
+            SetWebDavStatus(
+                LocalText("WebDAV 连接测试失败。", "WebDAV 接続テストに失敗しました。", "WebDAV connection test failed."),
+                InfoBarSeverity.Error);
         }
         finally { SetWebDavBusy(false); }
     }
@@ -337,7 +366,7 @@ public sealed partial class SettingsPage : Page
         var uploadPath = Path.Combine(Path.GetTempPath(), $"PageArc-upload-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
 
         SetWebDavBusy(true);
-        WebDavStatusText.Text = LocalText("正在下载、合并并同步书本与阅读数据…", "書籍と読書データをダウンロード、マージ、同期しています…", "Downloading, merging, and syncing books plus reading data…");
+        WebDavStatusValue.Text = LocalText("正在下载、合并并同步书本与阅读数据…", "書籍と読書データをダウンロード、マージ、同期しています…", "Downloading, merging, and syncing books plus reading data…");
         try
         {
             var password = _webDavCredentialStore.Read(settings.Endpoint, settings.Username) ?? string.Empty;
@@ -361,14 +390,20 @@ public sealed partial class SettingsPage : Page
             App.Settings.Update(value => value.WebDavLastSyncAt = now);
             UpdateWebDavStatus();
             UpdateLocalBackupStatus();
+            SetWebDavStatus(
+                LocalText("书本文件与阅读数据已完成双向同步。", "書籍ファイルと読書データの双方向同期が完了しました。", "Two-way sync of book files and reading data completed."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("WebDAV sync failed", ex);
-            WebDavStatusText.Text = LocalText(
+            WebDavStatusValue.Text = LocalText(
                 "同步失败 · 本地书本与阅读数据未被删除",
                 "同期失敗 · ローカルの書籍と読書データは削除されていません",
                 "Sync failed · local books and reading data were not deleted");
+            SetWebDavStatus(
+                LocalText("同步失败；本地数据保持不变。", "同期に失敗しました。ローカル データは保持されています。", "Sync failed; local data was preserved."),
+                InfoBarSeverity.Error);
         }
         finally
         {
@@ -378,33 +413,167 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private async void RestoreWebDav_Click(object sender, RoutedEventArgs e)
+    {
+        if (_webDavBusy) return;
+        PersistReadingSettings();
+
+        WebDavConnectionSettings settings;
+        try
+        {
+            settings = new WebDavConnectionSettings(App.Settings.Current.WebDavEndpoint, App.Settings.Current.WebDavUsername);
+            _ = settings.GetEndpointUri();
+        }
+        catch
+        {
+            SetWebDavStatus(
+                LocalText("请先配置 WebDAV。", "先に WebDAV を設定してください。", "Configure WebDAV first."),
+                InfoBarSeverity.Warning);
+            return;
+        }
+
+        var confirmation = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = LocalText("从云端恢复", "クラウドから復元", "Restore from cloud"),
+            Content = LocalText(
+                "将下载远端完整存档并合并到本地。远端书本文件会恢复到 PageArc 的持久化书库目录；本地现有书本不会被删除。",
+                "リモートの完全アーカイブをダウンロードしてローカルへマージします。書籍ファイルは PageArc の永続ライブラリに復元され、既存のローカル書籍は削除されません。",
+                "The remote complete archive will be downloaded and merged locally. Remote book files are restored into PageArc's durable library; existing local books are not deleted."),
+            PrimaryButtonText = LocalText("恢复", "復元", "Restore"),
+            CloseButtonText = LocalText("取消", "キャンセル", "Cancel"),
+            DefaultButton = ContentDialogButton.Close
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
+
+        var remotePath = Path.Combine(Path.GetTempPath(), $"PageArc-cloud-restore-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
+        SetWebDavBusy(true);
+        WebDavStatusValue.Text = LocalText("正在从云端恢复…", "クラウドから復元しています…", "Restoring from cloud…");
+        try
+        {
+            var password = _webDavCredentialStore.Read(settings.Endpoint, settings.Username) ?? string.Empty;
+            if (!await _webDavSyncService.DownloadFileAsync(settings, password, remotePath))
+            {
+                UpdateWebDavStatus();
+                SetWebDavStatus(
+                    LocalText("云端尚无 PageArc 存档。", "クラウドに PageArc アーカイブがありません。", "No PageArc archive exists in the cloud yet."),
+                    InfoBarSeverity.Warning);
+                return;
+            }
+
+            var remote = ReadingBackupService.ReadPackage(remotePath);
+            var restoredBookFiles = await _backupService.RestorePackageBooksAsync(remotePath, remote, App.Library);
+            var result = _backupService.Restore(remote, App.ReadingData, App.Library.Books, ReadingBackupRestoreMode.Merge);
+            App.Library.Save();
+            UpdateLocalBackupStatus();
+            UpdateWebDavStatus();
+            SetWebDavStatus(
+                LocalText(
+                    $"云端恢复完成：接入 {restoredBookFiles} 个书本文件，恢复 {result.RestoredBookmarks} 个书签、{result.RestoredAnnotations} 条标注/笔记。",
+                    $"クラウド復元完了：書籍ファイル {restoredBookFiles} 件、しおり {result.RestoredBookmarks} 件、注釈/ノート {result.RestoredAnnotations} 件を復元しました。",
+                    $"Cloud restore complete: {restoredBookFiles} book files, {result.RestoredBookmarks} bookmarks, and {result.RestoredAnnotations} annotations/notes restored."),
+                InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("WebDAV cloud restore failed", ex);
+            UpdateWebDavStatus();
+            SetWebDavStatus(
+                LocalText("云端恢复失败；本地现有数据未被删除。", "クラウド復元に失敗しました。既存のローカル データは削除されていません。", "Cloud restore failed; existing local data was not deleted."),
+                InfoBarSeverity.Error);
+        }
+        finally
+        {
+            TryDelete(remotePath);
+            SetWebDavBusy(false);
+        }
+    }
+
+    private async void ManageWebDav_Click(object sender, RoutedEventArgs e)
+    {
+        if (_webDavBusy) return;
+
+        WebDavConnectionSettings settings;
+        try
+        {
+            settings = new WebDavConnectionSettings(App.Settings.Current.WebDavEndpoint, App.Settings.Current.WebDavUsername);
+            _ = settings.GetEndpointUri();
+        }
+        catch
+        {
+            SetWebDavStatus(
+                LocalText("请先配置 WebDAV。", "先に WebDAV を設定してください。", "Configure WebDAV first."),
+                InfoBarSeverity.Warning);
+            return;
+        }
+
+        var endpoint = new TextBlock
+        {
+            Text = settings.GetEndpointUri().AbsoluteUri,
+            TextWrapping = TextWrapping.Wrap,
+            IsTextSelectionEnabled = true
+        };
+        var lastSync = new TextBlock
+        {
+            Text = App.Settings.Current.WebDavLastSyncAt is DateTimeOffset value
+                ? string.Format(
+                    LocalText("上次同步：{0:yyyy-MM-dd HH:mm}", "最終同期：{0:yyyy-MM-dd HH:mm}", "Last synced: {0:yyyy-MM-dd HH:mm}"),
+                    value.ToLocalTime())
+                : LocalText("尚未完成首次同步", "初回同期前", "First sync has not completed yet"),
+            Opacity = 0.72
+        };
+        var content = new StackPanel { Spacing = 8, MinWidth = 420 };
+        content.Children.Add(new TextBlock
+        {
+            Text = LocalText("当前云存档地址", "現在のクラウド アーカイブ URL", "Current cloud archive URL"),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        });
+        content.Children.Add(endpoint);
+        content.Children.Add(lastSync);
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = LocalText("管理 WebDAV 存档", "WebDAV アーカイブを管理", "Manage WebDAV archive"),
+            Content = content,
+            PrimaryButtonText = LocalText("立即同步", "今すぐ同期", "Sync now"),
+            CloseButtonText = LocalText("关闭", "閉じる", "Close"),
+            DefaultButton = ContentDialogButton.Close
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            SyncWebDav_Click(WebDavBackupButton, new RoutedEventArgs());
+    }
+
     private void UpdateWebDavStatus()
     {
         UpdateLocalBackupStatus();
 
         if (string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint))
         {
-            WebDavStatusText.Text = LocalText("未配置", "未設定", "Not configured");
+            WebDavStatusValue.Text = LocalText("未配置", "未設定", "Not configured");
         }
         else if (App.Settings.Current.WebDavLastSyncAt is DateTimeOffset lastSync)
         {
-            WebDavStatusText.Text = string.Format(
+            WebDavStatusValue.Text = string.Format(
                 LocalText("已连接 · 上次同步 {0:yyyy-MM-dd HH:mm}", "接続済み · 最終同期 {0:yyyy-MM-dd HH:mm}", "Connected · last synced {0:yyyy-MM-dd HH:mm}"),
                 lastSync.ToLocalTime());
         }
         else
         {
-            WebDavStatusText.Text = LocalText("已配置 · 尚未完成首次同步", "設定済み · 初回同期前", "Configured · first sync pending");
+            WebDavStatusValue.Text = LocalText("已配置 · 尚未完成首次同步", "設定済み · 初回同期前", "Configured · first sync pending");
         }
 
-        WebDavSyncButton.IsEnabled = !_webDavBusy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+        var configured = !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+        WebDavBackupButton.IsEnabled = !_webDavBusy && configured;
+        WebDavRestoreButton.IsEnabled = !_webDavBusy && configured;
+        WebDavManageButton.IsEnabled = !_webDavBusy && configured;
     }
 
     private void UpdateLocalBackupStatus()
     {
         var total = App.Library.Books.Count;
         var available = App.Library.Books.Count(book => !book.IsMissing && File.Exists(book.FilePath));
-        LocalBackupStatusText.Text = string.Format(
+        LocalBackupStatus.Text = string.Format(
             LocalText("本地数据正常 · {0}/{1} 本书文件可用", "ローカル データ正常 · 書籍ファイル {0}/{1} 件利用可能", "Local data healthy · {0}/{1} book files available"),
             available,
             total);
@@ -413,10 +582,24 @@ public sealed partial class SettingsPage : Page
     private void SetWebDavBusy(bool busy)
     {
         _webDavBusy = busy;
-        WebDavProgressRing.IsActive = busy;
-        WebDavProgressRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        WebDavBackupButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+        WebDavRestoreButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+        WebDavManageButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
         WebDavConfigureButton.IsEnabled = !busy;
-        WebDavSyncButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+    }
+
+    private void SetDataStatus(string message, InfoBarSeverity severity)
+    {
+        DataStatusBar.Severity = severity;
+        DataStatusBar.Message = message;
+        DataStatusBar.IsOpen = true;
+    }
+
+    private void SetWebDavStatus(string message, InfoBarSeverity severity)
+    {
+        WebDavStatusBar.Severity = severity;
+        WebDavStatusBar.Message = message;
+        WebDavStatusBar.IsOpen = true;
     }
 
     private static void TryDelete(string path)
