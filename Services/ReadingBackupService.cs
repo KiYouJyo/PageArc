@@ -155,7 +155,7 @@ public sealed class ReadingBackupService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 hash.AppendData(Encoding.UTF8.GetBytes(entry.FullName));
-                hash.AppendData([0]);
+                hash.AppendData(new byte[] { 0 });
 
                 using var entryStream = entry.Open();
                 var buffer = new byte[1024 * 128];
