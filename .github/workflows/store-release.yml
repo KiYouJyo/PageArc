@@ -27,7 +27,7 @@ on:
         type: string
   push:
     branches:
-      - publish/v1.3.1-one-shot
+      - publish/v1.4-one-shot
 
 permissions:
   contents: read
@@ -104,7 +104,7 @@ jobs:
         shell: pwsh
         run: |
           if ('${{ github.event_name }}' -eq 'push') {
-            if ('${{ github.ref }}' -cne 'refs/heads/publish/v1.3.1-one-shot') { throw 'Automatic Store publication is restricted to the one-shot v1.3.1 release branch.' }
+            if ('${{ github.ref }}' -cne 'refs/heads/publish/v1.4-one-shot') { throw 'Automatic Store publication is restricted to the one-shot v1.4 release branch.' }
             if ($env:STORE_PRODUCT_ID -cne '9NTHMP210H9B') { throw 'Automatic Store publication resolved an unexpected product ID.' }
           }
           else {
@@ -119,29 +119,24 @@ jobs:
           $ErrorActionPreference = 'Stop'
           [xml]$manifest = Get-Content -Raw Package.Store.appxmanifest
           if ($manifest.Package.Identity.Name -cne 'JoKiy.PageArc') { throw "Store identity mismatch: $($manifest.Package.Identity.Name)" }
-          if ($manifest.Package.Identity.Version -ne '2026.904.131.0') { throw "Store version mismatch: $($manifest.Package.Identity.Version)" }
-          $source = Join-Path $env:RUNNER_TEMP 'calibre-9.13.0.tar.xz'
-          .\eng\prepare-calibre-runtime.ps1 -Version '9.13.0' -DownloadSource -SourceDestination $source
-          $converter = Resolve-Path 'ThirdParty\calibre\runtime\ebook-convert.exe'
-          & $converter --version
-          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $source) -or (Get-Item $source).Length -lt 1MB) { throw 'Pinned calibre runtime/source preparation failed.' }
+          if ($manifest.Package.Identity.Version -ne '2026.904.140.0') { throw "Store version mismatch: $($manifest.Package.Identity.Version)" }
           dotnet restore PageArc.slnx -p:Configuration=Release -p:Platform=x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Release -p:Platform=x64 --no-restore --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .\Packaging\Build-StorePackage.ps1 -Configuration Release -Platform x64 -OutputDirectory artifacts\store-package-v1.3.1-release
+          .\Packaging\Build-StorePackage.ps1 -Configuration Release -Platform x64 -OutputDirectory artifacts\store-package-v1.4-release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $upload = Get-ChildItem artifacts\store-package-v1.3.1-release -Filter '*.msixupload' -File | Select-Object -First 1
+          $upload = Get-ChildItem artifacts\store-package-v1.4-release -Filter '*.msixupload' -File | Select-Object -First 1
           if (-not $upload) { throw 'The Store MSIX upload package was not generated.' }
-          if ($upload.Length -lt 250MB) { throw "Store upload package is unexpectedly small and may be missing calibre: $($upload.Length) bytes" }
+          if ($upload.Length -gt 250MB) { throw "Store upload package is unexpectedly large after conversion-runtime detachment: $($upload.Length) bytes" }
           "STORE_UPLOAD=$($upload.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload validated Store candidate
         if: github.event_name == 'push' || inputs.mode == 'submit'
         uses: actions/upload-artifact@v4
         with:
-          name: PageArc-v1.3.1-Microsoft-Store
-          path: artifacts/store-package-v1.3.1-release
+          name: PageArc-v1.4-Microsoft-Store
+          path: artifacts/store-package-v1.4-release
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
