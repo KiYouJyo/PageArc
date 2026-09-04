@@ -98,7 +98,7 @@ public sealed class V13DataManagementParityTests
     }
 
     [Fact]
-    public void V131VersionContract_IsConsistent()
+    public void V14VersionContract_IsConsistent()
     {
         var root = FindRepoRoot();
         var project = File.ReadAllText(Path.Combine(root, "PageArc.csproj"));
@@ -106,12 +106,12 @@ public sealed class V13DataManagementParityTests
         var acceptanceManifest = File.ReadAllText(Path.Combine(root, "Packaging", "PageArc.Package.appxmanifest"));
         var storeManifest = File.ReadAllText(Path.Combine(root, "Package.Store.appxmanifest"));
 
-        Assert.Contains("<Version>1.3.1</Version>", project, StringComparison.Ordinal);
-        Assert.Contains("<AssemblyVersion>1.3.1.0</AssemblyVersion>", project, StringComparison.Ordinal);
-        Assert.Contains("<ApplicationDisplayVersion>1.3.1</ApplicationDisplayVersion>", project, StringComparison.Ordinal);
-        Assert.Contains("Version=\"1.3.1.0\"", githubManifest, StringComparison.Ordinal);
-        Assert.Contains("Version=\"1.3.1.0\"", acceptanceManifest, StringComparison.Ordinal);
-        Assert.Contains("Version=\"2026.904.131.0\"", storeManifest, StringComparison.Ordinal);
+        Assert.Contains("<Version>1.4.0</Version>", project, StringComparison.Ordinal);
+        Assert.Contains("<AssemblyVersion>1.4.0.0</AssemblyVersion>", project, StringComparison.Ordinal);
+        Assert.Contains("<ApplicationDisplayVersion>1.4</ApplicationDisplayVersion>", project, StringComparison.Ordinal);
+        Assert.Contains("Version=\"1.4.0.0\"", githubManifest, StringComparison.Ordinal);
+        Assert.Contains("Version=\"1.4.0.0\"", acceptanceManifest, StringComparison.Ordinal);
+        Assert.Contains("Version=\"2026.904.140.0\"", storeManifest, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

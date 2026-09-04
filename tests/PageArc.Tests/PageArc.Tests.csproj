@@ -70,7 +70,8 @@
     <Compile Include="../../Services/Conversion/IEbookConversionProvider.cs" Link="Services/Conversion/IEbookConversionProvider.cs" />
     <Compile Include="../../Services/Conversion/EbookConversionService.cs" Link="Services/Conversion/EbookConversionService.cs" />
     <Compile Include="../../Services/Conversion/CalibreConversionProvider.cs" Link="Services/Conversion/CalibreConversionProvider.cs" />
-    <Compile Include="../../Services/Conversion/PageArcBundledConversionProvider.cs" Link="Services/Conversion/PageArcBundledConversionProvider.cs" />
+    <Compile Include="../../Services/Conversion/ConversionRuntimeManager.cs" Link="Services/Conversion/ConversionRuntimeManager.cs" />
+    <Compile Include="../../Services/Conversion/PageArcManagedConversionProvider.cs" Link="Services/Conversion/PageArcManagedConversionProvider.cs" />
     <Compile Include="../../Services/LanguagePreference.cs" Link="Services/LanguagePreference.cs" />
     <Compile Include="../../Services/StartupDiagnostics.cs" Link="Services/StartupDiagnostics.cs" />
     <Compile Include="../../Services/StartupSplashPresentation.cs" Link="Services/StartupSplashPresentation.cs" />

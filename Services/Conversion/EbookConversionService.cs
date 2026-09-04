@@ -8,7 +8,7 @@ public sealed class EbookConversionService
 
     public EbookConversionService(IEnumerable<IEbookConversionProvider>? providers = null)
     {
-        _providers = (providers ?? [new PageArcBundledConversionProvider(), new CalibreConversionProvider()]).ToArray();
+        _providers = (providers ?? [new CalibreConversionProvider(), new PageArcManagedConversionProvider()]).ToArray();
     }
 
     public IReadOnlyList<IEbookConversionProvider> Providers => _providers;

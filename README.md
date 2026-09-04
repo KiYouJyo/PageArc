@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-1.3.1-005fb8)
+![Version](https://img.shields.io/badge/version-1.4-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -10,6 +10,14 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 **PageArc** 是一个专注于流式电子书格式的 Windows 阅读器，采用 WinUI 3 / Windows App SDK 构建。界面以 PAGEARC Figma 为设计基准，优先保持本地、原文件不修改的阅读体验。
+
+## v1.4
+
+v1.4 将重量级电子书转换运行时从基础阅读器中彻底剥离：
+
+- calibre 9.13.0 不再进入 PageArc MSIX，基础安装包只保留阅读器、内置解析器与运行时管理代码；
+- 独立仓库 `KiYouJyo/PageArc.ConversionRuntime` 发布固定版本 `9.13.0-pagearc.1`，仅在用户首次执行格式转换或打开需要兼容转换层的 MOBI / AZW3 / LIT 时下载；
+- 下载包使用固定 Release、大小与 SHA-256 三重校验，安装到用户本地 `PageArc/Runtimes`，应用更新无需重复携带约 283 MB 的转换运行时。若系统已有 calibre，PageArc 优先直接复用，不会再次下载。
 
 ## v1.0
 
@@ -37,7 +45,7 @@ PageArc 的 UI SSOT 为 Figma `PAGEARC` 文件。新增或改变可见 UI 前必
 
 ## 隐私与联网
 
-PageArc 不要求账户，书库、缓存、阅读进度、书签、笔记、标签会话与设置均保存在本机。正常阅读、解析和转换均在本地进行。正式安装包不会为了转换电子书而联网；网络仅用于用户主动执行的更新检查。构建官方安装包时下载的第三方转换运行时不属于应用运行期联网行为。
+PageArc 不要求账户，书库、缓存、阅读进度、书签、笔记、标签会话与设置均保存在本机。正常阅读、解析和转换均在本地进行。基础安装包不包含 calibre。首次使用需要转换运行时的功能时，PageArc 会在用户确认后从独立的 PageArc.ConversionRuntime GitHub Release 下载固定版本运行时；之后转换完全在本地执行。更新检查与用户主动的 WebDAV 同步仍会按需联网。
 
 ## 开发环境
 
@@ -77,4 +85,4 @@ dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 
 ## License
 
-PageArc 主项目采用 MIT License。捆绑的第三方组件保留各自许可证与来源说明；官方 x64 包内的 calibre 转换运行时继续受 GPLv3 约束，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+PageArc 主项目采用 MIT License。基础安装包不再捆绑 calibre；可选下载的 PageArc.ConversionRuntime 中 calibre 仍受 GPLv3 约束，并在独立运行时 Release 中同时提供对应源码，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

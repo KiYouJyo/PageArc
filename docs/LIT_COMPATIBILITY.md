@@ -23,7 +23,7 @@ PageArc ships a dedicated `LitFlowAdapter`, but LIT payload normalization is pro
 5. Open the normalized EPUB through the same `FlowDocument` engine used by all other PageArc formats.
 6. If the provider reports DRM/encryption, raise `DrmProtectedEbookException` and stop. PageArc never attempts DRM removal.
 
-Official x64 packages use the bundled pinned calibre `ebook-convert` runtime by default. Source/development builds can still use an installed or explicitly configured external calibre runtime.
+Starting with PageArc v1.4, official packages no longer bundle calibre. PageArc first uses an installed or explicitly configured calibre runtime; otherwise it asks before downloading pinned `PageArc.ConversionRuntime` package `9.13.0-pagearc.1`, then performs LIT normalization through the same process/file boundary.
 
 ## Conversion matrix
 
@@ -37,4 +37,4 @@ The five target formats create 20 ordered cross-format conversion pairs:
 
 `EbookConversionService.GetRequiredCapabilityMatrix()` now checks every pair against providers that are actually available at runtime. This means the UI/service layer can distinguish “PageArc knows this format pair” from “a provider capable of performing this conversion is currently installed.”
 
-This is intentional: the project does not claim that an unavailable external GPL runtime is silently present.
+In v1.4 the managed provider represents an on-demand capability: the GPL runtime is absent from the base package and becomes available only after the user-approved download has been verified and installed.

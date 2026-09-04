@@ -25,3 +25,27 @@ WinUI 3 Shell
 5. A malformed book must fail the single import/open operation without taking down the library.
 6. DRM bypass is out of scope.
 7. UI language and theme changes are applied in place and must preserve the active window geometry and navigation state.
+
+
+## v1.4 optional conversion runtime
+
+The conversion provider boundary is now physically separated from the application package:
+
+```text
+PageArc MSIX
+├─ built-in EPUB / FB2 / Kindle parser assets
+├─ EbookConversionService
+│  ├─ external system calibre provider (preferred when present)
+│  └─ PageArcManagedConversionProvider
+│     └─ ConversionRuntimeManager
+└─ no calibre payload
+
+%LOCALAPPDATA%/PageArc/Runtimes/Conversion
+└─ 9.13.0-pagearc.1/win-x64
+   └─ runtime/ebook-convert.exe
+
+GitHub: KiYouJyo/PageArc.ConversionRuntime
+└─ pinned release + manifest + SHA-256 + matching GPL source
+```
+
+The runtime manager pins the release tag, archive filename, byte size and SHA-256; extracts into a staging directory with path traversal checks; validates `ebook-convert --version`; and only then activates the per-user installation. PageArc updates therefore do not carry the heavy runtime again.

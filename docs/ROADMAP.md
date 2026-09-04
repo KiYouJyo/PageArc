@@ -105,3 +105,14 @@
 - [x] Add regression coverage for backup remapping/replace semantics, session persistence, bundled conversion capability and the reader enhancement contracts
 
 > UI/experience polish that is not required to make a planned control functional remains deferred until after the v0.9 functional-completion pass. New visible surfaces must continue to derive from the PAGEARC Figma file rather than introducing an unrelated design language.
+
+
+## v1.4 — Lightweight reader + detached conversion runtime
+
+- [x] Create `KiYouJyo/PageArc.ConversionRuntime` as the runtime distribution boundary
+- [x] Publish pinned calibre `9.13.0-pagearc.1` with manifest, SHA-256 and corresponding source archive
+- [x] Remove calibre payload and runtime preparation script from the PageArc base package
+- [x] Add secure per-user on-demand runtime download, verification, extraction and executable validation
+- [x] Ask before first download from the Conversion surface and compatibility-dependent MOBI / AZW3 / LIT reading path
+- [x] Make Store / signed-release packaging reject accidental embedded calibre content
+- [x] Keep the 20-pair conversion acceptance matrix by validating the detached runtime separately from the light reader MSIX

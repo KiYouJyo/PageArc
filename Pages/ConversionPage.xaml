@@ -105,6 +105,16 @@
             </Grid>
         </Border>
 
+        <StackPanel x:Name="RuntimeDownloadPanel"
+                    Grid.RowSpan="5"
+                    Visibility="Collapsed"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,0,72"
+                    Spacing="6">
+            <TextBlock x:Name="RuntimeDownloadText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <ProgressBar x:Name="RuntimeDownloadProgressBar" Minimum="0" Maximum="100" Value="0"/>
+        </StackPanel>
+
         <InfoBar x:Name="ConversionInfoBar" Grid.RowSpan="5" IsOpen="False" VerticalAlignment="Bottom" Margin="0,0,0,12"/>
     </Grid>
 </Page>

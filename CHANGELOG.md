@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.4] - 2026-09-04
+
+### Changed
+- Removed the bundled calibre payload from the PageArc MSIX and moved conversion-runtime distribution to the separate `KiYouJyo/PageArc.ConversionRuntime` repository.
+- PageArc now prefers a compatible system calibre installation and otherwise downloads pinned runtime `9.13.0-pagearc.1` only when a conversion-dependent feature is first requested.
+- Conversion and compatibility-dependent MOBI / AZW3 / LIT opening now ask before the first runtime download and surface download progress.
+- GitHub and Microsoft Store packaging gates now require the conversion runtime to be absent from the base application package.
+
+### Security
+- The managed runtime contract pins the release tag, archive name, exact byte size and SHA-256.
+- Runtime extraction rejects unsafe archive paths and validates `ebook-convert --version` before activating the staged installation.
+- The runtime is installed per-user outside the MSIX under PageArc's durable `Runtimes\Conversion` directory.
+
+### Distribution
+- Initial detached runtime: `9.13.0-pagearc.1` / calibre `9.13.0`.
+- Runtime archive: `282,915,121` bytes; SHA-256 `1d223227254d6dfacc8f5645caf3cba26434e129cf5bb65decb0a121a61b5322`.
+- PageArc advances to `1.4` / `1.4.0.0`; Microsoft Store identity advances to `2026.904.140.0`.
+
 ## [1.3.1] - 2026-09-04
 
 ### Changed
