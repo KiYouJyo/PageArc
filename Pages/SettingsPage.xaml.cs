@@ -247,7 +247,7 @@ public sealed partial class SettingsPage : Page
                 $"Enter a WebDAV folder URL and PageArc will use {WebDavConnectionSettings.DefaultArchiveFileName} automatically. Direct .pagearcbackup or .json URLs are also supported."),
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+            Opacity = 0.72
         };
 
         var content = new StackPanel { Spacing = 12, MinWidth = 440 };
