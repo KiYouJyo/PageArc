@@ -60,6 +60,7 @@ public sealed record ConversionRuntimeUpdateCheck(
 public sealed class ConversionRuntimeManager
 {
     public const string RuntimeId = "pagearc-calibre";
+    public const string CurrentPageArcCompatibilityVersion = "1.4.0";
     public const string PackageVersion = "9.13.0-pagearc.1";
     public const string CalibreVersion = "9.13.0";
     public const string ReleaseTag = "v9.13.0-pagearc.1";
@@ -337,7 +338,7 @@ public sealed class ConversionRuntimeManager
     private static bool IsCompatibleWithCurrentPageArc(string minimumVersion)
     {
         if (!Version.TryParse(minimumVersion, out var minimum)) return false;
-        var current = typeof(ConversionRuntimeManager).Assembly.GetName().Version ?? new Version(0, 0);
+        var current = Version.Parse(CurrentPageArcCompatibilityVersion);
         return current >= minimum;
     }
 
