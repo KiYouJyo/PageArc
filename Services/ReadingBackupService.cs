@@ -177,12 +177,11 @@ public sealed class ReadingBackupService
             var temp = destination + ".tmp";
             try
             {
-                using (var entryStream = entry.Open())
-                await using (var output = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true))
-                {
-                    await entryStream.CopyToAsync(output, cancellationToken);
-                    await output.FlushAsync(cancellationToken);
-                }
+                using var entryStream = entry.Open();
+                await using var output = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true);
+                await entryStream.CopyToAsync(output, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+                await output.DisposeAsync();
                 File.Move(temp, destination, true);
             }
             finally
