@@ -51,19 +51,10 @@
 
                     <Border Style="{StaticResource PageArcInsetStyle}">
                         <StackPanel Padding="18" Spacing="14">
-                            <Grid ColumnSpacing="18">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Spacing="4">
-                                    <TextBlock x:Name="ConversionRuntimeNameText" FontSize="16" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="ConversionRuntimeDescriptionText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
-                                </StackPanel>
-                                <Border Grid.Column="1" Background="{ThemeResource ControlFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Padding="10,5">
-                                    <TextBlock x:Name="ConversionRuntimeStateBadge" FontSize="12"/>
-                                </Border>
-                            </Grid>
+                            <StackPanel Spacing="4">
+                                <TextBlock x:Name="ConversionRuntimeNameText" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="ConversionRuntimeDescriptionText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+                            </StackPanel>
 
                             <Grid x:Name="RuntimeInfoGrid" ColumnSpacing="28">
                                 <Grid.ColumnDefinitions>
