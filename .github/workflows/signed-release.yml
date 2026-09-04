@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - publish/v1.3.1-one-shot
+      - acceptance/v1.3.1-webdav-archive-ui
 
 permissions:
   contents: write
