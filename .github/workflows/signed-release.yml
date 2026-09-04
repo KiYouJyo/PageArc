@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - publish/v1.4-one-shot
+      - acceptance/v1.4-runtime-management-polish
 
 permissions:
   contents: write
