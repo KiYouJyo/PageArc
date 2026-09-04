@@ -308,6 +308,7 @@ public sealed class ConversionRuntimeManager
 
                 // Keep only the active compatible version after a successful update.
                 RemoveOtherRuntimeVersions(manifest.PackageVersion);
+                RefreshCachedUpdateCheckAfterLocalChange();
 
                 PublishOperationState(new(false, "complete", manifest.ArchiveSize, manifest.ArchiveSize, manifest.PackageVersion), progress);
                 return targetExecutable;
@@ -340,6 +341,7 @@ public sealed class ConversionRuntimeManager
                     continue;
                 Directory.Delete(directory, recursive: true);
             }
+            RefreshCachedUpdateCheckAfterLocalChange();
         }
         catch (Exception ex)
         {
@@ -578,6 +580,26 @@ public sealed class ConversionRuntimeManager
 
     private string GetInstallRoot(string packageVersion) =>
         Path.Combine(AppPaths.ConversionRuntimesRoot, packageVersion, "win-x64");
+
+    private void RefreshCachedUpdateCheckAfterLocalChange()
+    {
+        if (LastUpdateCheck is not { Succeeded: true } cached)
+            return;
+
+        var local = GetStatus();
+        var latest = cached.LatestCompatibleRelease;
+        var updateAvailable = latest is not null
+            && (!local.IsInstalled
+                || RuntimePackageVersionComparer.Instance.Compare(
+                    latest.Manifest.PackageVersion,
+                    local.PackageVersion) > 0);
+
+        LastUpdateCheck = cached with
+        {
+            LocalStatus = local,
+            UpdateAvailable = updateAvailable
+        };
+    }
 
     private void RemoveOtherRuntimeVersions(string keepPackageVersion)
     {
