@@ -132,7 +132,7 @@ public sealed class SettingsDataCompletionTests
             using var source = File.OpenRead(packagePath);
             using var archive = new ZipArchive(source, ZipArchiveMode.Read);
             Assert.NotNull(archive.GetEntry(ReadingBackupService.PackageManifestEntryName));
-            var bookEntry = Assert.Single(archive.Entries.Where(entry => entry.FullName.StartsWith("books/book-1/", StringComparison.Ordinal)));
+            var bookEntry = Assert.Single(archive.Entries, entry => entry.FullName.StartsWith("books/book-1/", StringComparison.Ordinal));
             Assert.EndsWith("fixture.epub", bookEntry.FullName, StringComparison.Ordinal);
             Assert.Equal(5, bookEntry.Length);
         }
