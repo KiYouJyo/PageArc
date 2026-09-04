@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3] - 2026-09-04
+
+### Changed
+- Rebuilt the Data management section by directly reusing the UrbanPlanToolbox data-management card contract at commit `249bbf99088e5edc92b9a6f9b7635ca777cf847e`, including outer/inner card styles, padding, spacing, typography, button ordering/default sizing and the 520 DIP responsive breakpoint.
+- Local backup and WebDAV cloud archive now use the same three-action/four-action visual hierarchy and inline InfoBar feedback as the source implementation, with PageArc-specific commands.
+- Product version advances to `1.3`; GitHub/acceptance MSIX version is `1.3.0.0` and Microsoft Store identity version is `2026.904.130.0`.
+
+### Added
+- Explicit WebDAV restore-from-cloud and archive-management actions alongside two-way sync and configuration.
+- Regression tests that lock the copied UrbanPlanToolbox data-management measurements and source commit.
+
+### Backup and sync
+- Complete `.pagearcbackup` packages continue to bundle ebook files with reading progress, bookmarks, annotations and notes.
+- Restored cloud book files remain in PageArc's durable managed library and are unaffected by cache cleanup.
+
 ## [1.1.1] - 2026-08-24
 
 ### Fixed
