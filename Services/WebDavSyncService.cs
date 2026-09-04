@@ -64,10 +64,12 @@ public sealed class WebDavSyncService
         var temp = fullPath + ".tmp";
         try
         {
-            await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await using var target = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true);
-            await source.CopyToAsync(target, cancellationToken);
-            await target.FlushAsync(cancellationToken);
+            {
+                await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+                await using var target = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true);
+                await source.CopyToAsync(target, cancellationToken);
+                await target.FlushAsync(cancellationToken);
+            }
             File.Move(temp, fullPath, true);
             return true;
         }
