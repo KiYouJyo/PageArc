@@ -19,6 +19,7 @@ public sealed class V14ExtensionRuntimeManagementTests
         Assert.Contains("x:Name=\"RuntimeInstalledVersionText\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"RuntimeAvailableVersionText\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"RuntimeDownloadProgress\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("ConversionRuntimeStateBadge", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"CheckRuntimeUpdatesButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"RuntimeActionButton\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"RemoveRuntimeButton\"", xaml, StringComparison.Ordinal);
@@ -29,6 +30,40 @@ public sealed class V14ExtensionRuntimeManagementTests
         Assert.Contains("PageArc.ConversionRuntime", code, StringComparison.Ordinal);
         Assert.Contains("下载并更新", code, StringComparison.Ordinal);
         Assert.Contains("下载并安装", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RuntimeDownloadState_PersistsOutsideAboutPageInstance()
+    {
+        var root = FindRepoRoot();
+        var about = File.ReadAllText(Path.Combine(root, "Pages", "AboutPage.xaml.cs"));
+        var conversion = File.ReadAllText(Path.Combine(root, "Pages", "ConversionPage.xaml.cs"));
+        var reader = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml.cs"));
+        var provider = File.ReadAllText(Path.Combine(root, "Services", "Conversion", "PageArcManagedConversionProvider.cs"));
+        var manager = File.ReadAllText(Path.Combine(root, "Services", "Conversion", "ConversionRuntimeManager.cs"));
+
+        Assert.Contains("ConversionRuntimeManager.Shared", about, StringComparison.Ordinal);
+        Assert.Contains("OperationStateChanged", about, StringComparison.Ordinal);
+        Assert.Contains("AboutPage_Loaded", about, StringComparison.Ordinal);
+        Assert.Contains("AboutPage_Unloaded", about, StringComparison.Ordinal);
+        Assert.Contains("ApplyRuntimeOperationState(_runtimeManager.OperationState)", about, StringComparison.Ordinal);
+        Assert.Contains("ConversionRuntimeManager.Shared", conversion, StringComparison.Ordinal);
+        Assert.Contains("ConversionRuntimeManager.Shared", reader, StringComparison.Ordinal);
+        Assert.Contains("ConversionRuntimeManager.Shared", provider, StringComparison.Ordinal);
+        Assert.Contains("public ConversionRuntimeOperationState OperationState", manager, StringComparison.Ordinal);
+        Assert.Contains("public static ConversionRuntimeManager Shared", manager, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RuntimeRemovalDialog_UsesCompactStandardPrimaryActionLayout()
+    {
+        var root = FindRepoRoot();
+        var code = File.ReadAllText(Path.Combine(root, "Pages", "AboutPage.xaml.cs"));
+
+        Assert.Contains("MaxWidth = 520", code, StringComparison.Ordinal);
+        Assert.Contains("TextWrapping = TextWrapping.Wrap", code, StringComparison.Ordinal);
+        Assert.Contains("DefaultButton = ContentDialogButton.Primary", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("DefaultButton = ContentDialogButton.Close", ExtractRemoveRuntimeMethod(code), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -119,6 +154,14 @@ public sealed class V14ExtensionRuntimeManagementTests
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         }
+    }
+
+    private static string ExtractRemoveRuntimeMethod(string code)
+    {
+        var start = code.IndexOf("private async void RemoveRuntime_Click", StringComparison.Ordinal);
+        var end = code.IndexOf("private void RefreshRuntimeCard", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        return code[start..end];
     }
 
     private static string FindRepoRoot()
