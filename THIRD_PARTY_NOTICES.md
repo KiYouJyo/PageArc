@@ -20,16 +20,18 @@ PageArc vendors the pinned parser source into the application package so ebook p
 - License: MIT
 - License text: `ThirdParty/fflate/LICENSE`
 
-## calibre 9.13.0 — bundled conversion runtime in official x64 packages
+## calibre 9.13.0 — optional on-demand conversion runtime
 
-PageArc v1.0 official x64 signed packages bundle a fixed calibre **9.13.0** runtime and invoke its `ebook-convert.exe` as a separate local process through PageArc's conversion-provider boundary. This makes EPUB / FB2 / MOBI / AZW3 / LIT conversion and LIT normalization available without requiring a separate calibre installation.
+Starting with PageArc v1.4, calibre is **not embedded in the PageArc application package**. When a conversion-dependent feature is first requested, PageArc can download the pinned runtime package from the separate public repository `KiYouJyo/PageArc.ConversionRuntime`.
 
-- Project: calibre
-- Version: 9.13.0
+- Runtime repository: `KiYouJyo/PageArc.ConversionRuntime`
+- Runtime package revision: `9.13.0-pagearc.1`
+- calibre version: 9.13.0
 - License: GNU General Public License v3 (GPLv3)
-- Runtime pin / provenance: `ThirdParty/calibre/PIN.md`
-- Corresponding source archive: distributed beside the signed v1.0 acceptance/release package as `calibre-9.13.0.tar.xz`
+- Runtime archive: `PageArc.ConversionRuntime-win-x64.zip`
+- Runtime archive SHA-256 pinned by PageArc v1.4: `1d223227254d6dfacc8f5645caf3cba26434e129cf5bb65decb0a121a61b5322`
+- Corresponding source archive: `calibre-9.13.0.tar.xz`, published beside the runtime release
 
-calibre and its bundled dependencies retain their own copyrights and licenses. PageArc itself remains MIT licensed. The source ebook is never modified and PageArc does not attempt DRM removal.
+The optional runtime is installed per-user under PageArc's local runtime directory and can be removed independently from PageArc. calibre and its bundled dependencies retain their own copyrights and licenses. PageArc itself remains MIT licensed. The source ebook is never modified and PageArc does not attempt DRM removal.
 
-Development/source builds that have not prepared the bundled runtime can still use an already installed calibre copy as a compatibility fallback.
+If a compatible calibre installation is already available on the system, PageArc prefers that installation and does not need to download its managed runtime.
