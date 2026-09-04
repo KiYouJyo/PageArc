@@ -13,7 +13,7 @@ namespace PageArc.Pages;
 public sealed partial class ConversionPage : Page
 {
     private readonly EbookConversionService _conversionService = new();
-    private readonly ConversionRuntimeManager _runtimeManager = new();
+    private readonly ConversionRuntimeManager _runtimeManager = ConversionRuntimeManager.Shared;
     private readonly ObservableCollection<ConversionQueueItem> _queue = [];
     private bool _running;
 

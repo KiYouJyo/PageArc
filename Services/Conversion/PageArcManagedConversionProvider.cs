@@ -8,7 +8,7 @@ public sealed class PageArcManagedConversionProvider : IEbookConversionProvider
 
     public PageArcManagedConversionProvider(ConversionRuntimeManager? runtimeManager = null)
     {
-        _runtimeManager = runtimeManager ?? new ConversionRuntimeManager();
+        _runtimeManager = runtimeManager ?? ConversionRuntimeManager.Shared;
     }
 
     public string Id => $"pagearc-managed-calibre-{ConversionRuntimeManager.PackageVersion}";

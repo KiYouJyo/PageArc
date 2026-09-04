@@ -16,7 +16,7 @@ namespace PageArc.Pages;
 public sealed partial class ReaderPage : Page
 {
     private readonly FlowReaderEngine _readerEngine = new();
-    private readonly ConversionRuntimeManager _conversionRuntimeManager = new();
+    private readonly ConversionRuntimeManager _conversionRuntimeManager = ConversionRuntimeManager.Shared;
     private readonly FlowSearchService _searchService = new();
     private readonly ObservableCollection<ReaderSearchListItem> _searchItems = [];
     private readonly ObservableCollection<ReaderBookmarkListItem> _bookmarkItems = [];

@@ -5,6 +5,8 @@
 ### Changed
 - Added an About-page **Extension update management** card for installing, updating, checking, and removing the detached PageArc Conversion Runtime, with installed/available version, disk usage, source, state, and real download progress.
 - Conversion Runtime updates can now be discovered independently from the latest stable `KiYouJyo/PageArc.ConversionRuntime` release when its manifest is compatible with PageArc v1.4.
+- Runtime download/install state is now application-wide and survives About/Conversion/Reader navigation; reopening About restores the in-flight progress instead of resetting it.
+- Simplified the extension card header and aligned the runtime-removal confirmation with the app's standard compact primary-action dialog behavior.
 - Removed the bundled calibre payload from the PageArc MSIX and moved conversion-runtime distribution to the separate `KiYouJyo/PageArc.ConversionRuntime` repository.
 - PageArc now prefers a compatible system calibre installation and otherwise downloads pinned runtime `9.13.0-pagearc.1` only when a conversion-dependent feature is first requested.
 - Conversion and compatibility-dependent MOBI / AZW3 / LIT opening now ask before the first runtime download and surface download progress.

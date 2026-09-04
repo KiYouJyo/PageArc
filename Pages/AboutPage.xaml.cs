@@ -12,13 +12,15 @@ public sealed partial class AboutPage : Page
 {
     private UpdateCheckResult? _pendingUpdate;
     private bool _restartRequired;
-    private readonly ConversionRuntimeManager _runtimeManager = new();
+    private readonly ConversionRuntimeManager _runtimeManager = ConversionRuntimeManager.Shared;
     private ConversionRuntimeRelease? _pendingRuntimeRelease;
     private bool _runtimeBusy;
 
     public AboutPage()
     {
         InitializeComponent();
+        Loaded += AboutPage_Loaded;
+        Unloaded += AboutPage_Unloaded;
         var version = typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
         var displayVersion = version.Build > 0
             ? $"{version.Major}.{version.Minor}.{version.Build}"
@@ -63,7 +65,11 @@ public sealed partial class AboutPage : Page
             "来源：KiYouJyo/PageArc.ConversionRuntime · 下载后执行 SHA-256 校验与可执行文件验证。",
             "提供元：KiYouJyo/PageArc.ConversionRuntime · ダウンロード後に SHA-256 と実行ファイルを検証します。",
             "Source: KiYouJyo/PageArc.ConversionRuntime · downloads are verified by SHA-256 and executable validation.");
-        RefreshRuntimeCard();
+        _pendingRuntimeRelease = _runtimeManager.LastUpdateCheck is { UpdateAvailable: true } priorRuntimeCheck
+            ? priorRuntimeCheck.LatestCompatibleRelease
+            : null;
+        RefreshRuntimeCard(preserveAvailableVersion: _runtimeManager.LastUpdateCheck?.LatestCompatibleRelease is not null);
+        ApplyRuntimeOperationState(_runtimeManager.OperationState);
 
         ProductInfoHeading.Text = LocalText("产品信息", "製品情報", "Product information");
         ProductInfoHint.Text = LocalText("格式、存储、隐私与第三方许可", "形式、保存、プライバシー、サードパーティ ライセンス", "Formats, storage, privacy, and third-party licensing");
@@ -312,7 +318,7 @@ public sealed partial class AboutPage : Page
 
     private async void CheckRuntimeUpdates_Click(object sender, RoutedEventArgs e)
     {
-        if (_runtimeBusy) return;
+        if (_runtimeBusy || _runtimeManager.OperationState.IsBusy) return;
         SetRuntimeBusy(true);
         RuntimeInfoBar.IsOpen = false;
         RuntimeAvailableVersionText.Text = LocalText("检查中…", "確認中…", "Checking…");
@@ -387,81 +393,70 @@ public sealed partial class AboutPage : Page
 
     private async void RuntimeAction_Click(object sender, RoutedEventArgs e)
     {
-        if (_runtimeBusy) return;
+        if (_runtimeBusy || _runtimeManager.OperationState.IsBusy) return;
 
         SetRuntimeBusy(true);
         RuntimeInfoBar.IsOpen = false;
-        RuntimeDownloadProgress.Value = 0;
-        RuntimeDownloadProgress.Visibility = Visibility.Visible;
-        RuntimeProgressText.Visibility = Visibility.Visible;
-
         try
         {
-            var progress = new Progress<ConversionRuntimeProgress>(value =>
-            {
-                var percent = value.TotalBytes is > 0 ? value.Fraction * 100 : 0;
-                RuntimeDownloadProgress.Value = percent;
-                RuntimeProgressText.Text = value.Stage switch
-                {
-                    "manifest" => LocalText("正在检查扩展清单…", "拡張機能のマニフェストを確認しています…", "Checking extension manifest…"),
-                    "download" => LocalText(
-                        $"正在下载转换运行时… {percent:0}% · {FormatRuntimeBytes(value.BytesTransferred)} / {FormatRuntimeBytes(value.TotalBytes ?? 0)}",
-                        $"変換ランタイムをダウンロードしています… {percent:0}% · {FormatRuntimeBytes(value.BytesTransferred)} / {FormatRuntimeBytes(value.TotalBytes ?? 0)}",
-                        $"Downloading conversion runtime… {percent:0}% · {FormatRuntimeBytes(value.BytesTransferred)} / {FormatRuntimeBytes(value.TotalBytes ?? 0)}"),
-                    "extract" => LocalText("正在校验并安装…", "検証してインストールしています…", "Verifying and installing…"),
-                    "complete" => LocalText("安装完成。", "インストール完了。", "Installation complete."),
-                    _ => LocalText("正在准备扩展…", "拡張機能を準備しています…", "Preparing extension…")
-                };
-            });
-
             if (_pendingRuntimeRelease is not null)
-                await _runtimeManager.InstallReleaseAsync(_pendingRuntimeRelease, progress);
+                await _runtimeManager.InstallReleaseAsync(_pendingRuntimeRelease);
             else
-                await _runtimeManager.EnsureInstalledAsync(progress);
+                await _runtimeManager.EnsureInstalledAsync();
 
             _pendingRuntimeRelease = null;
-            RuntimeInfoBar.Severity = InfoBarSeverity.Success;
-            RuntimeInfoBar.Message = LocalText(
-                "转换运行时安装/更新完成，可立即使用，无需重启 PageArc。",
-                "変換ランタイムのインストール/更新が完了しました。PageArc の再起動は不要です。",
-                "Conversion runtime installation/update completed and is ready immediately; no PageArc restart is required.");
-            RuntimeInfoBar.IsOpen = true;
-            RefreshRuntimeCard();
+            if (IsLoaded)
+            {
+                RuntimeInfoBar.Severity = InfoBarSeverity.Success;
+                RuntimeInfoBar.Message = LocalText(
+                    "转换运行时安装/更新完成，可立即使用，无需重启 PageArc。",
+                    "変換ランタイムのインストール/更新が完了しました。PageArc の再起動は不要です。",
+                    "Conversion runtime installation/update completed and is ready immediately; no PageArc restart is required.");
+                RuntimeInfoBar.IsOpen = true;
+                RefreshRuntimeCard();
+            }
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("Runtime install/update failed", ex);
-            RuntimeInfoBar.Severity = InfoBarSeverity.Error;
-            RuntimeInfoBar.Message = LocalText(
-                "转换运行时下载安装或校验失败。",
-                "変換ランタイムのダウンロード、インストール、または検証に失敗しました。",
-                "The conversion runtime download, installation, or verification failed.");
-            RuntimeInfoBar.IsOpen = true;
-            RefreshRuntimeCard();
+            if (IsLoaded)
+            {
+                RuntimeInfoBar.Severity = InfoBarSeverity.Error;
+                RuntimeInfoBar.Message = LocalText(
+                    "转换运行时下载安装或校验失败。",
+                    "変換ランタイムのダウンロード、インストール、または検証に失敗しました。",
+                    "The conversion runtime download, installation, or verification failed.");
+                RuntimeInfoBar.IsOpen = true;
+                RefreshRuntimeCard();
+            }
         }
         finally
         {
-            RuntimeDownloadProgress.Visibility = Visibility.Collapsed;
-            RuntimeProgressText.Visibility = Visibility.Collapsed;
-            SetRuntimeBusy(false);
+            if (IsLoaded)
+                SetRuntimeBusy(false);
         }
     }
 
     private async void RemoveRuntime_Click(object sender, RoutedEventArgs e)
     {
-        if (_runtimeBusy || !_runtimeManager.IsInstalled) return;
+        if (_runtimeBusy || _runtimeManager.OperationState.IsBusy || !_runtimeManager.IsInstalled) return;
 
         var confirmation = new ContentDialog
         {
             XamlRoot = XamlRoot,
             Title = LocalText("卸载转换运行时？", "変換ランタイムを削除しますか？", "Remove conversion runtime?"),
-            Content = LocalText(
-                "这只会删除按需下载的转换运行时，不会删除书本、阅读数据或 PageArc 本体。之后需要时可重新下载。",
-                "必要時にダウンロードした変換ランタイムだけを削除します。書籍、読書データ、PageArc 本体は削除されません。必要になれば再ダウンロードできます。",
-                "This removes only the on-demand conversion runtime. Books, reading data, and PageArc remain untouched, and the runtime can be downloaded again later."),
+            Content = new TextBlock
+            {
+                Text = LocalText(
+                    "这只会删除按需下载的转换运行时，不会删除书本、阅读数据或 PageArc 本体。之后需要时可重新下载。",
+                    "必要時にダウンロードした変換ランタイムだけを削除します。書籍、読書データ、PageArc 本体は削除されません。必要になれば再ダウンロードできます。",
+                    "This removes only the on-demand conversion runtime. Books, reading data, and PageArc remain untouched, and the runtime can be downloaded again later."),
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 520
+            },
             PrimaryButtonText = LocalText("卸载", "削除", "Remove"),
             CloseButtonText = LocalText("取消", "キャンセル", "Cancel"),
-            DefaultButton = ContentDialogButton.Close
+            DefaultButton = ContentDialogButton.Primary
         };
         if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
 
@@ -497,16 +492,14 @@ public sealed partial class AboutPage : Page
     private void RefreshRuntimeCard(bool preserveAvailableVersion = false)
     {
         var status = _runtimeManager.GetStatus();
-        ConversionRuntimeStateBadge.Text = status.IsInstalled
-            ? LocalText("已安装", "インストール済み", "Installed")
-            : LocalText("未安装", "未インストール", "Not installed");
         RuntimeInstalledVersionText.Text = status.IsInstalled ? status.PackageVersion : "—";
         if (!preserveAvailableVersion)
             RuntimeAvailableVersionText.Text = "—";
         RuntimeStorageText.Text = status.IsInstalled ? FormatRuntimeBytes(status.InstalledBytes) : "0 MB";
 
-        RemoveRuntimeButton.IsEnabled = !_runtimeBusy && status.IsInstalled;
-        CheckRuntimeUpdatesButton.IsEnabled = !_runtimeBusy && status.IsSupported;
+        var operationBusy = _runtimeManager.OperationState.IsBusy;
+        RemoveRuntimeButton.IsEnabled = !_runtimeBusy && !operationBusy && status.IsInstalled;
+        CheckRuntimeUpdatesButton.IsEnabled = !_runtimeBusy && !operationBusy && status.IsSupported;
 
         if (!status.IsSupported)
         {
@@ -518,12 +511,12 @@ public sealed partial class AboutPage : Page
             RuntimeActionButton.Content = status.IsInstalled
                 ? LocalText("下载并更新", "ダウンロードして更新", "Download and update")
                 : LocalText("下载并安装", "ダウンロードしてインストール", "Download and install");
-            RuntimeActionButton.IsEnabled = !_runtimeBusy;
+            RuntimeActionButton.IsEnabled = !_runtimeBusy && !operationBusy;
         }
         else if (!status.IsInstalled)
         {
             RuntimeActionButton.Content = LocalText("下载并安装", "ダウンロードしてインストール", "Download and install");
-            RuntimeActionButton.IsEnabled = !_runtimeBusy;
+            RuntimeActionButton.IsEnabled = !_runtimeBusy && !operationBusy;
         }
         else
         {
@@ -535,12 +528,84 @@ public sealed partial class AboutPage : Page
     private void SetRuntimeBusy(bool busy)
     {
         _runtimeBusy = busy;
-        CheckRuntimeUpdatesButton.IsEnabled = !busy && _runtimeManager.IsSupported;
-        RemoveRuntimeButton.IsEnabled = !busy && _runtimeManager.IsInstalled;
-        if (busy)
+        var operationBusy = _runtimeManager.OperationState.IsBusy;
+        CheckRuntimeUpdatesButton.IsEnabled = !busy && !operationBusy && _runtimeManager.IsSupported;
+        RemoveRuntimeButton.IsEnabled = !busy && !operationBusy && _runtimeManager.IsInstalled;
+        if (busy || operationBusy)
             RuntimeActionButton.IsEnabled = false;
         else
             RefreshRuntimeCard(preserveAvailableVersion: _pendingRuntimeRelease is not null || RuntimeAvailableVersionText.Text != "—");
+    }
+
+    private void AboutPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        _runtimeManager.OperationStateChanged -= RuntimeManager_OperationStateChanged;
+        _runtimeManager.OperationStateChanged += RuntimeManager_OperationStateChanged;
+        _pendingRuntimeRelease = _runtimeManager.LastUpdateCheck is { UpdateAvailable: true } runtimeCheck
+            ? runtimeCheck.LatestCompatibleRelease
+            : null;
+
+        RefreshRuntimeCard(preserveAvailableVersion: _runtimeManager.LastUpdateCheck?.LatestCompatibleRelease is not null);
+        if (_runtimeManager.LastUpdateCheck?.LatestCompatibleRelease is { } latest)
+            RuntimeAvailableVersionText.Text = latest.Manifest.PackageVersion;
+        ApplyRuntimeOperationState(_runtimeManager.OperationState);
+    }
+
+    private void AboutPage_Unloaded(object sender, RoutedEventArgs e)
+    {
+        _runtimeManager.OperationStateChanged -= RuntimeManager_OperationStateChanged;
+    }
+
+    private void RuntimeManager_OperationStateChanged(object? sender, ConversionRuntimeOperationState state)
+    {
+        if (!DispatcherQueue.HasThreadAccess)
+        {
+            _ = DispatcherQueue.TryEnqueue(() => ApplyRuntimeOperationState(state));
+            return;
+        }
+
+        ApplyRuntimeOperationState(state);
+    }
+
+    private void ApplyRuntimeOperationState(ConversionRuntimeOperationState state)
+    {
+        if (state.IsBusy)
+        {
+            _runtimeBusy = true;
+            RuntimeDownloadProgress.Visibility = Visibility.Visible;
+            RuntimeProgressText.Visibility = Visibility.Visible;
+            RuntimeDownloadProgress.Value = state.TotalBytes is > 0 ? state.Fraction * 100 : 0;
+            RuntimeProgressText.Text = FormatRuntimeOperationText(state);
+            CheckRuntimeUpdatesButton.IsEnabled = false;
+            RuntimeActionButton.IsEnabled = false;
+            RemoveRuntimeButton.IsEnabled = false;
+            return;
+        }
+
+        _runtimeBusy = false;
+        RuntimeDownloadProgress.Visibility = Visibility.Collapsed;
+        RuntimeProgressText.Visibility = Visibility.Collapsed;
+        RefreshRuntimeCard(preserveAvailableVersion: _runtimeManager.LastUpdateCheck?.LatestCompatibleRelease is not null);
+
+        if (_runtimeManager.LastUpdateCheck?.LatestCompatibleRelease is { } latest)
+            RuntimeAvailableVersionText.Text = latest.Manifest.PackageVersion;
+    }
+
+    private string FormatRuntimeOperationText(ConversionRuntimeOperationState state)
+    {
+        var percent = state.TotalBytes is > 0 ? state.Fraction * 100 : 0;
+        return state.Stage switch
+        {
+            "manifest" => LocalText("正在检查扩展清单…", "拡張機能のマニフェストを確認しています…", "Checking extension manifest…"),
+            "download" => LocalText(
+                $"正在下载转换运行时… {percent:0}% · {FormatRuntimeBytes(state.BytesTransferred)} / {FormatRuntimeBytes(state.TotalBytes ?? 0)}",
+                $"変換ランタイムをダウンロードしています… {percent:0}% · {FormatRuntimeBytes(state.BytesTransferred)} / {FormatRuntimeBytes(state.TotalBytes ?? 0)}",
+                $"Downloading conversion runtime… {percent:0}% · {FormatRuntimeBytes(state.BytesTransferred)} / {FormatRuntimeBytes(state.TotalBytes ?? 0)}"),
+            "extract" => LocalText("正在校验并安装…", "検証してインストールしています…", "Verifying and installing…"),
+            "complete" => LocalText("安装完成。", "インストール完了。", "Installation complete."),
+            "failed" => LocalText("转换运行时操作失败。", "変換ランタイムの操作に失敗しました。", "Conversion runtime operation failed."),
+            _ => LocalText("正在准备扩展…", "拡張機能を準備しています…", "Preparing extension…")
+        };
     }
 
     private static string FormatRuntimeBytes(long bytes)

@@ -53,6 +53,22 @@ public sealed record ConversionRuntimeUpdateCheck(
     bool UpdateAvailable,
     string? ErrorCode = null);
 
+public sealed record ConversionRuntimeOperationState(
+    bool IsBusy,
+    string Stage,
+    long BytesTransferred,
+    long? TotalBytes,
+    string? PackageVersion,
+    string? ErrorCode = null)
+{
+    public double Fraction => TotalBytes is > 0
+        ? Math.Clamp((double)BytesTransferred / TotalBytes.Value, 0d, 1d)
+        : 0d;
+
+    public static ConversionRuntimeOperationState Idle { get; } =
+        new(false, "idle", 0, null, null);
+}
+
 /// <summary>
 /// Owns PageArc's optional conversion-runtime lifecycle.
 /// Runtime binaries live in KiYouJyo/PageArc.ConversionRuntime releases and are never embedded in the PageArc MSIX.
@@ -76,9 +92,26 @@ public sealed class ConversionRuntimeManager
     public static readonly Uri ArchiveUri =
         new($"https://github.com/KiYouJyo/PageArc.ConversionRuntime/releases/download/{ReleaseTag}/{ArchiveFileName}");
 
+    public static ConversionRuntimeManager Shared { get; } = new();
+
     private static readonly SemaphoreSlim InstallGate = new(1, 1);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly HttpClient _client;
+    private readonly object _operationStateGate = new();
+    private ConversionRuntimeOperationState _operationState = ConversionRuntimeOperationState.Idle;
+
+    public event EventHandler<ConversionRuntimeOperationState>? OperationStateChanged;
+
+    public ConversionRuntimeOperationState OperationState
+    {
+        get
+        {
+            lock (_operationStateGate)
+                return _operationState;
+        }
+    }
+
+    public ConversionRuntimeUpdateCheck? LastUpdateCheck { get; private set; }
 
     public ConversionRuntimeManager(HttpClient? client = null)
     {
@@ -126,8 +159,13 @@ public sealed class ConversionRuntimeManager
         CancellationToken cancellationToken = default)
     {
         var local = GetStatus();
+        ConversionRuntimeUpdateCheck result;
         if (!IsSupported)
-            return new(false, local, null, false, "UnsupportedPlatform");
+        {
+            result = new(false, local, null, false, "UnsupportedPlatform");
+            LastUpdateCheck = result;
+            return result;
+        }
 
         try
         {
@@ -138,17 +176,20 @@ public sealed class ConversionRuntimeManager
                         release.Manifest.PackageVersion,
                         local.PackageVersion) > 0);
 
-            return new(true, local, release, updateAvailable);
+            result = new(true, local, release, updateAvailable);
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new(false, local, null, false, "Timeout");
+            result = new(false, local, null, false, "Timeout");
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidDataException or FormatException)
         {
             StartupDiagnostics.Log("Conversion runtime update check failed", ex);
-            return new(false, local, null, false, ex.GetType().Name);
+            result = new(false, local, null, false, ex.GetType().Name);
         }
+
+        LastUpdateCheck = result;
+        return result;
     }
 
     public async Task<string> EnsureInstalledAsync(
@@ -190,10 +231,18 @@ public sealed class ConversionRuntimeManager
         if (!IsSupported)
             throw new PlatformNotSupportedException("The PageArc conversion runtime is currently distributed for Windows x64-compatible systems only.");
 
-        progress?.Report(new ConversionRuntimeProgress("manifest", 0, null));
-        var release = await GetLatestCompatibleReleaseAsync(cancellationToken)
-            ?? throw new InvalidDataException("No compatible PageArc conversion runtime release is available.");
-        return await InstallReleaseAsync(release, progress, cancellationToken);
+        PublishOperationState(new(true, "manifest", 0, null, null), progress);
+        try
+        {
+            var release = await GetLatestCompatibleReleaseAsync(cancellationToken)
+                ?? throw new InvalidDataException("No compatible PageArc conversion runtime release is available.");
+            return await InstallReleaseAsync(release, progress, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            PublishOperationState(new(false, "failed", 0, null, null, ex.GetType().Name), progress);
+            throw;
+        }
     }
 
     public async Task<string> InstallReleaseAsync(
@@ -209,15 +258,19 @@ public sealed class ConversionRuntimeManager
         await InstallGate.WaitAsync(cancellationToken);
         try
         {
-            AppPaths.Ensure();
             var manifest = release.Manifest;
+            PublishOperationState(new(true, "manifest", 0, manifest.ArchiveSize, manifest.PackageVersion), progress);
+            AppPaths.Ensure();
             var targetRoot = GetInstallRoot(manifest.PackageVersion);
             var targetExecutable = Path.Combine(
                 targetRoot,
                 manifest.ExecutableRelativePath.Replace('/', Path.DirectorySeparatorChar));
 
             if (File.Exists(targetExecutable) && new FileInfo(targetExecutable).Length > 0)
+            {
+                PublishOperationState(new(false, "complete", manifest.ArchiveSize, manifest.ArchiveSize, manifest.PackageVersion), progress);
                 return targetExecutable;
+            }
 
             var downloadPath = Path.Combine(
                 AppPaths.RuntimeDownloadsRoot,
@@ -231,7 +284,7 @@ public sealed class ConversionRuntimeManager
                 await DownloadArchiveAsync(release.ArchiveUri, manifest, downloadPath, progress, cancellationToken);
                 await VerifyArchiveAsync(downloadPath, manifest, cancellationToken);
 
-                progress?.Report(new ConversionRuntimeProgress("extract", 0, manifest.ArchiveSize));
+                PublishOperationState(new(true, "extract", 0, manifest.ArchiveSize, manifest.PackageVersion), progress);
                 ExtractArchiveSafely(downloadPath, stagingRoot, cancellationToken);
 
                 var stagedExecutable = Path.Combine(
@@ -255,9 +308,15 @@ public sealed class ConversionRuntimeManager
 
                 // Keep only the active compatible version after a successful update.
                 RemoveOtherRuntimeVersions(manifest.PackageVersion);
+                RefreshCachedUpdateCheckAfterLocalChange();
 
-                progress?.Report(new ConversionRuntimeProgress("complete", manifest.ArchiveSize, manifest.ArchiveSize));
+                PublishOperationState(new(false, "complete", manifest.ArchiveSize, manifest.ArchiveSize, manifest.PackageVersion), progress);
                 return targetExecutable;
+            }
+            catch (Exception ex)
+            {
+                PublishOperationState(new(false, "failed", 0, manifest.ArchiveSize, manifest.PackageVersion, ex.GetType().Name), progress);
+                throw;
             }
             finally
             {
@@ -282,6 +341,7 @@ public sealed class ConversionRuntimeManager
                     continue;
                 Directory.Delete(directory, recursive: true);
             }
+            RefreshCachedUpdateCheckAfterLocalChange();
         }
         catch (Exception ex)
         {
@@ -401,7 +461,7 @@ public sealed class ConversionRuntimeManager
             if (read == 0) break;
             await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             copied += read;
-            progress?.Report(new ConversionRuntimeProgress("download", copied, manifest.ArchiveSize));
+            PublishOperationState(new(true, "download", copied, manifest.ArchiveSize, manifest.PackageVersion), progress);
         }
 
         await target.FlushAsync(cancellationToken);
@@ -521,6 +581,26 @@ public sealed class ConversionRuntimeManager
     private string GetInstallRoot(string packageVersion) =>
         Path.Combine(AppPaths.ConversionRuntimesRoot, packageVersion, "win-x64");
 
+    private void RefreshCachedUpdateCheckAfterLocalChange()
+    {
+        if (LastUpdateCheck is not { Succeeded: true } cached)
+            return;
+
+        var local = GetStatus();
+        var latest = cached.LatestCompatibleRelease;
+        var updateAvailable = latest is not null
+            && (!local.IsInstalled
+                || RuntimePackageVersionComparer.Instance.Compare(
+                    latest.Manifest.PackageVersion,
+                    local.PackageVersion) > 0);
+
+        LastUpdateCheck = cached with
+        {
+            LocalStatus = local,
+            UpdateAvailable = updateAvailable
+        };
+    }
+
     private void RemoveOtherRuntimeVersions(string keepPackageVersion)
     {
         if (!Directory.Exists(AppPaths.ConversionRuntimesRoot)) return;
@@ -530,6 +610,23 @@ public sealed class ConversionRuntimeManager
             if (name.StartsWith(".", StringComparison.Ordinal) || string.Equals(name, keepPackageVersion, StringComparison.Ordinal))
                 continue;
             TryDeleteDirectory(directory);
+        }
+    }
+
+    private void PublishOperationState(
+        ConversionRuntimeOperationState state,
+        IProgress<ConversionRuntimeProgress>? externalProgress = null)
+    {
+        lock (_operationStateGate)
+            _operationState = state;
+
+        OperationStateChanged?.Invoke(this, state);
+        if (state.Stage is not "idle" and not "failed")
+        {
+            externalProgress?.Report(new ConversionRuntimeProgress(
+                state.Stage,
+                state.BytesTransferred,
+                state.TotalBytes));
         }
     }
 
