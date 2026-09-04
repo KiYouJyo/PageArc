@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - publish/v1.3.1.1-one-shot
+      - publish/v1.3.1-one-shot
 
 permissions:
   contents: write
@@ -50,7 +50,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $root = Join-Path $env:RUNNER_TEMP 'PageArc-v1.3.1.1-acceptance'
+          $root = Join-Path $env:RUNNER_TEMP 'PageArc-v1.3.1-acceptance'
           New-Item -ItemType Directory -Force -Path $root | Out-Null
           $source = Join-Path $root 'calibre-9.13.0.tar.xz'
           .\eng\prepare-calibre-runtime.ps1 -Version '9.13.0' -DownloadSource -SourceDestination $source
@@ -66,7 +66,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $matrixRoot = Join-Path $env:RUNNER_TEMP 'PageArc-v1.3.1.1-conversion-matrix'
+          $matrixRoot = Join-Path $env:RUNNER_TEMP 'PageArc-v1.3.1-conversion-matrix'
           Remove-Item $matrixRoot -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $matrixRoot | Out-Null
           $seedHtml = Join-Path $matrixRoot 'seed.html'
@@ -125,7 +125,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $output = Join-Path $env:RUNNER_TEMP 'PageArc-v1.3.1.1-AppPackages'
+          $output = Join-Path $env:RUNNER_TEMP 'PageArc-v1.3.1-AppPackages'
           dotnet restore PageArc.csproj -p:Configuration=Release -p:Platform=x64
           if ($LASTEXITCODE -ne 0) { throw "Packaged restore failed: $LASTEXITCODE" }
           dotnet build PageArc.csproj -c Release -p:Platform=x64 --no-restore `
@@ -172,7 +172,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $dir = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v1.3.1.1-x64-signed-release'; New-Item -ItemType Directory -Force $dir | Out-Null
+          $dir = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v1.3.1-x64-signed-release'; New-Item -ItemType Directory -Force $dir | Out-Null
           Copy-Item $env:MSIX_PATH $dir; Copy-Item $env:CERTIFICATE_PATH $dir; Copy-Item $env:CALIBRE_SOURCE $dir
           Copy-Item ThirdParty\calibre\PIN.md (Join-Path $dir 'calibre-PIN.md'); Copy-Item THIRD_PARTY_NOTICES.md $dir
           @'
@@ -194,20 +194,20 @@ jobs:
       - name: Upload signed v1.3.1 release package
         uses: actions/upload-artifact@v4
         with:
-          name: PageArc-v1.3.1.1-x64-signed-release
+          name: PageArc-v1.3.1-x64-signed-release
           path: ${{ env.ARTIFACT_DIR }}
           if-no-files-found: error
           retention-days: 14
           compression-level: 6
 
       - name: Publish GitHub v1.3.1 release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/publish/v1.3.1.1-one-shot'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/publish/v1.3.1-one-shot'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $zipPath = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v1.3.1.1-x64-signed-release.zip'
+          $zipPath = Join-Path $env:ACCEPTANCE_ROOT 'PageArc-v1.3.1-x64-signed-release.zip'
           Compress-Archive -Path (Join-Path $env:ARTIFACT_DIR '*') -DestinationPath $zipPath -CompressionLevel Optimal -Force
           $checksums = Join-Path $env:ARTIFACT_DIR 'SHA256SUMS.txt'
           gh release view v1.3.1 *> $null
