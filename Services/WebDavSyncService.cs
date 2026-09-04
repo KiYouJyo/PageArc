@@ -134,6 +134,7 @@ public sealed class WebDavSyncService
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
+        await VerifyUploadedArchiveAsync(settings, password, fileName, info.Length, cancellationToken);
         progress?.Report(new WebDavTransferProgress(info.Length, info.Length));
     }
 
@@ -249,6 +250,46 @@ public sealed class WebDavSyncService
         {
             try { if (File.Exists(temp)) File.Delete(temp); } catch { }
         }
+    }
+
+    private async Task VerifyUploadedArchiveAsync(
+        WebDavConnectionSettings settings,
+        string password,
+        string requestedFileName,
+        long expectedLength,
+        CancellationToken cancellationToken)
+    {
+        var uri = settings.GetUploadUri(requestedFileName);
+        using var request = CreateRequest(HttpMethod.Head, uri, settings, password);
+        using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var remoteLength = response.Content.Headers.ContentLength;
+            if (remoteLength.HasValue && remoteLength.Value != expectedLength)
+                throw new InvalidDataException($"WebDAV upload verification failed: expected {expectedLength} bytes, remote reports {remoteLength.Value} bytes.");
+            return;
+        }
+
+        if (response.StatusCode is HttpStatusCode.MethodNotAllowed or HttpStatusCode.NotImplemented)
+        {
+            var listing = await ListArchivesAsync(settings, password, cancellationToken);
+            if (!listing.Succeeded)
+                throw new HttpRequestException($"WebDAV upload verification listing failed: {listing.ErrorCode}");
+
+            var expectedName = settings.UsesDirectArchiveUrl
+                ? settings.GetDirectArchiveFileName()
+                : requestedFileName;
+            var item = listing.Items.FirstOrDefault(candidate =>
+                string.Equals(candidate.FileName, expectedName, StringComparison.OrdinalIgnoreCase));
+            if (item is null)
+                throw new InvalidDataException("WebDAV upload completed but the remote archive could not be found during verification.");
+            if (item.Size > 0 && item.Size != expectedLength)
+                throw new InvalidDataException($"WebDAV upload verification failed: expected {expectedLength} bytes, remote reports {item.Size} bytes.");
+            return;
+        }
+
+        response.EnsureSuccessStatusCode();
     }
 
     private async Task<WebDavArchiveListResult> ReadDirectArchiveMetadataAsync(
