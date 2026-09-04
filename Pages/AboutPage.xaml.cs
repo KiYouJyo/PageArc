@@ -417,7 +417,7 @@ public sealed partial class AboutPage : Page
             if (_pendingRuntimeRelease is not null)
                 await _runtimeManager.InstallReleaseAsync(_pendingRuntimeRelease, progress);
             else
-                await _runtimeManager.InstallLatestCompatibleAsync(progress);
+                await _runtimeManager.EnsureInstalledAsync(progress);
 
             _pendingRuntimeRelease = null;
             RuntimeInfoBar.Severity = InfoBarSeverity.Success;
