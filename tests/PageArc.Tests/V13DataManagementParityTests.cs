@@ -110,7 +110,7 @@ public sealed class V13DataManagementParityTests
         Assert.Contains("<AssemblyVersion>1.3.1.0</AssemblyVersion>", project, StringComparison.Ordinal);
         Assert.Contains("<ApplicationDisplayVersion>1.3.1</ApplicationDisplayVersion>", project, StringComparison.Ordinal);
         Assert.Contains("Version=\"1.3.1.0\"", githubManifest, StringComparison.Ordinal);
-        Assert.Contains("Version=\"1.3.0.0\"", acceptanceManifest, StringComparison.Ordinal);
+        Assert.Contains("Version=\"1.3.1.0\"", acceptanceManifest, StringComparison.Ordinal);
         Assert.Contains("Version=\"2026.904.131.0\"", storeManifest, StringComparison.Ordinal);
     }
 
