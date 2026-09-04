@@ -108,10 +108,11 @@ public sealed class SettingsAboutUpdateDesignTests
         Assert.Contains("packageManagement", githubManifest, StringComparison.Ordinal);
         Assert.DoesNotContain("packageManagement", storeManifest, StringComparison.Ordinal);
         Assert.Contains("Version=\"2026.904.140.0\"", storeManifest, StringComparison.Ordinal);
-        Assert.Contains("prepare-calibre-runtime.ps1", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
+        Assert.DoesNotContain("prepare-calibre-runtime.ps1", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
+        Assert.Contains("PageArc.ConversionRuntime", File.ReadAllText(Path.Combine(root, "Services", "Conversion", "ConversionRuntimeManager.cs")), StringComparison.Ordinal);
         Assert.Contains("pagearc-store-publish", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
         Assert.Contains("--inputDirectory", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
-        Assert.Contains("CalibreBundled", File.ReadAllText(Path.Combine(root, "Packaging", "Build-StorePackage.ps1")), StringComparison.Ordinal);
+        Assert.Contains("ConversionRuntimeDetached", File.ReadAllText(Path.Combine(root, "Packaging", "Build-StorePackage.ps1")), StringComparison.Ordinal);
         Assert.Contains("Microsoft Store", channel, StringComparison.Ordinal);
         Assert.Contains("GitHub Releases", channel, StringComparison.Ordinal);
     }
