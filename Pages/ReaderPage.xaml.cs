@@ -9,12 +9,14 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Navigation;
 using PageArc.Models;
 using PageArc.Services;
+using PageArc.Services.Conversion;
 
 namespace PageArc.Pages;
 
 public sealed partial class ReaderPage : Page
 {
     private readonly FlowReaderEngine _readerEngine = new();
+    private readonly ConversionRuntimeManager _conversionRuntimeManager = new();
     private readonly FlowSearchService _searchService = new();
     private readonly ObservableCollection<ReaderSearchListItem> _searchItems = [];
     private readonly ObservableCollection<ReaderBookmarkListItem> _bookmarkItems = [];
@@ -102,6 +104,12 @@ public sealed partial class ReaderPage : Page
         ReaderLoadingLayer.Visibility = Visibility.Visible;
         try
         {
+            if (!await EnsureConversionRuntimeForBookAsync(_book))
+            {
+                ReaderLoadingLayer.Visibility = Visibility.Collapsed;
+                return;
+            }
+
             await EnsureWebViewAsync();
             _source = await _readerEngine.OpenAsync(_book);
             _document = _source.Document;
@@ -136,6 +144,84 @@ public sealed partial class ReaderPage : Page
             StartupDiagnostics.Log("Flow reader initialization failed", ex);
             ShowReaderError(ex.Message);
         }
+    }
+
+    private async Task<bool> EnsureConversionRuntimeForBookAsync(BookEntry book)
+    {
+        var format = BookFormatRegistry.Normalize(book.Format);
+        if (string.IsNullOrWhiteSpace(format)) format = BookFormatRegistry.FormatFromPath(book.FilePath);
+
+        if (format is not ("MOBI" or "AZW3" or "LIT"))
+            return true;
+        if (new CalibreConversionProvider().IsAvailable || _conversionRuntimeManager.IsInstalled)
+            return true;
+
+        var sizeMb = ConversionRuntimeManager.ExpectedArchiveSize / (1024d * 1024d);
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = ReaderLocalText("需要转换内核", "変換ランタイムが必要です", "Conversion runtime required"),
+            Content = ReaderLocalText(
+                $"首次打开 {format} 需要 PageArc Conversion Runtime。基础阅读器不包含该组件；将从独立仓库下载约 {sizeMb:0} MB，并在 SHA-256 校验后安装到本机用户目录。",
+                $"{format} を初めて開くには PageArc Conversion Runtime が必要です。基本リーダーには含まれていません。独立リポジトリから約 {sizeMb:0} MB をダウンロードし、SHA-256 検証後にユーザー領域へインストールします。",
+                $"Opening {format} for the first time requires PageArc Conversion Runtime. It is not included in the base reader; about {sizeMb:0} MB will be downloaded from the separate runtime repository and installed per-user after SHA-256 verification."),
+            PrimaryButtonText = ReaderLocalText("下载并继续", "ダウンロードして続行", "Download and continue"),
+            CloseButtonText = ReaderLocalText("取消", "キャンセル", "Cancel"),
+            DefaultButton = ContentDialogButton.Primary
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            ReaderInfoBar.Severity = InfoBarSeverity.Informational;
+            ReaderInfoBar.Message = ReaderLocalText(
+                "未安装转换内核，当前书本未打开。",
+                "変換ランタイムをインストールしなかったため、この書籍は開いていません。",
+                "The conversion runtime was not installed, so this book was not opened.");
+            ReaderInfoBar.IsOpen = true;
+            return false;
+        }
+
+        ReaderInfoBar.Severity = InfoBarSeverity.Informational;
+        ReaderInfoBar.IsOpen = true;
+        try
+        {
+            var progress = new Progress<ConversionRuntimeProgress>(value =>
+            {
+                var percent = value.TotalBytes is > 0 ? value.Fraction * 100 : 0;
+                ReaderInfoBar.Message = value.Stage switch
+                {
+                    "manifest" => ReaderLocalText("正在检查转换内核…", "変換ランタイムを確認しています…", "Checking conversion runtime…"),
+                    "download" => ReaderLocalText(
+                        $"正在下载转换内核… {percent:0}%",
+                        $"変換ランタイムをダウンロードしています… {percent:0}%",
+                        $"Downloading conversion runtime… {percent:0}%"),
+                    "extract" => ReaderLocalText("正在校验并安装转换内核…", "変換ランタイムを検証してインストールしています…", "Verifying and installing conversion runtime…"),
+                    "complete" => ReaderLocalText("转换内核安装完成，正在打开书本…", "変換ランタイムのインストール完了。書籍を開いています…", "Conversion runtime installed; opening the book…"),
+                    _ => ReaderLocalText("正在准备转换内核…", "変換ランタイムを準備しています…", "Preparing conversion runtime…")
+                };
+            });
+
+            await _conversionRuntimeManager.EnsureInstalledAsync(progress);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("Reader on-demand conversion runtime installation failed", ex);
+            ReaderInfoBar.Severity = InfoBarSeverity.Error;
+            ReaderInfoBar.Message = ReaderLocalText(
+                "转换内核下载或校验失败，无法打开此书。",
+                "変換ランタイムのダウンロードまたは検証に失敗したため、この書籍を開けません。",
+                "The conversion runtime could not be downloaded or verified, so this book cannot be opened.");
+            ReaderInfoBar.IsOpen = true;
+            return false;
+        }
+    }
+
+    private static string ReaderLocalText(string zh, string ja, string en)
+    {
+        var language = CultureInfo.CurrentUICulture.Name;
+        if (language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)) return zh;
+        if (language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return ja;
+        return en;
     }
 
     private static void SelectByTag(ComboBox comboBox, string tag)
