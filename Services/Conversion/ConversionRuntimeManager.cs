@@ -232,9 +232,17 @@ public sealed class ConversionRuntimeManager
             throw new PlatformNotSupportedException("The PageArc conversion runtime is currently distributed for Windows x64-compatible systems only.");
 
         PublishOperationState(new(true, "manifest", 0, null, null), progress);
-        var release = await GetLatestCompatibleReleaseAsync(cancellationToken)
-            ?? throw new InvalidDataException("No compatible PageArc conversion runtime release is available.");
-        return await InstallReleaseAsync(release, progress, cancellationToken);
+        try
+        {
+            var release = await GetLatestCompatibleReleaseAsync(cancellationToken)
+                ?? throw new InvalidDataException("No compatible PageArc conversion runtime release is available.");
+            return await InstallReleaseAsync(release, progress, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            PublishOperationState(new(false, "failed", 0, null, null, ex.GetType().Name), progress);
+            throw;
+        }
     }
 
     public async Task<string> InstallReleaseAsync(
@@ -259,7 +267,10 @@ public sealed class ConversionRuntimeManager
                 manifest.ExecutableRelativePath.Replace('/', Path.DirectorySeparatorChar));
 
             if (File.Exists(targetExecutable) && new FileInfo(targetExecutable).Length > 0)
+            {
+                PublishOperationState(new(false, "complete", manifest.ArchiveSize, manifest.ArchiveSize, manifest.PackageVersion), progress);
                 return targetExecutable;
+            }
 
             var downloadPath = Path.Combine(
                 AppPaths.RuntimeDownloadsRoot,
