@@ -21,7 +21,8 @@ public sealed class SettingsAboutUpdateDesignTests
         Assert.Contains("DownloadProgress", about, StringComparison.Ordinal);
         Assert.Contains("UpdateCheckProgressRing", about, StringComparison.Ordinal);
         Assert.DoesNotContain("UpdateActionIcon", about, StringComparison.Ordinal);
-        Assert.Contains("WebDavProgressRing", settings, StringComparison.Ordinal);
+        Assert.Contains("WebDavStatusBar", settings, StringComparison.Ordinal);
+        Assert.Contains("DataManagementResponsiveStates", settings, StringComparison.Ordinal);
         Assert.Contains("Width=\"40\" MinWidth=\"0\" Padding=\"0\"", settings, StringComparison.Ordinal);
         Assert.Contains("MinWindowWidth=\"1050\"", about, StringComparison.Ordinal);
     }
@@ -106,7 +107,7 @@ public sealed class SettingsAboutUpdateDesignTests
         Assert.Contains("RequestDownloadAndInstallStorePackageUpdatesAsync", service, StringComparison.Ordinal);
         Assert.Contains("packageManagement", githubManifest, StringComparison.Ordinal);
         Assert.DoesNotContain("packageManagement", storeManifest, StringComparison.Ordinal);
-        Assert.Contains("Version=\"2026.903.121.0\"", storeManifest, StringComparison.Ordinal);
+        Assert.Contains("Version=\"2026.904.130.0\"", storeManifest, StringComparison.Ordinal);
         Assert.Contains("prepare-calibre-runtime.ps1", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
         Assert.Contains("pagearc-store-publish", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
         Assert.Contains("--inputDirectory", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
