@@ -26,6 +26,7 @@ public sealed class AppSettings
     public bool DuplicateDetection { get; set; } = true;
     public string WebDavEndpoint { get; set; } = string.Empty;
     public string WebDavUsername { get; set; } = string.Empty;
+    public DateTimeOffset? WebDavLastSyncAt { get; set; }
     public string LibrarySort { get; set; } = "recent";
     public string LibraryFilter { get; set; } = "all";
     public string LibraryView { get; set; } = "grid";

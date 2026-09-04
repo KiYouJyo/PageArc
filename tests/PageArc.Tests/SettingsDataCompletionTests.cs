@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Net;
 using PageArc.Models;
 using PageArc.Services;
 using Xunit;
@@ -24,6 +26,9 @@ public sealed class SettingsDataCompletionTests
     public void WebDavSettings_RequireAnAbsoluteHttpEndpoint()
     {
         Assert.Equal("https", new WebDavConnectionSettings("https://example.com/dav/pagearc.json", "reader").GetEndpointUri().Scheme);
+        var folder = new WebDavConnectionSettings("https://example.com/dav/PageArc/", "reader");
+        Assert.Equal("https://example.com/dav/PageArc/PageArc-library.pagearcbackup", folder.GetEndpointUri().AbsoluteUri);
+        Assert.Equal("https://example.com/dav/PageArc/", folder.GetCollectionUri().AbsoluteUri);
         Assert.Throws<ArgumentException>(() => new WebDavConnectionSettings("pagearc.json", "reader").GetEndpointUri());
         Assert.Throws<ArgumentException>(() => new WebDavConnectionSettings("file:///pagearc.json", "reader").GetEndpointUri());
     }
@@ -94,6 +99,78 @@ public sealed class SettingsDataCompletionTests
     }
 
     [Fact]
+    public async Task FullBackupPackage_ContainsManifestAndBookPayload()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-full-backup-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var bookPath = Path.Combine(root, "fixture.epub");
+            var packagePath = Path.Combine(root, "backup.pagearcbackup");
+            await File.WriteAllBytesAsync(bookPath, [1, 2, 3, 4, 5]);
+
+            var reading = new ReadingDataService(Path.Combine(root, "reading.json"));
+            reading.Load();
+            reading.ToggleBookmark("book-1", new FlowContentLocator(0, 0.2), "Chapter", "Bookmark");
+
+            var book = new BookEntry
+            {
+                Id = "book-1",
+                FilePath = bookPath,
+                Format = "EPUB",
+                Title = "Fixture",
+                FileFingerprint = "hash"
+            };
+
+            var service = new ReadingBackupService();
+            await service.ExportPackageAsync(packagePath, reading, [book]);
+
+            var manifest = ReadingBackupService.ReadPackage(packagePath);
+            Assert.Single(manifest.Books);
+            Assert.Single(manifest.Bookmarks);
+
+            using var source = File.OpenRead(packagePath);
+            using var archive = new ZipArchive(source, ZipArchiveMode.Read);
+            Assert.NotNull(archive.GetEntry(ReadingBackupService.PackageManifestEntryName));
+            var bookEntry = Assert.Single(archive.Entries, entry => entry.FullName.StartsWith("books/book-1/", StringComparison.Ordinal));
+            Assert.EndsWith("fixture.epub", bookEntry.FullName, StringComparison.Ordinal);
+            Assert.Equal(5, bookEntry.Length);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task WebDavSyncService_TransfersArchiveAgainstFolderEndpoint()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pagearc-webdav-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var handler = new InMemoryWebDavHandler();
+            using var client = new HttpClient(handler);
+            var service = new WebDavSyncService(client);
+            var settings = new WebDavConnectionSettings("https://example.com/dav/PageArc/", "reader");
+            await service.TestConnectionAsync(settings, "secret");
+
+            var sourcePath = Path.Combine(root, "source.pagearcbackup");
+            var destinationPath = Path.Combine(root, "download.pagearcbackup");
+            await File.WriteAllBytesAsync(sourcePath, [9, 8, 7, 6]);
+
+            await service.UploadFileAsync(settings, "secret", sourcePath);
+            Assert.Equal(settings.GetEndpointUri(), handler.LastPutUri);
+            Assert.True(await service.DownloadFileAsync(settings, "secret", destinationPath));
+            Assert.Equal(new byte[] { 9, 8, 7, 6 }, await File.ReadAllBytesAsync(destinationPath));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void CacheClear_RemovesGeneratedFilesButKeepsExternalDataAndResetsCachedCoverPaths()
     {
         var root = Path.Combine(Path.GetTempPath(), $"pagearc-cache-{Guid.NewGuid():N}");
@@ -125,5 +202,41 @@ public sealed class SettingsDataCompletionTests
             Assert.Contains(reloaded.Categories, x => x.Name == "Research"); Assert.Contains(reloaded.Categories, x => x.Name == "Design");
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private sealed class InMemoryWebDavHandler : HttpMessageHandler
+    {
+        private byte[]? _payload;
+
+        public Uri? LastPutUri { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (string.Equals(request.Method.Method, "PROPFIND", StringComparison.OrdinalIgnoreCase))
+                return new HttpResponseMessage((HttpStatusCode)207);
+
+            if (request.Method == HttpMethod.Put)
+            {
+                LastPutUri = request.RequestUri;
+                _payload = request.Content is null
+                    ? []
+                    : await request.Content.ReadAsByteArrayAsync(cancellationToken);
+                return new HttpResponseMessage(HttpStatusCode.Created);
+            }
+
+            if (request.Method == HttpMethod.Get)
+            {
+                if (_payload is null) return new HttpResponseMessage(HttpStatusCode.NotFound);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(_payload)
+                };
+            }
+
+            if (request.Method == HttpMethod.Options)
+                return new HttpResponseMessage(HttpStatusCode.OK);
+
+            return new HttpResponseMessage(HttpStatusCode.MethodNotAllowed);
+        }
     }
 }
