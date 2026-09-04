@@ -80,7 +80,7 @@
                                     <TextBlock x:Name="LocalBackupStatusText" FontSize="14" FontWeight="SemiBold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,8,0,0" Orientation="Horizontal" Spacing="8">
-                                    <Button x:Uid="Settings_BackupButton" MinWidth="112" Height="36" Style="{StaticResource AccentButtonStyle}" Click="BackupReadingData_Click"/>
+                                    <Button x:Name="BackupReadingDataButton" x:Uid="Settings_BackupButton" MinWidth="112" Height="36" Style="{StaticResource AccentButtonStyle}" Click="BackupReadingData_Click"/>
                                     <Button x:Name="RestoreReadingDataButton" MinWidth="112" Height="36" Style="{StaticResource AccentButtonStyle}" Click="RestoreReadingData_Click"/>
                                 </StackPanel>
                             </StackPanel>
