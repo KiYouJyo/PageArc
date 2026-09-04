@@ -41,8 +41,8 @@ public static class PickerService
             SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
             SuggestedFileName = $"PageArc-reading-backup-{DateTime.Now:yyyyMMdd-HHmm}"
         };
-        picker.FileTypeChoices.Add("PageArc reading backup", new List<string> { ".json" });
-        picker.DefaultFileExtension = ".json";
+        picker.FileTypeChoices.Add("PageArc backup", new List<string> { ".pagearcbackup" });
+        picker.DefaultFileExtension = ".pagearcbackup";
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
@@ -57,6 +57,7 @@ public static class PickerService
             ViewMode = PickerViewMode.List,
             SuggestedStartLocation = PickerLocationId.DocumentsLibrary
         };
+        picker.FileTypeFilter.Add(".pagearcbackup");
         picker.FileTypeFilter.Add(".json");
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
