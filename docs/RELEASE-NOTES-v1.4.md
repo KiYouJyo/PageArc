@@ -21,6 +21,14 @@ The initial optional runtime release is:
 
 The runtime repository publishes the binary archive, machine-readable manifest, checksums, matching calibre source archive and licensing notices.
 
+## Extension update management
+
+- About now includes an **Extension update management** card for PageArc Conversion Runtime.
+- The card shows the installed runtime version, latest compatible version, local disk usage, source repository and installation state.
+- Users can check extension updates, download/install or update the runtime with byte-level progress, and remove the managed runtime without affecting books or reading data.
+- Runtime updates can ship independently through `KiYouJyo/PageArc.ConversionRuntime`: PageArc reads the latest stable release manifest, enforces `minimumPageArcVersion`, verifies release/manifest identity and archive metadata, then performs the same SHA-256 and executable validation before activation.
+- The original v1.4 pinned runtime remains a compatible fallback when the first-use installer is invoked without an extension-update check.
+
 ## On-demand installation
 
 - PageArc prefers an already installed/configured calibre copy when one exists.

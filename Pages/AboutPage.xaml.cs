@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PageArc.Models;
 using PageArc.Services;
+using PageArc.Services.Conversion;
 using Windows.ApplicationModel;
 
 namespace PageArc.Pages;
@@ -11,6 +12,9 @@ public sealed partial class AboutPage : Page
 {
     private UpdateCheckResult? _pendingUpdate;
     private bool _restartRequired;
+    private readonly ConversionRuntimeManager _runtimeManager = new();
+    private ConversionRuntimeRelease? _pendingRuntimeRelease;
+    private bool _runtimeBusy;
 
     public AboutPage()
     {
@@ -40,12 +44,33 @@ public sealed partial class AboutPage : Page
         UpdateSourceStatusText.Text = DistributionChannel.IsStore
             ? LocalText("更新由 Microsoft Store 管理", "更新は Microsoft Store によって管理されます", "Updates are managed by Microsoft Store")
             : LocalText("仅使用 PageArc 官方 GitHub Release", "PageArc 公式 GitHub Release のみを使用", "Official PageArc GitHub Releases only");
+        ExtensionManagementHeading.Text = LocalText("扩展更新管理", "拡張機能の更新管理", "Extension update management");
+        ExtensionManagementHint.Text = LocalText(
+            "管理可选运行时的下载安装与独立更新；这些扩展不包含在基础 PageArc 安装包中。",
+            "オプション ランタイムのダウンロード、インストール、独立更新を管理します。これらは基本 PageArc パッケージには含まれません。",
+            "Manage downloads, installation, and independent updates for optional runtimes that are not included in the base PageArc package.");
+        ConversionRuntimeNameText.Text = "PageArc Conversion Runtime";
+        ConversionRuntimeDescriptionText.Text = LocalText(
+            "calibre 转换运行时，用于格式转换以及部分 MOBI / AZW3 / LIT 兼容路径。",
+            "calibre 変換ランタイム。形式変換と一部の MOBI / AZW3 / LIT 互換処理に使用します。",
+            "calibre conversion runtime for format conversion and selected MOBI / AZW3 / LIT compatibility paths.");
+        RuntimeInstalledLabel.Text = LocalText("已安装版本", "インストール済み", "Installed version");
+        RuntimeAvailableLabel.Text = LocalText("可用版本", "利用可能なバージョン", "Available version");
+        RuntimeStorageLabel.Text = LocalText("本地占用", "ローカル使用量", "Local storage");
+        CheckRuntimeUpdatesButton.Content = LocalText("检查扩展更新", "拡張機能の更新を確認", "Check extension updates");
+        RemoveRuntimeButton.Content = LocalText("卸载运行时", "ランタイムを削除", "Remove runtime");
+        RuntimeSourceText.Text = LocalText(
+            "来源：KiYouJyo/PageArc.ConversionRuntime · 下载后执行 SHA-256 校验与可执行文件验证。",
+            "提供元：KiYouJyo/PageArc.ConversionRuntime · ダウンロード後に SHA-256 と実行ファイルを検証します。",
+            "Source: KiYouJyo/PageArc.ConversionRuntime · downloads are verified by SHA-256 and executable validation.");
+        RefreshRuntimeCard();
+
         ProductInfoHeading.Text = LocalText("产品信息", "製品情報", "Product information");
         ProductInfoHint.Text = LocalText("格式、存储、隐私与第三方许可", "形式、保存、プライバシー、サードパーティ ライセンス", "Formats, storage, privacy, and third-party licensing");
         LicenseBodyText.Text = RuntimeText.Current(
-            "内置：foliate-js（MIT）、fflate（MIT）；官方 x64 包同时内置 calibre 9.13.0 转换运行时（GPLv3）。详见 THIRD_PARTY_NOTICES.md。",
-            "同梱：foliate-js（MIT）、fflate（MIT）。公式 x64 パッケージには calibre 9.13.0 変換ランタイム（GPLv3）も含まれます。詳細は THIRD_PARTY_NOTICES.md を参照してください。",
-            "Bundled: foliate-js (MIT), fflate (MIT), and calibre 9.13.0 conversion runtime (GPLv3) in official x64 packages. See THIRD_PARTY_NOTICES.md.");
+            "内置：foliate-js（MIT）、fflate（MIT）。calibre 转换运行时已从基础安装包剥离，仅按需从 PageArc.ConversionRuntime 下载，并继续遵循 GPLv3。详见 THIRD_PARTY_NOTICES.md。",
+            "同梱：foliate-js（MIT）、fflate（MIT）。calibre 変換ランタイムは基本パッケージから分離され、PageArc.ConversionRuntime から必要時のみ取得し、GPLv3 を継続して適用します。詳細は THIRD_PARTY_NOTICES.md を参照してください。",
+            "Bundled: foliate-js (MIT) and fflate (MIT). The calibre conversion runtime is detached from the base package, downloaded on demand from PageArc.ConversionRuntime, and remains GPLv3-licensed. See THIRD_PARTY_NOTICES.md.");
 
         if (DistributionChannel.IsStore)
         {
@@ -283,6 +308,246 @@ public sealed partial class AboutPage : Page
             $"更新已完成，但自动重启失败（{failureReason}）。请关闭并重新打开 PageArc。",
             $"更新は完了しましたが、自動再起動に失敗しました（{failureReason}）。PageArc を閉じて再度開いてください。",
             $"The update completed, but automatic restart failed ({failureReason}). Close and reopen PageArc.");
+    }
+
+    private async void CheckRuntimeUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        if (_runtimeBusy) return;
+        SetRuntimeBusy(true);
+        RuntimeInfoBar.IsOpen = false;
+        RuntimeAvailableVersionText.Text = LocalText("检查中…", "確認中…", "Checking…");
+        try
+        {
+            var result = await _runtimeManager.CheckForUpdatesAsync();
+            if (!result.Succeeded)
+            {
+                _pendingRuntimeRelease = null;
+                RuntimeAvailableVersionText.Text = "—";
+                RuntimeInfoBar.Severity = InfoBarSeverity.Error;
+                RuntimeInfoBar.Message = LocalText(
+                    "无法检查扩展更新，请检查网络后重试。",
+                    "拡張機能の更新を確認できません。ネットワークを確認して再試行してください。",
+                    "Could not check extension updates. Check the network and try again.");
+                RuntimeInfoBar.IsOpen = true;
+                RefreshRuntimeCard();
+                return;
+            }
+
+            _pendingRuntimeRelease = result.UpdateAvailable ? result.LatestCompatibleRelease : null;
+            RuntimeAvailableVersionText.Text = result.LatestCompatibleRelease is null
+                ? "—"
+                : result.LatestCompatibleRelease.Manifest.PackageVersion;
+
+            if (!result.LocalStatus.IsInstalled && result.LatestCompatibleRelease is not null)
+            {
+                RuntimeInfoBar.Severity = InfoBarSeverity.Informational;
+                RuntimeInfoBar.Message = LocalText(
+                    $"可安装转换运行时 {result.LatestCompatibleRelease.Manifest.PackageVersion}。",
+                    $"変換ランタイム {result.LatestCompatibleRelease.Manifest.PackageVersion} をインストールできます。",
+                    $"Conversion runtime {result.LatestCompatibleRelease.Manifest.PackageVersion} is available to install.");
+                RuntimeInfoBar.IsOpen = true;
+            }
+            else if (result.UpdateAvailable && result.LatestCompatibleRelease is not null)
+            {
+                RuntimeInfoBar.Severity = InfoBarSeverity.Success;
+                RuntimeInfoBar.Message = LocalText(
+                    $"发现扩展更新：{result.LocalStatus.PackageVersion} → {result.LatestCompatibleRelease.Manifest.PackageVersion}。",
+                    $"拡張機能の更新があります：{result.LocalStatus.PackageVersion} → {result.LatestCompatibleRelease.Manifest.PackageVersion}。",
+                    $"Extension update available: {result.LocalStatus.PackageVersion} → {result.LatestCompatibleRelease.Manifest.PackageVersion}.");
+                RuntimeInfoBar.IsOpen = true;
+            }
+            else
+            {
+                RuntimeInfoBar.Severity = InfoBarSeverity.Success;
+                RuntimeInfoBar.Message = LocalText(
+                    "转换运行时已是最新兼容版本。",
+                    "変換ランタイムは最新の互換バージョンです。",
+                    "The conversion runtime is already on the latest compatible version.");
+                RuntimeInfoBar.IsOpen = true;
+            }
+
+            RefreshRuntimeCard(preserveAvailableVersion: true);
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("Runtime update management check failed", ex);
+            RuntimeInfoBar.Severity = InfoBarSeverity.Error;
+            RuntimeInfoBar.Message = LocalText(
+                "检查扩展更新失败。",
+                "拡張機能の更新確認に失敗しました。",
+                "Extension update check failed.");
+            RuntimeInfoBar.IsOpen = true;
+            RefreshRuntimeCard();
+        }
+        finally
+        {
+            SetRuntimeBusy(false);
+        }
+    }
+
+    private async void RuntimeAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (_runtimeBusy) return;
+
+        SetRuntimeBusy(true);
+        RuntimeInfoBar.IsOpen = false;
+        RuntimeDownloadProgress.Value = 0;
+        RuntimeDownloadProgress.Visibility = Visibility.Visible;
+        RuntimeProgressText.Visibility = Visibility.Visible;
+
+        try
+        {
+            var progress = new Progress<ConversionRuntimeProgress>(value =>
+            {
+                var percent = value.TotalBytes is > 0 ? value.Fraction * 100 : 0;
+                RuntimeDownloadProgress.Value = percent;
+                RuntimeProgressText.Text = value.Stage switch
+                {
+                    "manifest" => LocalText("正在检查扩展清单…", "拡張機能のマニフェストを確認しています…", "Checking extension manifest…"),
+                    "download" => LocalText(
+                        $"正在下载转换运行时… {percent:0}% · {FormatRuntimeBytes(value.BytesTransferred)} / {FormatRuntimeBytes(value.TotalBytes ?? 0)}",
+                        $"変換ランタイムをダウンロードしています… {percent:0}% · {FormatRuntimeBytes(value.BytesTransferred)} / {FormatRuntimeBytes(value.TotalBytes ?? 0)}",
+                        $"Downloading conversion runtime… {percent:0}% · {FormatRuntimeBytes(value.BytesTransferred)} / {FormatRuntimeBytes(value.TotalBytes ?? 0)}"),
+                    "extract" => LocalText("正在校验并安装…", "検証してインストールしています…", "Verifying and installing…"),
+                    "complete" => LocalText("安装完成。", "インストール完了。", "Installation complete."),
+                    _ => LocalText("正在准备扩展…", "拡張機能を準備しています…", "Preparing extension…")
+                };
+            });
+
+            if (_pendingRuntimeRelease is not null)
+                await _runtimeManager.InstallReleaseAsync(_pendingRuntimeRelease, progress);
+            else
+                await _runtimeManager.EnsureInstalledAsync(progress);
+
+            _pendingRuntimeRelease = null;
+            RuntimeInfoBar.Severity = InfoBarSeverity.Success;
+            RuntimeInfoBar.Message = LocalText(
+                "转换运行时安装/更新完成，可立即使用，无需重启 PageArc。",
+                "変換ランタイムのインストール/更新が完了しました。PageArc の再起動は不要です。",
+                "Conversion runtime installation/update completed and is ready immediately; no PageArc restart is required.");
+            RuntimeInfoBar.IsOpen = true;
+            RefreshRuntimeCard();
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("Runtime install/update failed", ex);
+            RuntimeInfoBar.Severity = InfoBarSeverity.Error;
+            RuntimeInfoBar.Message = LocalText(
+                "转换运行时下载安装或校验失败。",
+                "変換ランタイムのダウンロード、インストール、または検証に失敗しました。",
+                "The conversion runtime download, installation, or verification failed.");
+            RuntimeInfoBar.IsOpen = true;
+            RefreshRuntimeCard();
+        }
+        finally
+        {
+            RuntimeDownloadProgress.Visibility = Visibility.Collapsed;
+            RuntimeProgressText.Visibility = Visibility.Collapsed;
+            SetRuntimeBusy(false);
+        }
+    }
+
+    private async void RemoveRuntime_Click(object sender, RoutedEventArgs e)
+    {
+        if (_runtimeBusy || !_runtimeManager.IsInstalled) return;
+
+        var confirmation = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = LocalText("卸载转换运行时？", "変換ランタイムを削除しますか？", "Remove conversion runtime?"),
+            Content = LocalText(
+                "这只会删除按需下载的转换运行时，不会删除书本、阅读数据或 PageArc 本体。之后需要时可重新下载。",
+                "必要時にダウンロードした変換ランタイムだけを削除します。書籍、読書データ、PageArc 本体は削除されません。必要になれば再ダウンロードできます。",
+                "This removes only the on-demand conversion runtime. Books, reading data, and PageArc remain untouched, and the runtime can be downloaded again later."),
+            PrimaryButtonText = LocalText("卸载", "削除", "Remove"),
+            CloseButtonText = LocalText("取消", "キャンセル", "Cancel"),
+            DefaultButton = ContentDialogButton.Close
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
+
+        SetRuntimeBusy(true);
+        try
+        {
+            _runtimeManager.RemoveInstalledRuntime();
+            _pendingRuntimeRelease = null;
+            RuntimeInfoBar.Severity = InfoBarSeverity.Success;
+            RuntimeInfoBar.Message = LocalText(
+                "转换运行时已卸载。",
+                "変換ランタイムを削除しました。",
+                "Conversion runtime removed.");
+            RuntimeInfoBar.IsOpen = true;
+            RefreshRuntimeCard();
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("Runtime removal failed", ex);
+            RuntimeInfoBar.Severity = InfoBarSeverity.Error;
+            RuntimeInfoBar.Message = LocalText(
+                "转换运行时卸载失败，部分文件可能正在被使用。",
+                "変換ランタイムの削除に失敗しました。一部のファイルが使用中の可能性があります。",
+                "Could not remove the conversion runtime; some files may still be in use.");
+            RuntimeInfoBar.IsOpen = true;
+        }
+        finally
+        {
+            SetRuntimeBusy(false);
+        }
+    }
+
+    private void RefreshRuntimeCard(bool preserveAvailableVersion = false)
+    {
+        var status = _runtimeManager.GetStatus();
+        ConversionRuntimeStateBadge.Text = status.IsInstalled
+            ? LocalText("已安装", "インストール済み", "Installed")
+            : LocalText("未安装", "未インストール", "Not installed");
+        RuntimeInstalledVersionText.Text = status.IsInstalled ? status.PackageVersion : "—";
+        if (!preserveAvailableVersion)
+            RuntimeAvailableVersionText.Text = "—";
+        RuntimeStorageText.Text = status.IsInstalled ? FormatRuntimeBytes(status.InstalledBytes) : "0 MB";
+
+        RemoveRuntimeButton.IsEnabled = !_runtimeBusy && status.IsInstalled;
+        CheckRuntimeUpdatesButton.IsEnabled = !_runtimeBusy && status.IsSupported;
+
+        if (!status.IsSupported)
+        {
+            RuntimeActionButton.Content = LocalText("当前设备不支持", "このデバイスは未対応", "Unsupported device");
+            RuntimeActionButton.IsEnabled = false;
+        }
+        else if (_pendingRuntimeRelease is not null)
+        {
+            RuntimeActionButton.Content = status.IsInstalled
+                ? LocalText("下载并更新", "ダウンロードして更新", "Download and update")
+                : LocalText("下载并安装", "ダウンロードしてインストール", "Download and install");
+            RuntimeActionButton.IsEnabled = !_runtimeBusy;
+        }
+        else if (!status.IsInstalled)
+        {
+            RuntimeActionButton.Content = LocalText("下载并安装", "ダウンロードしてインストール", "Download and install");
+            RuntimeActionButton.IsEnabled = !_runtimeBusy;
+        }
+        else
+        {
+            RuntimeActionButton.Content = LocalText("已安装", "インストール済み", "Installed");
+            RuntimeActionButton.IsEnabled = false;
+        }
+    }
+
+    private void SetRuntimeBusy(bool busy)
+    {
+        _runtimeBusy = busy;
+        CheckRuntimeUpdatesButton.IsEnabled = !busy && _runtimeManager.IsSupported;
+        RemoveRuntimeButton.IsEnabled = !busy && _runtimeManager.IsInstalled;
+        if (busy)
+            RuntimeActionButton.IsEnabled = false;
+        else
+            RefreshRuntimeCard(preserveAvailableVersion: _pendingRuntimeRelease is not null || RuntimeAvailableVersionText.Text != "—");
+    }
+
+    private static string FormatRuntimeBytes(long bytes)
+    {
+        if (bytes <= 0) return "0 MB";
+        if (bytes >= 1024L * 1024L * 1024L) return $"{bytes / (1024d * 1024d * 1024d):0.##} GB";
+        return $"{bytes / (1024d * 1024d):0.##} MB";
     }
 
     private static string GetPackageVersion(Version fallback)

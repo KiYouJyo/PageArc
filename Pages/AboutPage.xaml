@@ -5,7 +5,7 @@
     Background="Transparent">
     <ScrollViewer HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
         <Grid x:Name="AboutLayout" Padding="28,24,28,36" HorizontalAlignment="Stretch">
-            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="22"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="22"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/><RowDefinition Height="Auto"/><RowDefinition Height="18"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <StackPanel><TextBlock x:Uid="About_Title" FontSize="34" FontWeight="SemiBold"/><TextBlock x:Uid="About_Subtitle" Margin="0,4,0,0" FontSize="15" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
 
             <Border Grid.Row="2" Style="{StaticResource PageArcSectionStyle}">
@@ -43,6 +43,71 @@
             </Border>
 
             <Border Grid.Row="6" Style="{StaticResource PageArcSectionStyle}">
+                <StackPanel Spacing="14">
+                    <StackPanel>
+                        <TextBlock x:Name="ExtensionManagementHeading" FontSize="22" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="ExtensionManagementHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <Border Style="{StaticResource PageArcInsetStyle}">
+                        <StackPanel Padding="18" Spacing="14">
+                            <Grid ColumnSpacing="18">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="4">
+                                    <TextBlock x:Name="ConversionRuntimeNameText" FontSize="16" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="ConversionRuntimeDescriptionText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="{ThemeResource ControlFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Padding="10,5">
+                                    <TextBlock x:Name="ConversionRuntimeStateBadge" FontSize="12"/>
+                                </Border>
+                            </Grid>
+
+                            <Grid x:Name="RuntimeInfoGrid" ColumnSpacing="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="3">
+                                    <TextBlock x:Name="RuntimeInstalledLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <TextBlock x:Name="RuntimeInstalledVersionText" FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="3">
+                                    <TextBlock x:Name="RuntimeAvailableLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <TextBlock x:Name="RuntimeAvailableVersionText" FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="3">
+                                    <TextBlock x:Name="RuntimeStorageLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <TextBlock x:Name="RuntimeStorageText" FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock x:Name="RuntimeSourceText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+
+                            <ProgressBar x:Name="RuntimeDownloadProgress" Minimum="0" Maximum="100" Value="0" Visibility="Collapsed" HorizontalAlignment="Stretch"/>
+                            <TextBlock x:Name="RuntimeProgressText" Visibility="Collapsed" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="CheckRuntimeUpdatesButton" Grid.Column="0" Click="CheckRuntimeUpdates_Click"/>
+                                <Button x:Name="RuntimeActionButton" Grid.Column="1" Style="{StaticResource AccentButtonStyle}" Click="RuntimeAction_Click"/>
+                                <Button x:Name="RemoveRuntimeButton" Grid.Column="2" Click="RemoveRuntime_Click"/>
+                            </Grid>
+                            <InfoBar x:Name="RuntimeInfoBar" IsOpen="False" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="8" Style="{StaticResource PageArcSectionStyle}">
                 <StackPanel Spacing="14">
                     <StackPanel><TextBlock x:Name="ProductInfoHeading" FontSize="22" FontWeight="SemiBold"/><TextBlock x:Name="ProductInfoHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
                     <Grid x:Name="ProductInfoGrid" ColumnSpacing="18" RowSpacing="18"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="ProductInfoSecondColumn" Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
