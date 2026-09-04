@@ -127,6 +127,13 @@
                                     <TextBlock x:Name="WebDavStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
                                     <TextBlock x:Name="WebDavStatusValue" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
                                 </StackPanel>
+                                <ProgressBar x:Name="WebDavSyncProgress"
+                                             Minimum="0"
+                                             Maximum="100"
+                                             Value="0"
+                                             IsIndeterminate="False"
+                                             Visibility="Collapsed"
+                                             HorizontalAlignment="Stretch"/>
                                 <Grid HorizontalAlignment="Left" ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
