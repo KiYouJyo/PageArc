@@ -811,7 +811,8 @@ public sealed partial class SettingsPage : Page
         new Progress<WebDavTransferProgress>(value =>
         {
             var fraction = value.TotalBytes is > 0 ? value.Fraction : 0;
-            SetWebDavProgress(start + ((end - start) * fraction), status);
+            var percent = start + ((end - start) * fraction);
+            SetWebDavProgress(percent, $"{status} {percent:0}%");
         });
 
     private static string FormatBytes(long bytes) =>
