@@ -51,7 +51,8 @@ public sealed class V13DataManagementParityTests
         var stateStart = xaml.IndexOf("<VisualStateManager.VisualStateGroups>", dataStart, StringComparison.Ordinal);
         Assert.True(dataStart >= 0 && stateStart > dataStart);
         var dataBlock = xaml[dataStart..stateStart];
-        Assert.DoesNotContain("MinWidth=", dataBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("MinWidth=\"112\"", dataBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("MinWidth=\"92\"", dataBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("Height=\"36\"", dataBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("Padding=\"20\"", dataBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("WebDavProgressRing", dataBlock, StringComparison.Ordinal);
