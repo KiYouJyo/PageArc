@@ -146,13 +146,16 @@ public sealed partial class SettingsPage : Page
         {
             await _backupService.ExportPackageAsync(path, App.ReadingData, App.Library.Books);
             UpdateLocalBackupStatus();
+            SetDataStatus(
+                LocalText("完整备份已导出。", "完全バックアップを書き出しました。", "Complete backup exported."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("Full backup failed", ex);
-            await ShowTransientMessageAsync(
-                LocalText("备份失败", "バックアップに失敗しました", "Backup failed"),
-                LocalText("无法写入完整备份；书本文件和阅读数据均未导出到该位置。", "完全バックアップを書き込めませんでした。書籍ファイルと読書データは選択先に保存されていません。", "PageArc could not write the complete backup to the selected location."));
+            SetDataStatus(
+                LocalText("备份失败：无法写入所选位置。", "バックアップ失敗：選択した場所に書き込めません。", "Backup failed: PageArc could not write to the selected location."),
+                InfoBarSeverity.Error);
         }
     }
 
@@ -200,19 +203,19 @@ public sealed partial class SettingsPage : Page
             App.Library.Save();
             UpdateLocalBackupStatus();
 
-            await ShowTransientMessageAsync(
-                LocalText("恢复完成", "復元が完了しました", "Restore complete"),
+            SetDataStatus(
                 LocalText(
-                    $"已恢复/接入 {restoredBookFiles} 个书本文件；匹配 {result.MatchedBooks} 本书，恢复 {result.RestoredBookmarks} 个书签、{result.RestoredAnnotations} 条笔记/标注和 {result.RestoredProgress} 条阅读进度；{result.UnmatchedBooks} 本未匹配。",
-                    $"書籍ファイル {restoredBookFiles} 件を復元/接続し、{result.MatchedBooks} 冊を照合しました。しおり {result.RestoredBookmarks} 件、ノート/注釈 {result.RestoredAnnotations} 件、読書位置 {result.RestoredProgress} 件を復元。未照合は {result.UnmatchedBooks} 冊です。",
-                    $"Restored or reconnected {restoredBookFiles} book files; matched {result.MatchedBooks} books and restored {result.RestoredBookmarks} bookmarks, {result.RestoredAnnotations} notes/annotations, and {result.RestoredProgress} reading positions; {result.UnmatchedBooks} books were not matched."));
+                    $"恢复完成：接入 {restoredBookFiles} 个书本文件，恢复 {result.RestoredBookmarks} 个书签、{result.RestoredAnnotations} 条标注/笔记和 {result.RestoredProgress} 条阅读进度。",
+                    $"復元完了：書籍ファイル {restoredBookFiles} 件、しおり {result.RestoredBookmarks} 件、注釈/ノート {result.RestoredAnnotations} 件、読書位置 {result.RestoredProgress} 件を復元しました。",
+                    $"Restore complete: {restoredBookFiles} book files, {result.RestoredBookmarks} bookmarks, {result.RestoredAnnotations} annotations/notes, and {result.RestoredProgress} reading positions restored."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("Backup restore failed", ex);
-            await ShowTransientMessageAsync(
-                LocalText("恢复失败", "復元に失敗しました", "Restore failed"),
-                LocalText("备份未完整应用；现有本地书本不会被删除。", "バックアップを完全には適用できませんでした。既存のローカル書籍は削除されません。", "The backup could not be fully applied. Existing local books were not deleted."));
+            SetDataStatus(
+                LocalText("恢复失败：现有本地书本不会被删除。", "復元失敗：既存のローカル書籍は削除されません。", "Restore failed: existing local books were not deleted."),
+                InfoBarSeverity.Error);
         }
     }
 
@@ -222,11 +225,17 @@ public sealed partial class SettingsPage : Page
         {
             var changed = CacheMaintenanceService.ClearGeneratedCache(App.Library.Books);
             if (changed > 0) App.Library.Save();
+            UpdateLocalBackupStatus();
+            SetDataStatus(
+                LocalText("生成缓存已清除，书本原文件与阅读数据未删除。", "生成キャッシュを消去しました。書籍ファイルと読書データは削除されていません。", "Generated cache cleared. Book files and reading data were not deleted."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("Cache clear failed", ex);
-            await ShowTransientMessageAsync(LocalText("清理缓存失败", "キャッシュのクリアに失敗しました", "Clear cache failed"), LocalText("部分缓存文件可能仍被占用。", "一部のキャッシュ ファイルが使用中の可能性があります。", "Some cache files may still be in use."));
+            SetDataStatus(
+                LocalText("清理缓存失败：部分缓存文件可能仍被占用。", "キャッシュ消去失敗：一部のファイルが使用中の可能性があります。", "Clear cache failed: some generated files may still be in use."),
+                InfoBarSeverity.Error);
         }
     }
 
@@ -319,11 +328,17 @@ public sealed partial class SettingsPage : Page
         {
             await _webDavSyncService.TestConnectionAsync(settings, password);
             WebDavStatusValue.Text = LocalText("已连接 · 配置已保存", "接続済み · 設定を保存しました", "Connected · configuration saved");
+            SetWebDavStatus(
+                LocalText("WebDAV 配置已保存并通过连接测试。", "WebDAV 設定を保存し、接続テストに成功しました。", "WebDAV configuration saved and connection test passed."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("WebDAV connection test failed", ex);
             WebDavStatusValue.Text = LocalText("连接测试失败 · 请检查文件夹地址和凭据", "接続テスト失敗 · フォルダー URL と資格情報を確認してください", "Connection test failed · check the folder URL and credentials");
+            SetWebDavStatus(
+                LocalText("WebDAV 连接测试失败。", "WebDAV 接続テストに失敗しました。", "WebDAV connection test failed."),
+                InfoBarSeverity.Error);
         }
         finally { SetWebDavBusy(false); }
     }
@@ -375,6 +390,9 @@ public sealed partial class SettingsPage : Page
             App.Settings.Update(value => value.WebDavLastSyncAt = now);
             UpdateWebDavStatus();
             UpdateLocalBackupStatus();
+            SetWebDavStatus(
+                LocalText("书本文件与阅读数据已完成双向同步。", "書籍ファイルと読書データの双方向同期が完了しました。", "Two-way sync of book files and reading data completed."),
+                InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
@@ -383,6 +401,9 @@ public sealed partial class SettingsPage : Page
                 "同步失败 · 本地书本与阅读数据未被删除",
                 "同期失敗 · ローカルの書籍と読書データは削除されていません",
                 "Sync failed · local books and reading data were not deleted");
+            SetWebDavStatus(
+                LocalText("同步失败；本地数据保持不变。", "同期に失敗しました。ローカル データは保持されています。", "Sync failed; local data was preserved."),
+                InfoBarSeverity.Error);
         }
         finally
         {
