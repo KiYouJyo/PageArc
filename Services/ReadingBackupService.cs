@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using PageArc.Models;
 
@@ -6,6 +8,8 @@ namespace PageArc.Services;
 public sealed class ReadingBackupService
 {
     public const int CurrentSchemaVersion = 2;
+    public const string PackageExtension = ".pagearcbackup";
+    public const string PackageManifestEntryName = "manifest.json";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public PageArcReadingBackup CreateBackup(ReadingDataService readingData, IEnumerable<BookEntry> books)
@@ -56,6 +60,159 @@ public sealed class ReadingBackupService
         var temp = fullPath + ".tmp";
         await File.WriteAllTextAsync(temp, Serialize(backup), cancellationToken);
         File.Move(temp, fullPath, true);
+    }
+
+    public async Task ExportPackageAsync(
+        string path,
+        ReadingDataService readingData,
+        IEnumerable<BookEntry> books,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Backup path is required.", nameof(path));
+        ArgumentNullException.ThrowIfNull(readingData);
+        ArgumentNullException.ThrowIfNull(books);
+
+        var fullPath = Path.GetFullPath(path);
+        var directory = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+
+        var bookList = books.ToList();
+        var backup = CreateBackup(readingData, bookList);
+        var temp = fullPath + ".tmp";
+        try
+        {
+            await using (var output = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true))
+            using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: false))
+            {
+                var manifestEntry = archive.CreateEntry(PackageManifestEntryName, CompressionLevel.Optimal);
+                using (var writer = new StreamWriter(manifestEntry.Open(), new UTF8Encoding(false)))
+                {
+                    await writer.WriteAsync(Serialize(backup).AsMemory(), cancellationToken);
+                }
+
+                foreach (var book in bookList)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (string.IsNullOrWhiteSpace(book.FilePath) || !File.Exists(book.FilePath)) continue;
+
+                    var fileName = Path.GetFileName(book.FilePath);
+                    if (string.IsNullOrWhiteSpace(fileName)) continue;
+                    var entryName = $"books/{SafeArchiveSegment(book.Id)}/{fileName.Replace('\\', '_').Replace('/', '_')}";
+                    var bookEntry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                    await using var source = new FileStream(book.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 128, useAsync: true);
+                    using var target = bookEntry.Open();
+                    await source.CopyToAsync(target, cancellationToken);
+                }
+            }
+
+            File.Move(temp, fullPath, true);
+        }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+        }
+    }
+
+    public static PageArcReadingBackup ReadPackage(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Backup path is required.", nameof(path));
+        var fullPath = Path.GetFullPath(path);
+        if (!IsPackageArchive(fullPath)) return Read(fullPath);
+
+        using var source = File.OpenRead(fullPath);
+        using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: false);
+        var manifest = archive.GetEntry(PackageManifestEntryName)
+            ?? throw new InvalidDataException("The PageArc backup package does not contain a manifest.");
+        using var reader = new StreamReader(manifest.Open(), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return Deserialize(reader.ReadToEnd());
+    }
+
+    public async Task<int> RestorePackageBooksAsync(
+        string path,
+        PageArcReadingBackup backup,
+        LibraryService library,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(backup);
+        ArgumentNullException.ThrowIfNull(library);
+        if (!IsPackageArchive(path)) return 0;
+
+        AppPaths.Ensure();
+        var restored = 0;
+        using var source = File.OpenRead(Path.GetFullPath(path));
+        using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: false);
+
+        foreach (var identity in backup.Books ?? [])
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(identity.BookId)) continue;
+
+            var exact = library.Books.FirstOrDefault(book =>
+                string.Equals(book.Id, identity.BookId, StringComparison.Ordinal));
+            if (exact is not null && !exact.IsMissing && File.Exists(exact.FilePath)) continue;
+
+            BookEntry? fingerprintMatch = null;
+            if (!string.IsNullOrWhiteSpace(identity.FileFingerprint))
+            {
+                var matches = library.Books.Where(book =>
+                    !string.IsNullOrWhiteSpace(book.FileFingerprint)
+                    && string.Equals(book.FileFingerprint, identity.FileFingerprint, StringComparison.OrdinalIgnoreCase)).ToList();
+                if (matches.Count == 1) fingerprintMatch = matches[0];
+                if (fingerprintMatch is not null && !fingerprintMatch.IsMissing && File.Exists(fingerprintMatch.FilePath)) continue;
+            }
+
+            var prefix = $"books/{SafeArchiveSegment(identity.BookId)}/";
+            var entry = archive.Entries.FirstOrDefault(item =>
+                item.FullName.StartsWith(prefix, StringComparison.Ordinal)
+                && !item.FullName.EndsWith("/", StringComparison.Ordinal));
+            if (entry is null) continue;
+
+            var fileName = Path.GetFileName(entry.FullName);
+            if (string.IsNullOrWhiteSpace(fileName)) fileName = identity.FileName;
+            if (string.IsNullOrWhiteSpace(fileName)) continue;
+
+            var targetDirectory = Path.Combine(AppPaths.ManagedBooksRoot, SafeArchiveSegment(identity.BookId));
+            Directory.CreateDirectory(targetDirectory);
+            var destination = Path.Combine(targetDirectory, fileName);
+            var temp = destination + ".tmp";
+            try
+            {
+                using (var entryStream = entry.Open())
+                await using (var output = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true))
+                {
+                    await entryStream.CopyToAsync(output, cancellationToken);
+                    await output.FlushAsync(cancellationToken);
+                }
+                File.Move(temp, destination, true);
+            }
+            finally
+            {
+                try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+            }
+
+            var targetBook = exact ?? fingerprintMatch;
+            if (targetBook is not null)
+            {
+                var info = new FileInfo(destination);
+                targetBook.FilePath = destination;
+                targetBook.IsMissing = false;
+                targetBook.FileSize = info.Length;
+                targetBook.SourceModifiedAt = new DateTimeOffset(info.LastWriteTimeUtc);
+                if (!string.IsNullOrWhiteSpace(identity.FileFingerprint)) targetBook.FileFingerprint = identity.FileFingerprint;
+                if (string.IsNullOrWhiteSpace(targetBook.Format)) targetBook.Format = identity.Format;
+                if (string.IsNullOrWhiteSpace(targetBook.Title)) targetBook.Title = identity.Title;
+                if (string.IsNullOrWhiteSpace(targetBook.Author)) targetBook.Author = identity.Author;
+                restored++;
+                continue;
+            }
+
+            var import = await library.ImportDetailedAsync(destination, cancellationToken);
+            if (import.Book is not null) restored++;
+        }
+
+        library.RefreshFileStates(saveIfChanged: false);
+        library.Save();
+        return restored;
     }
 
     public static string Serialize(PageArcReadingBackup backup)
@@ -191,6 +348,34 @@ public sealed class ReadingBackupService
     {
         if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Backup path is required.", nameof(path));
         return Deserialize(File.ReadAllText(path));
+    }
+
+    private static bool IsPackageArchive(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return false;
+        try
+        {
+            using var stream = File.OpenRead(Path.GetFullPath(path));
+            if (stream.Length < 4) return false;
+            Span<byte> signature = stackalloc byte[4];
+            if (stream.Read(signature) != signature.Length) return false;
+            return signature[0] == 0x50 && signature[1] == 0x4B
+                && (signature[2] == 0x03 || signature[2] == 0x05 || signature[2] == 0x07)
+                && (signature[3] == 0x04 || signature[3] == 0x06 || signature[3] == 0x08);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string SafeArchiveSegment(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "book";
+        var chars = value.Select(ch =>
+            char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' ? ch : '_').ToArray();
+        var safe = new string(chars).Trim('.', ' ');
+        return string.IsNullOrWhiteSpace(safe) ? "book" : safe;
     }
 
     private static List<T> MergeByKey<T>(
