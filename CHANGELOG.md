@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.1] - 2026-09-04
+
+### Changed
+- WebDAV synchronization now lists cloud archives and fingerprints the latest cloud package against a freshly generated local complete snapshot before any upload is considered.
+- Identical local/cloud content no longer creates duplicate uploads; differing snapshots are merged first and a new archive is uploaded only when the merged result adds data.
+- WebDAV folder configurations now keep timestamped/versioned `.pagearcbackup` history instead of overwriting one fixed archive.
+- Upload and download byte progress is surfaced through a visible WebDAV progress bar and stage-specific status text.
+- The Restore from cloud and Manage archives dialogs now directly reproduce the UrbanPlanToolbox archive-picker contract at commit `249bbf99088e5edc92b9a6f9b7635ca777cf847e`, including 520 DIP minimum width, 360 DIP max list height, two-line archive metadata, selection-gated actions, and restore/delete/close behavior.
+
+### Added
+- WebDAV archive directory parsing from Depth:1 PROPFIND responses, including timestamp/version/size metadata and newest-first ordering.
+- Remote archive deletion and explicit selected-archive download.
+- Stable complete-package SHA-256 comparison that ignores export timestamps while hashing reading data and archived ebook bytes.
+- Upload verification after PUT before synchronization reports success.
+
+### Version
+- PageArc advances to `1.3.1` / `1.3.1.0`; Microsoft Store identity advances to `2026.904.131.0`.
+
 ## [1.3] - 2026-09-04
 
 ### Changed
