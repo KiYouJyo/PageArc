@@ -77,15 +77,12 @@ public sealed class V095FeatureTests
     }
 
     [Fact]
-    public void Bundled_conversion_provider_exposes_complete_matrix_when_runtime_is_present()
+    public void Managed_conversion_provider_exposes_complete_on_demand_matrix()
     {
-        var root = NewTempDirectory();
-        var executable = Path.Combine(root, PageArcBundledConversionProvider.RuntimeExecutableName);
-        File.WriteAllBytes(executable, [0]);
-        var provider = new PageArcBundledConversionProvider(executable);
+        var provider = new PageArcManagedConversionProvider(new ConversionRuntimeManager(new HttpClient(new OfflineHandler())));
         var service = new EbookConversionService([provider]);
         Assert.True(provider.IsAvailable);
-        Assert.StartsWith("pagearc-bundled-calibre-", provider.Id);
+        Assert.StartsWith("pagearc-managed-calibre-", provider.Id);
         Assert.Equal(20, service.GetRequiredCapabilityMatrix().Count);
         Assert.True(service.HasCompleteRequiredMatrix());
     }
@@ -109,5 +106,11 @@ public sealed class V095FeatureTests
         var path = Path.Combine(Path.GetTempPath(), "PageArc.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private sealed class OfflineHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable));
     }
 }
