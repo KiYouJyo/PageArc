@@ -54,6 +54,7 @@ public sealed partial class SettingsPage : Page
         LocalBackupTitle.Text = LocalText("本地备份", "ローカル バックアップ", "Local backup");
         LocalBackupHint.Text = LocalText("导出或恢复完整 PageArc 备份；包含书本文件、阅读进度、书签、高亮和笔记。", "書籍ファイル、読書位置、しおり、ハイライト、ノートを含む完全な PageArc バックアップを保存・復元します。", "Export or restore a complete PageArc backup with book files, reading positions, bookmarks, highlights, and notes.");
         LocalBackupStatusLabel.Text = LocalText("状态", "状態", "Status");
+        BackupReadingDataButton.Content = LocalText("导出备份", "バックアップを保存", "Export backup");
         RestoreReadingDataButton.Content = LocalText("恢复备份", "バックアップを復元", "Restore backup");
 
         WebDavCardTitle.Text = LocalText("WebDAV 云存档", "WebDAV クラウド保存", "WebDAV cloud archive");
