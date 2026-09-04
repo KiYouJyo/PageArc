@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-1.3.1-005fb8)
+![Version](https://img.shields.io/badge/version-1.4-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -10,6 +10,14 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 **PageArc** は、リフロー型電子書籍に特化した WinUI 3 / Windows App SDK 製 Windows リーダーです。PAGEARC Figma を UI の基準とし、ローカル優先・元ファイル非変更の読書体験を重視します。
+
+## v1.4
+
+v1.4 では容量の大きい電子書籍変換ランタイムを基本リーダーから分離します。
+
+- calibre 9.13.0 は PageArc MSIX に同梱しません。
+- 独立した `KiYouJyo/PageArc.ConversionRuntime` から固定版 `9.13.0-pagearc.1` を配布し、変換または互換変換を必要とする MOBI / AZW3 / LIT を初めて開く時だけダウンロードします。
+- Release、サイズ、SHA-256 を固定検証し、`PageArc/Runtimes` のユーザー領域へ保存します。システムに calibre がある場合はそちらを優先します。
 
 ## v1.0
 
@@ -35,7 +43,7 @@ v1.0 では、v0.9.5 を土台に Reader、ライブラリ、設定、更新、W
 
 ## プライバシー
 
-アカウントは不要です。ライブラリ、設定、進捗、しおり、ノート、タブセッションは端末内に保存します。通常の読書、解析、電子書籍変換はローカルで動作します。公式インストール版は変換のためにネットワークを必要とせず、実行時のネットワーク利用はユーザーが明示的に行う更新確認に限定します。固定版第三者ランタイムのダウンロードはインストーラ生成時のみです。
+アカウントは不要です。ライブラリ、設定、進捗、しおり、ノート、タブセッションは端末内に保存します。通常の読書、解析、電子書籍変換はローカルで動作します。基本インストーラには calibre を含みません。変換ランタイムが初めて必要になった時、PageArc は確認後に固定版 PageArc.ConversionRuntime をダウンロードし、それ以降の変換はローカルで実行します。更新確認とユーザーが開始した WebDAV 同期も必要時のみ通信します。
 
 ## ビルド
 
@@ -49,4 +57,4 @@ dotnet test tests/PageArc.Tests/PageArc.Tests.csproj -c Debug -p:Platform=x64
 
 ## License
 
-PageArc 本体は MIT License です。同梱する第三者コンポーネントは各ライセンスと出典を保持し、公式 x64 パッケージの calibre ランタイムは GPLv3 のままです。詳細は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+PageArc 本体は MIT License です。基本パッケージには calibre を同梱しません。任意ダウンロードの PageArc.ConversionRuntime 内の calibre は GPLv3 のままで、対応するソースも各 Runtime Release に併載します。詳細は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
