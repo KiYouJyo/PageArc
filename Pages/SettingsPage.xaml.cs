@@ -265,9 +265,9 @@ public sealed partial class SettingsPage : Page
         var endpointHint = new TextBlock
         {
             Text = LocalText(
-                $"可填写 WebDAV 文件夹地址；PageArc 会自动使用 {WebDavConnectionSettings.DefaultArchiveFileName}。也兼容直接填写 .pagearcbackup / .json 文件地址。",
-                $"WebDAV フォルダー URL を入力すると、PageArc は {WebDavConnectionSettings.DefaultArchiveFileName} を自動使用します。.pagearcbackup / .json の直接 URL も利用できます。",
-                $"Enter a WebDAV folder URL and PageArc will use {WebDavConnectionSettings.DefaultArchiveFileName} automatically. Direct .pagearcbackup or .json URLs are also supported."),
+                "建议填写 WebDAV 文件夹地址；PageArc 会按时间与版本创建可管理的 .pagearcbackup 历史存档。仍兼容直接填写单个 .pagearcbackup / .json 地址。",
+                "WebDAV フォルダー URL の使用を推奨します。PageArc は日時とバージョン付きの .pagearcbackup 履歴を作成・管理します。単一の .pagearcbackup / .json URL も互換用に利用できます。",
+                "A WebDAV folder URL is recommended. PageArc creates manageable timestamped/versioned .pagearcbackup history there. Direct single .pagearcbackup / .json URLs remain supported for compatibility."),
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.72
