@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
 
-![Version](https://img.shields.io/badge/version-1.3.1-005fb8)
+![Version](https://img.shields.io/badge/version-1.4-005fb8)
 ![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
 ![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
 ![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
@@ -10,6 +10,14 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 **PageArc** is a WinUI 3 / Windows App SDK ebook reader for Windows focused on reflowable formats. The UI follows the PAGEARC Figma source of truth while keeping reading local-first and leaving original ebook files untouched.
+
+## v1.4
+
+v1.4 removes the heavy ebook-conversion runtime from the base reader:
+
+- calibre 9.13.0 is no longer embedded in the PageArc MSIX;
+- the separate `KiYouJyo/PageArc.ConversionRuntime` repository publishes pinned runtime `9.13.0-pagearc.1`, downloaded only when conversion or a compatibility-dependent MOBI / AZW3 / LIT open is first requested;
+- PageArc pins the release, archive size and SHA-256, installs the runtime per-user under `PageArc/Runtimes`, and reuses an existing system calibre installation when available.
 
 ## v1.0
 
@@ -36,7 +44,7 @@ Visible UI changes must be checked against the PAGEARC Figma design before XAML 
 
 ## Privacy
 
-No account is required. Library metadata, settings, progress, bookmarks, notes and tab-session state stay on the device. Normal reading, parsing and ebook conversion run locally. Official installed builds do not need network access to convert books; network access is limited to user-invoked update checks. The packaging workflow downloads the pinned third-party runtime before the installer is produced.
+No account is required. Library metadata, settings, progress, bookmarks, notes and tab-session state stay on the device. Normal reading, parsing and ebook conversion run locally. The base installer does not contain calibre. When a conversion-dependent feature is first requested, PageArc asks before downloading the pinned PageArc.ConversionRuntime release; subsequent conversion runs locally. Update checks and user-initiated WebDAV synchronization also use the network when requested.
 
 ## Build
 
@@ -50,4 +58,4 @@ See the [application homepage](https://kiyoujyo.github.io/PageArc/), [public pri
 
 ## License
 
-PageArc itself is MIT-licensed. Bundled third-party components retain their own licenses and provenance; the calibre runtime in official x64 packages remains GPLv3-licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+PageArc itself is MIT-licensed. The base package no longer bundles calibre; the optional PageArc.ConversionRuntime remains GPLv3-licensed where applicable and publishes the matching calibre source beside each runtime release. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
