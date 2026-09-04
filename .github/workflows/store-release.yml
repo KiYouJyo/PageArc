@@ -27,7 +27,7 @@ on:
         type: string
   push:
     branches:
-      - publish/v1.3.1.1-one-shot
+      - publish/v1.3.1-one-shot
 
 permissions:
   contents: read
@@ -104,7 +104,7 @@ jobs:
         shell: pwsh
         run: |
           if ('${{ github.event_name }}' -eq 'push') {
-            if ('${{ github.ref }}' -cne 'refs/heads/publish/v1.3.1.1-one-shot') { throw 'Automatic Store publication is restricted to the one-shot v1.3.1 release branch.' }
+            if ('${{ github.ref }}' -cne 'refs/heads/publish/v1.3.1-one-shot') { throw 'Automatic Store publication is restricted to the one-shot v1.3.1 release branch.' }
             if ($env:STORE_PRODUCT_ID -cne '9NTHMP210H9B') { throw 'Automatic Store publication resolved an unexpected product ID.' }
           }
           else {
