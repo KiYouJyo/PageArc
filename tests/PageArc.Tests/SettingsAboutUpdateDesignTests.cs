@@ -107,7 +107,7 @@ public sealed class SettingsAboutUpdateDesignTests
         Assert.Contains("RequestDownloadAndInstallStorePackageUpdatesAsync", service, StringComparison.Ordinal);
         Assert.Contains("packageManagement", githubManifest, StringComparison.Ordinal);
         Assert.DoesNotContain("packageManagement", storeManifest, StringComparison.Ordinal);
-        Assert.Contains("Version=\"2026.904.130.0\"", storeManifest, StringComparison.Ordinal);
+        Assert.Contains("Version=\"2026.904.131.0\"", storeManifest, StringComparison.Ordinal);
         Assert.Contains("prepare-calibre-runtime.ps1", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
         Assert.Contains("pagearc-store-publish", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);
         Assert.Contains("--inputDirectory", File.ReadAllText(Path.Combine(root, ".github", "workflows", "store-release.yml")), StringComparison.Ordinal);

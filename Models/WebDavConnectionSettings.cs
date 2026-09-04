@@ -13,6 +13,27 @@ public sealed record WebDavConnectionSettings(string Endpoint, string Username)
         return new Uri(collection, Uri.EscapeDataString(DefaultArchiveFileName));
     }
 
+    public bool UsesDirectArchiveUrl => LooksLikeFileUrl(GetConfiguredUri());
+
+    public string? GetDirectArchiveFileName()
+    {
+        var configured = GetConfiguredUri();
+        return LooksLikeFileUrl(configured) ? Uri.UnescapeDataString(Path.GetFileName(configured.AbsolutePath)) : null;
+    }
+
+    public Uri GetArchiveUri(string fileName)
+    {
+        if (!WebDavArchiveItem.IsPageArcBackupFileName(fileName))
+            throw new ArgumentException("A valid PageArc .pagearcbackup filename is required.", nameof(fileName));
+        return new Uri(GetCollectionUri(), Uri.EscapeDataString(fileName));
+    }
+
+    public Uri GetUploadUri(string fileName)
+    {
+        var configured = GetConfiguredUri();
+        return LooksLikeFileUrl(configured) ? configured : GetArchiveUri(fileName);
+    }
+
     public Uri GetCollectionUri()
     {
         var configured = GetConfiguredUri();

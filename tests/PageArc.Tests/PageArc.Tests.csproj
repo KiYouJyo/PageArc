@@ -30,6 +30,7 @@
     <Compile Include="../../Models/ReadingData.cs" Link="Models/ReadingData.cs" />
     <Compile Include="../../Models/ReadingBackup.cs" Link="Models/ReadingBackup.cs" />
     <Compile Include="../../Models/WebDavConnectionSettings.cs" Link="Models/WebDavConnectionSettings.cs" />
+    <Compile Include="../../Models/WebDavArchiveItem.cs" Link="Models/WebDavArchiveItem.cs" />
     <Compile Include="../../Models/ShellTabSession.cs" Link="Models/ShellTabSession.cs" />
     <Compile Include="../../Models/ShellSessionState.cs" Link="Models/ShellSessionState.cs" />
     <Compile Include="../../Services/AppPaths.cs" Link="Services/AppPaths.cs" />
@@ -37,6 +38,7 @@
     <Compile Include="../../Services/CategoryService.cs" Link="Services/CategoryService.cs" />
     <Compile Include="../../Services/ReadingBackupService.cs" Link="Services/ReadingBackupService.cs" />
     <Compile Include="../../Services/WebDavSyncService.cs" Link="Services/WebDavSyncService.cs" />
+    <Compile Include="../../Services/WebDavArchiveListingParser.cs" Link="Services/WebDavArchiveListingParser.cs" />
     <Compile Include="../../Services/ShellSessionStore.cs" Link="Services/ShellSessionStore.cs" />
     <Compile Include="../../Services/ReaderEnhancementScript.cs" Link="Services/ReaderEnhancementScript.cs" />
     <Compile Include="../../Services/ReaderLayoutPolicy.cs" Link="Services/ReaderLayoutPolicy.cs" />

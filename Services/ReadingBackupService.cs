@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using PageArc.Models;
@@ -111,6 +112,63 @@ public sealed class ReadingBackupService
         {
             try { if (File.Exists(temp)) File.Delete(temp); } catch { }
         }
+    }
+
+    public static async Task<string> ComputePackageContentHashAsync(
+        string path,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Backup path is required.", nameof(path));
+
+        var backup = ReadPackage(path);
+        var canonical = new PageArcReadingBackup
+        {
+            SchemaVersion = backup.SchemaVersion,
+            ExportedAt = DateTimeOffset.UnixEpoch,
+            Books = (backup.Books ?? [])
+                .OrderBy(item => item.BookId, StringComparer.Ordinal)
+                .ThenBy(item => item.FileName, StringComparer.Ordinal)
+                .ToList(),
+            Bookmarks = (backup.Bookmarks ?? [])
+                .OrderBy(item => item.Id, StringComparer.Ordinal)
+                .ToList(),
+            Annotations = (backup.Annotations ?? [])
+                .OrderBy(item => item.Id, StringComparer.Ordinal)
+                .ToList(),
+            Progress = (backup.Progress ?? [])
+                .OrderBy(item => item.BookId, StringComparer.Ordinal)
+                .ToList()
+        };
+
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(Encoding.UTF8.GetBytes(Serialize(canonical)));
+
+        var fullPath = Path.GetFullPath(path);
+        if (IsPackageArchive(fullPath))
+        {
+            using var source = File.OpenRead(fullPath);
+            using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: false);
+            foreach (var entry in archive.Entries
+                         .Where(item => item.FullName.StartsWith("books/", StringComparison.Ordinal)
+                                        && !item.FullName.EndsWith("/", StringComparison.Ordinal))
+                         .OrderBy(item => item.FullName, StringComparer.Ordinal))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                hash.AppendData(Encoding.UTF8.GetBytes(entry.FullName));
+                hash.AppendData(new byte[] { 0 });
+
+                using var entryStream = entry.Open();
+                var buffer = new byte[1024 * 128];
+                while (true)
+                {
+                    var read = await entryStream.ReadAsync(buffer.AsMemory(), cancellationToken);
+                    if (read == 0) break;
+                    hash.AppendData(buffer.AsSpan(0, read));
+                }
+            }
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
     public static PageArcReadingBackup ReadPackage(string path)
