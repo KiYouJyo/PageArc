@@ -348,51 +348,105 @@ public sealed partial class SettingsPage : Page
         if (_webDavBusy) return;
         PersistReadingSettings();
 
-        var settings = new WebDavConnectionSettings(App.Settings.Current.WebDavEndpoint, App.Settings.Current.WebDavUsername);
-        try
+        if (!TryGetWebDavSettings(out var settings))
         {
-            _ = settings.GetEndpointUri();
-            _ = settings.GetCollectionUri();
-        }
-        catch
-        {
-            await ShowTransientMessageAsync(
-                LocalText("尚未配置 WebDAV", "WebDAV は未設定です", "WebDAV is not configured"),
-                LocalText("请先配置 WebDAV 文件夹地址和凭据。", "先に WebDAV フォルダー URL と資格情報を設定してください。", "Configure the WebDAV folder URL and credentials first."));
+            SetWebDavStatus(
+                LocalText("请先配置 WebDAV 文件夹地址和凭据。", "先に WebDAV フォルダー URL と資格情報を設定してください。", "Configure the WebDAV folder URL and credentials first."),
+                InfoBarSeverity.Warning);
             return;
         }
 
+        var localPath = Path.Combine(Path.GetTempPath(), $"PageArc-local-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
         var remotePath = Path.Combine(Path.GetTempPath(), $"PageArc-remote-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
-        var uploadPath = Path.Combine(Path.GetTempPath(), $"PageArc-upload-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
+        var mergedPath = Path.Combine(Path.GetTempPath(), $"PageArc-merged-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
 
         SetWebDavBusy(true);
-        WebDavStatusValue.Text = LocalText("正在下载、合并并同步书本与阅读数据…", "書籍と読書データをダウンロード、マージ、同期しています…", "Downloading, merging, and syncing books plus reading data…");
+        BeginWebDavProgress(LocalText("正在检查云端存档…", "クラウド アーカイブを確認しています…", "Checking cloud archives…"));
         try
         {
             var password = _webDavCredentialStore.Read(settings.Endpoint, settings.Username) ?? string.Empty;
-            var remoteExists = await _webDavSyncService.DownloadFileAsync(settings, password, remotePath);
 
-            if (remoteExists)
+            SetWebDavProgress(6, LocalText("正在读取云端存档列表…", "クラウド アーカイブ一覧を取得しています…", "Reading cloud archive list…"));
+            var listing = await _webDavSyncService.ListArchivesAsync(settings, password);
+            if (!listing.Succeeded)
+                throw new InvalidOperationException($"WebDAV archive listing failed: {listing.ErrorCode}");
+
+            SetWebDavProgress(14, LocalText("正在生成本地完整快照…", "ローカルの完全スナップショットを作成しています…", "Creating local complete snapshot…"));
+            await _backupService.ExportPackageAsync(localPath, App.ReadingData, App.Library.Books);
+
+            if (listing.Items.Count == 0)
             {
-                var remote = ReadingBackupService.ReadPackage(remotePath);
-                await _backupService.RestorePackageBooksAsync(remotePath, remote, App.Library);
-
-                var localAfterBooks = _backupService.CreateBackup(App.ReadingData, App.Library.Books);
-                var merged = ReadingBackupService.Merge(localAfterBooks, remote);
-                _backupService.Restore(merged, App.ReadingData, App.Library.Books, ReadingBackupRestoreMode.Merge);
-                App.Library.Save();
+                SetWebDavProgress(34, LocalText("云端暂无存档，正在上传首个完整存档…", "クラウドにアーカイブがありません。最初の完全アーカイブをアップロードしています…", "No cloud archive exists; uploading the first complete archive…"));
+                var newName = CreateCloudArchiveFileName();
+                await _webDavSyncService.UploadArchiveAsync(
+                    settings,
+                    password,
+                    localPath,
+                    newName,
+                    CreateMappedTransferProgress(34, 98, LocalText("正在上传完整存档…", "完全アーカイブをアップロードしています…", "Uploading complete archive…")));
+                CompleteWebDavSync(
+                    LocalText("首次云存档已创建；书本与阅读数据已同步。", "最初のクラウド アーカイブを作成し、書籍と読書データを同期しました。", "First cloud archive created; books and reading data are synchronized."));
+                return;
             }
 
-            await _backupService.ExportPackageAsync(uploadPath, App.ReadingData, App.Library.Books);
-            await _webDavSyncService.UploadFileAsync(settings, password, uploadPath);
+            var latest = listing.Items[0];
+            SetWebDavProgress(
+                24,
+                string.Format(
+                    LocalText("正在下载并比较最新云存档：{0}", "最新のクラウド アーカイブをダウンロードして比較しています：{0}", "Downloading and comparing latest cloud archive: {0}"),
+                    latest.FileName));
 
-            var now = DateTimeOffset.Now;
-            App.Settings.Update(value => value.WebDavLastSyncAt = now);
-            UpdateWebDavStatus();
-            UpdateLocalBackupStatus();
-            SetWebDavStatus(
-                LocalText("书本文件与阅读数据已完成双向同步。", "書籍ファイルと読書データの双方向同期が完了しました。", "Two-way sync of book files and reading data completed."),
-                InfoBarSeverity.Success);
+            var downloaded = await _webDavSyncService.DownloadArchiveAsync(
+                settings,
+                password,
+                latest,
+                remotePath,
+                CreateMappedTransferProgress(24, 50, LocalText("正在下载最新云存档…", "最新のクラウド アーカイブをダウンロードしています…", "Downloading latest cloud archive…")));
+            if (!downloaded)
+                throw new FileNotFoundException("The selected remote archive disappeared during synchronization.", latest.FileName);
+
+            SetWebDavProgress(54, LocalText("正在检查本地与云端差异…", "ローカルとクラウドの差分を確認しています…", "Checking local/cloud differences…"));
+            var localHash = await ReadingBackupService.ComputePackageContentHashAsync(localPath);
+            var remoteHash = await ReadingBackupService.ComputePackageContentHashAsync(remotePath);
+
+            if (string.Equals(localHash, remoteHash, StringComparison.Ordinal))
+            {
+                CompleteWebDavSync(
+                    LocalText("已检查：本地与云端没有差异，未上传新存档。", "確認完了：ローカルとクラウドに差分がないため、新しいアーカイブはアップロードしていません。", "Checked: local and cloud data are identical; no new archive was uploaded."));
+                return;
+            }
+
+            SetWebDavProgress(62, LocalText("检测到差异，正在合并云端与本地数据…", "差分を検出しました。クラウドとローカルのデータをマージしています…", "Differences found; merging cloud and local data…"));
+            var remote = ReadingBackupService.ReadPackage(remotePath);
+            await _backupService.RestorePackageBooksAsync(remotePath, remote, App.Library);
+
+            var localAfterBooks = _backupService.CreateBackup(App.ReadingData, App.Library.Books);
+            var merged = ReadingBackupService.Merge(localAfterBooks, remote);
+            _backupService.Restore(merged, App.ReadingData, App.Library.Books, ReadingBackupRestoreMode.Merge);
+            App.Library.Save();
+
+            SetWebDavProgress(70, LocalText("正在生成合并后的完整存档…", "マージ後の完全アーカイブを作成しています…", "Creating merged complete archive…"));
+            await _backupService.ExportPackageAsync(mergedPath, App.ReadingData, App.Library.Books);
+            var mergedHash = await ReadingBackupService.ComputePackageContentHashAsync(mergedPath);
+
+            if (string.Equals(mergedHash, remoteHash, StringComparison.Ordinal))
+            {
+                CompleteWebDavSync(
+                    LocalText("已从云端合并更新到本地；云端内容已包含全部数据，因此未重复上传。", "クラウドの内容をローカルへ反映しました。クラウド側に全データが含まれているため再アップロードしていません。", "Cloud changes were merged locally; the cloud already contained the complete result, so no duplicate upload was made."));
+                return;
+            }
+
+            SetWebDavProgress(76, LocalText("合并结果有新内容，正在创建新的云存档…", "マージ結果に新しい内容があります。新しいクラウド アーカイブを作成しています…", "Merged result contains new data; creating a new cloud archive…"));
+            var archiveName = CreateCloudArchiveFileName();
+            await _webDavSyncService.UploadArchiveAsync(
+                settings,
+                password,
+                mergedPath,
+                archiveName,
+                CreateMappedTransferProgress(76, 98, LocalText("正在上传新的完整存档…", "新しい完全アーカイブをアップロードしています…", "Uploading new complete archive…")));
+
+            CompleteWebDavSync(
+                LocalText("差异已合并，并创建新的云存档。", "差分をマージし、新しいクラウド アーカイブを作成しました。", "Differences merged and a new cloud archive was created."));
         }
         catch (Exception ex)
         {
@@ -407,8 +461,10 @@ public sealed partial class SettingsPage : Page
         }
         finally
         {
+            TryDelete(localPath);
             TryDelete(remotePath);
-            TryDelete(uploadPath);
+            TryDelete(mergedPath);
+            EndWebDavProgress();
             SetWebDavBusy(false);
         }
     }
@@ -418,13 +474,7 @@ public sealed partial class SettingsPage : Page
         if (_webDavBusy) return;
         PersistReadingSettings();
 
-        WebDavConnectionSettings settings;
-        try
-        {
-            settings = new WebDavConnectionSettings(App.Settings.Current.WebDavEndpoint, App.Settings.Current.WebDavUsername);
-            _ = settings.GetEndpointUri();
-        }
-        catch
+        if (!TryGetWebDavSettings(out var settings))
         {
             SetWebDavStatus(
                 LocalText("请先配置 WebDAV。", "先に WebDAV を設定してください。", "Configure WebDAV first."),
@@ -432,59 +482,48 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        var confirmation = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = LocalText("从云端恢复", "クラウドから復元", "Restore from cloud"),
-            Content = LocalText(
-                "将下载远端完整存档并合并到本地。远端书本文件会恢复到 PageArc 的持久化书库目录；本地现有书本不会被删除。",
-                "リモートの完全アーカイブをダウンロードしてローカルへマージします。書籍ファイルは PageArc の永続ライブラリに復元され、既存のローカル書籍は削除されません。",
-                "The remote complete archive will be downloaded and merged locally. Remote book files are restored into PageArc's durable library; existing local books are not deleted."),
-            PrimaryButtonText = LocalText("恢复", "復元", "Restore"),
-            CloseButtonText = LocalText("取消", "キャンセル", "Cancel"),
-            DefaultButton = ContentDialogButton.Close
-        };
-        if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
-
-        var remotePath = Path.Combine(Path.GetTempPath(), $"PageArc-cloud-restore-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
         SetWebDavBusy(true);
-        WebDavStatusValue.Text = LocalText("正在从云端恢复…", "クラウドから復元しています…", "Restoring from cloud…");
+        BeginWebDavProgress(LocalText("正在读取云端存档列表…", "クラウド アーカイブ一覧を取得しています…", "Reading cloud archive list…"));
         try
         {
             var password = _webDavCredentialStore.Read(settings.Endpoint, settings.Username) ?? string.Empty;
-            if (!await _webDavSyncService.DownloadFileAsync(settings, password, remotePath))
+            var listing = await _webDavSyncService.ListArchivesAsync(settings, password);
+            EndWebDavProgress();
+
+            if (!listing.Succeeded)
             {
-                UpdateWebDavStatus();
                 SetWebDavStatus(
-                    LocalText("云端尚无 PageArc 存档。", "クラウドに PageArc アーカイブがありません。", "No PageArc archive exists in the cloud yet."),
-                    InfoBarSeverity.Warning);
+                    LocalText("无法读取云端存档列表。", "クラウド アーカイブ一覧を取得できません。", "Could not read the cloud archive list."),
+                    InfoBarSeverity.Error);
                 return;
             }
 
-            var remote = ReadingBackupService.ReadPackage(remotePath);
-            var restoredBookFiles = await _backupService.RestorePackageBooksAsync(remotePath, remote, App.Library);
-            var result = _backupService.Restore(remote, App.ReadingData, App.Library.Books, ReadingBackupRestoreMode.Merge);
-            App.Library.Save();
-            UpdateLocalBackupStatus();
-            UpdateWebDavStatus();
-            SetWebDavStatus(
-                LocalText(
-                    $"云端恢复完成：接入 {restoredBookFiles} 个书本文件，恢复 {result.RestoredBookmarks} 个书签、{result.RestoredAnnotations} 条标注/笔记。",
-                    $"クラウド復元完了：書籍ファイル {restoredBookFiles} 件、しおり {result.RestoredBookmarks} 件、注釈/ノート {result.RestoredAnnotations} 件を復元しました。",
-                    $"Cloud restore complete: {restoredBookFiles} book files, {result.RestoredBookmarks} bookmarks, and {result.RestoredAnnotations} annotations/notes restored."),
-                InfoBarSeverity.Success);
+            if (listing.Items.Count == 0)
+            {
+                SetWebDavStatus(
+                    LocalText("云端暂无存档。", "クラウド アーカイブはまだありません。", "No cloud archives yet."),
+                    InfoBarSeverity.Informational);
+                return;
+            }
+
+            var selected = await SelectBackupAsync(
+                listing.Items,
+                LocalText("选择要恢复的云存档", "復元するクラウドアーカイブを選択", "Choose a cloud archive to restore"),
+                LocalText("恢复", "復元", "Restore"));
+            if (selected is null) return;
+
+            _ = await RestoreBackupAsync(settings, password, selected);
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("WebDAV cloud restore failed", ex);
-            UpdateWebDavStatus();
             SetWebDavStatus(
                 LocalText("云端恢复失败；本地现有数据未被删除。", "クラウド復元に失敗しました。既存のローカル データは削除されていません。", "Cloud restore failed; existing local data was not deleted."),
                 InfoBarSeverity.Error);
         }
         finally
         {
-            TryDelete(remotePath);
+            EndWebDavProgress();
             SetWebDavBusy(false);
         }
     }
@@ -492,14 +531,9 @@ public sealed partial class SettingsPage : Page
     private async void ManageWebDav_Click(object sender, RoutedEventArgs e)
     {
         if (_webDavBusy) return;
+        PersistReadingSettings();
 
-        WebDavConnectionSettings settings;
-        try
-        {
-            settings = new WebDavConnectionSettings(App.Settings.Current.WebDavEndpoint, App.Settings.Current.WebDavUsername);
-            _ = settings.GetEndpointUri();
-        }
-        catch
+        if (!TryGetWebDavSettings(out var settings))
         {
             SetWebDavStatus(
                 LocalText("请先配置 WebDAV。", "先に WebDAV を設定してください。", "Configure WebDAV first."),
@@ -507,42 +541,283 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        var endpoint = new TextBlock
+        SetWebDavBusy(true);
+        try
         {
-            Text = settings.GetEndpointUri().AbsoluteUri,
-            TextWrapping = TextWrapping.Wrap,
-            IsTextSelectionEnabled = true
-        };
-        var lastSync = new TextBlock
-        {
-            Text = App.Settings.Current.WebDavLastSyncAt is DateTimeOffset value
-                ? string.Format(
-                    LocalText("上次同步：{0:yyyy-MM-dd HH:mm}", "最終同期：{0:yyyy-MM-dd HH:mm}", "Last synced: {0:yyyy-MM-dd HH:mm}"),
-                    value.ToLocalTime())
-                : LocalText("尚未完成首次同步", "初回同期前", "First sync has not completed yet"),
-            Opacity = 0.72
-        };
-        var content = new StackPanel { Spacing = 8, MinWidth = 420 };
-        content.Children.Add(new TextBlock
-        {
-            Text = LocalText("当前云存档地址", "現在のクラウド アーカイブ URL", "Current cloud archive URL"),
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-        });
-        content.Children.Add(endpoint);
-        content.Children.Add(lastSync);
+            var password = _webDavCredentialStore.Read(settings.Endpoint, settings.Username) ?? string.Empty;
 
+            while (true)
+            {
+                BeginWebDavProgress(LocalText("正在读取云端存档列表…", "クラウド アーカイブ一覧を取得しています…", "Reading cloud archive list…"));
+                var listing = await _webDavSyncService.ListArchivesAsync(settings, password);
+                EndWebDavProgress();
+
+                if (!listing.Succeeded)
+                {
+                    SetWebDavStatus(
+                        LocalText("无法读取云端存档列表。", "クラウド アーカイブ一覧を取得できません。", "Could not read the cloud archive list."),
+                        InfoBarSeverity.Error);
+                    return;
+                }
+
+                if (listing.Items.Count == 0)
+                {
+                    SetWebDavStatus(
+                        LocalText("云端暂无存档。", "クラウド アーカイブはまだありません。", "No cloud archives yet."),
+                        InfoBarSeverity.Informational);
+                    return;
+                }
+
+                // Exact dialog structure copied from UrbanPlanToolbox
+                // WebDavDataManagementControl.OnManageCloudBackups @
+                // 249bbf99088e5edc92b9a6f9b7635ca777cf847e.
+                var list = CreateBackupList(listing.Items);
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = XamlRoot,
+                    Title = LocalText("WebDAV 云存档", "WebDAV クラウドアーカイブ", "WebDAV cloud archives"),
+                    Content = list,
+                    PrimaryButtonText = LocalText("恢复", "復元", "Restore"),
+                    SecondaryButtonText = LocalText("删除", "削除", "Delete"),
+                    CloseButtonText = LocalText("关闭", "閉じる", "Close"),
+                    DefaultButton = ContentDialogButton.Close,
+                    IsPrimaryButtonEnabled = false,
+                    IsSecondaryButtonEnabled = false
+                };
+                list.SelectionChanged += (_, _) =>
+                {
+                    var hasSelection = list.SelectedItem is ListViewItem { Tag: WebDavArchiveItem };
+                    dialog.IsPrimaryButtonEnabled = hasSelection;
+                    dialog.IsSecondaryButtonEnabled = hasSelection;
+                };
+
+                var action = await dialog.ShowAsync();
+                if (action == ContentDialogResult.None) return;
+                if (list.SelectedItem is not ListViewItem { Tag: WebDavArchiveItem selected }) continue;
+
+                if (action == ContentDialogResult.Primary)
+                {
+                    if (await RestoreBackupAsync(settings, password, selected)) return;
+                    continue;
+                }
+
+                var deleteConfirm = new ContentDialog
+                {
+                    XamlRoot = XamlRoot,
+                    Title = LocalText("删除云存档？", "クラウドアーカイブを削除しますか？", "Delete cloud archive?"),
+                    Content = string.Format(
+                        LocalText("这将永久删除远端文件 {0}，无法撤销。", "この操作はリモートの {0} を削除します。元に戻せません。", "This permanently deletes {0} from the remote server."),
+                        selected.FileName),
+                    PrimaryButtonText = LocalText("删除", "削除", "Delete"),
+                    CloseButtonText = LocalText("关闭", "閉じる", "Close"),
+                    DefaultButton = ContentDialogButton.Close
+                };
+                if (await deleteConfirm.ShowAsync() != ContentDialogResult.Primary) continue;
+
+                BeginWebDavProgress(LocalText("正在删除云存档…", "クラウド アーカイブを削除しています…", "Deleting cloud archive…"));
+                await _webDavSyncService.DeleteArchiveAsync(settings, password, selected);
+                EndWebDavProgress();
+                SetWebDavStatus(
+                    LocalText("云存档已删除。", "クラウド アーカイブを削除しました。", "Cloud archive deleted."),
+                    InfoBarSeverity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Log("WebDAV archive management failed", ex);
+            SetWebDavStatus(
+                LocalText("云存档管理操作失败。", "クラウド アーカイブ管理に失敗しました。", "Cloud archive management failed."),
+                InfoBarSeverity.Error);
+        }
+        finally
+        {
+            EndWebDavProgress();
+            SetWebDavBusy(false);
+        }
+    }
+
+    private async Task<WebDavArchiveItem?> SelectBackupAsync(
+        IReadOnlyList<WebDavArchiveItem> items,
+        string title,
+        string primaryButtonText)
+    {
+        // Exact restore-picker structure copied from UrbanPlanToolbox
+        // WebDavDataManagementControl.SelectBackupAsync @
+        // 249bbf99088e5edc92b9a6f9b7635ca777cf847e.
+        var list = CreateBackupList(items);
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = LocalText("管理 WebDAV 存档", "WebDAV アーカイブを管理", "Manage WebDAV archive"),
-            Content = content,
-            PrimaryButtonText = LocalText("立即同步", "今すぐ同期", "Sync now"),
+            Title = title,
+            Content = list,
+            PrimaryButtonText = primaryButtonText,
+            CloseButtonText = LocalText("关闭", "閉じる", "Close"),
+            DefaultButton = ContentDialogButton.Close,
+            IsPrimaryButtonEnabled = false
+        };
+        list.SelectionChanged += (_, _) =>
+            dialog.IsPrimaryButtonEnabled = list.SelectedItem is ListViewItem { Tag: WebDavArchiveItem };
+
+        var action = await dialog.ShowAsync();
+        return action == ContentDialogResult.Primary
+               && list.SelectedItem is ListViewItem { Tag: WebDavArchiveItem selected }
+            ? selected
+            : null;
+    }
+
+    private async Task<bool> RestoreBackupAsync(
+        WebDavConnectionSettings settings,
+        string password,
+        WebDavArchiveItem selected)
+    {
+        var confirm = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = LocalText("从云存档恢复？", "クラウドアーカイブから復元しますか？", "Restore from cloud archive?"),
+            Content = LocalText(
+                "所选云存档会合并到本地；书本文件会恢复到 PageArc 的持久化书库目录，本地现有书本不会被删除。",
+                "選択したクラウド アーカイブをローカルへマージします。書籍ファイルは PageArc の永続ライブラリに復元され、既存のローカル書籍は削除されません。",
+                "The selected cloud archive will be merged locally. Book files are restored into PageArc's durable library and existing local books are not deleted."),
+            PrimaryButtonText = LocalText("恢复", "復元", "Restore"),
             CloseButtonText = LocalText("关闭", "閉じる", "Close"),
             DefaultButton = ContentDialogButton.Close
         };
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
-            SyncWebDav_Click(WebDavBackupButton, new RoutedEventArgs());
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return false;
+
+        var remotePath = Path.Combine(Path.GetTempPath(), $"PageArc-cloud-restore-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
+        BeginWebDavProgress(
+            string.Format(
+                LocalText("正在恢复：{0}", "復元中：{0}", "Restoring: {0}"),
+                selected.FileName));
+        try
+        {
+            var downloaded = await _webDavSyncService.DownloadArchiveAsync(
+                settings,
+                password,
+                selected,
+                remotePath,
+                CreateMappedTransferProgress(5, 62, LocalText("正在下载所选云存档…", "選択したクラウド アーカイブをダウンロードしています…", "Downloading selected cloud archive…")));
+            if (!downloaded)
+                throw new FileNotFoundException("The selected cloud archive no longer exists.", selected.FileName);
+
+            SetWebDavProgress(68, LocalText("正在校验并恢复书本文件…", "検証して書籍ファイルを復元しています…", "Validating and restoring book files…"));
+            var remote = ReadingBackupService.ReadPackage(remotePath);
+            var restoredBookFiles = await _backupService.RestorePackageBooksAsync(remotePath, remote, App.Library);
+
+            SetWebDavProgress(86, LocalText("正在恢复阅读数据…", "読書データを復元しています…", "Restoring reading data…"));
+            var result = _backupService.Restore(remote, App.ReadingData, App.Library.Books, ReadingBackupRestoreMode.Merge);
+            App.Library.Save();
+            UpdateLocalBackupStatus();
+
+            SetWebDavProgress(100, LocalText("恢复完成", "復元完了", "Restore complete"));
+            SetWebDavStatus(
+                LocalText(
+                    $"云端恢复完成：接入 {restoredBookFiles} 个书本文件，恢复 {result.RestoredBookmarks} 个书签、{result.RestoredAnnotations} 条标注/笔记和 {result.RestoredProgress} 条阅读进度。",
+                    $"クラウド復元完了：書籍ファイル {restoredBookFiles} 件、しおり {result.RestoredBookmarks} 件、注釈/ノート {result.RestoredAnnotations} 件、読書位置 {result.RestoredProgress} 件を復元しました。",
+                    $"Cloud restore complete: {restoredBookFiles} book files, {result.RestoredBookmarks} bookmarks, {result.RestoredAnnotations} annotations/notes, and {result.RestoredProgress} reading positions restored."),
+                InfoBarSeverity.Success);
+            return true;
+        }
+        finally
+        {
+            TryDelete(remotePath);
+            EndWebDavProgress();
+        }
     }
+
+    private ListView CreateBackupList(IEnumerable<WebDavArchiveItem> items)
+    {
+        // Exact measurements from UrbanPlanToolbox WebDavDataManagementControl.CreateBackupList.
+        var list = new ListView
+        {
+            SelectionMode = ListViewSelectionMode.Single,
+            MinWidth = 520,
+            MaxHeight = 360
+        };
+        foreach (var item in items)
+            list.Items.Add(new ListViewItem { Content = FormatBackupItem(item), Tag = item });
+        return list;
+    }
+
+    private string FormatBackupItem(WebDavArchiveItem item)
+    {
+        // Exact line structure from UrbanPlanToolbox:
+        // timestamp + version + size, then filename on the next line.
+        var timestamp = item.SortTimeUtc == DateTimeOffset.MinValue
+            ? "—"
+            : item.SortTimeUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+        var version = string.IsNullOrWhiteSpace(item.AppVersion) ? "—" : $"v{item.AppVersion}";
+        return $"{timestamp}   {version}   {FormatBytes(item.Size)}\n{item.FileName}";
+    }
+
+    private bool TryGetWebDavSettings(out WebDavConnectionSettings settings)
+    {
+        settings = new WebDavConnectionSettings(App.Settings.Current.WebDavEndpoint, App.Settings.Current.WebDavUsername);
+        try
+        {
+            _ = settings.GetCollectionUri();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string CreateCloudArchiveFileName() =>
+        WebDavArchiveItem.CreateFileName(DateTimeOffset.UtcNow, GetAppVersion());
+
+    private static string GetAppVersion()
+    {
+        var version = typeof(SettingsPage).Assembly.GetName().Version;
+        if (version is null) return "1.3.1";
+        return version.Build >= 0
+            ? $"{version.Major}.{version.Minor}.{version.Build}"
+            : $"{version.Major}.{version.Minor}";
+    }
+
+    private void CompleteWebDavSync(string message)
+    {
+        SetWebDavProgress(100, LocalText("同步完成", "同期完了", "Sync complete"));
+        App.Settings.Update(value => value.WebDavLastSyncAt = DateTimeOffset.Now);
+        UpdateWebDavStatus();
+        UpdateLocalBackupStatus();
+        SetWebDavStatus(message, InfoBarSeverity.Success);
+    }
+
+    private void BeginWebDavProgress(string status)
+    {
+        WebDavSyncProgress.IsIndeterminate = false;
+        WebDavSyncProgress.Value = 0;
+        WebDavSyncProgress.Visibility = Visibility.Visible;
+        WebDavStatusValue.Text = status;
+    }
+
+    private void SetWebDavProgress(double percent, string status)
+    {
+        WebDavSyncProgress.IsIndeterminate = false;
+        WebDavSyncProgress.Value = Math.Clamp(percent, 0, 100);
+        WebDavSyncProgress.Visibility = Visibility.Visible;
+        WebDavStatusValue.Text = status;
+    }
+
+    private void EndWebDavProgress()
+    {
+        WebDavSyncProgress.IsIndeterminate = false;
+        WebDavSyncProgress.Visibility = Visibility.Collapsed;
+    }
+
+    private IProgress<WebDavTransferProgress> CreateMappedTransferProgress(double start, double end, string status) =>
+        new Progress<WebDavTransferProgress>(value =>
+        {
+            var fraction = value.TotalBytes is > 0 ? value.Fraction : 0;
+            SetWebDavProgress(start + ((end - start) * fraction), status);
+        });
+
+    private static string FormatBytes(long bytes) =>
+        bytes >= 1024 * 1024
+            ? $"{bytes / (1024d * 1024d):0.##} MB"
+            : $"{bytes / 1024d:0.##} KB";
 
     private void UpdateWebDavStatus()
     {
