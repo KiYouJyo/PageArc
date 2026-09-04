@@ -43,7 +43,6 @@ public sealed partial class SettingsPage : Page
         AppearanceSectionHint.Text = LocalText("主题、语言与界面外观", "テーマ、言語、インターフェイスの外観", "Theme, language, and interface appearance");
         LibrarySectionHint.Text = LocalText("管理书库行为与导入偏好", "ライブラリの動作と読み込み設定", "Library behavior and import preferences");
         ReadingSectionHint.Text = LocalText("默认排版与阅读体验", "既定の組版と読書体験", "Default typography and reading experience");
-        DataSectionHint.Text = LocalText("本地备份、WebDAV 云存档与本地缓存", "ローカル バックアップ、WebDAV クラウド保存、ローカル キャッシュ", "Local backup, WebDAV cloud archive, and local cache");
         AccentLabel.Text = LocalText("强调色", "アクセント カラー", "Accent color");
         AccentHint.Text = LocalText("使用 Windows 强调色", "Windows のアクセント カラーを使用します", "Use the Windows accent color");
         WindowsAccentItem.Content = "Windows";
@@ -51,17 +50,32 @@ public sealed partial class SettingsPage : Page
         LibrarySortRecentItem.Content = LocalText("最近打开", "最近開いた順", "Recently opened");
         LibrarySortTitleItem.Content = LocalText("标题", "タイトル", "Title");
 
-        LocalBackupTitle.Text = LocalText("本地备份", "ローカル バックアップ", "Local backup");
-        LocalBackupHint.Text = LocalText("导出或恢复完整 PageArc 备份；包含书本文件、阅读进度、书签、高亮和笔记。", "書籍ファイル、読書位置、しおり、ハイライト、ノートを含む完全な PageArc バックアップを保存・復元します。", "Export or restore a complete PageArc backup with book files, reading positions, bookmarks, highlights, and notes.");
-        LocalBackupStatusLabel.Text = LocalText("状态", "状態", "Status");
-        BackupReadingDataButton.Content = LocalText("导出备份", "バックアップを保存", "Export backup");
-        RestoreReadingDataButton.Content = LocalText("恢复备份", "バックアップを復元", "Restore backup");
+        DataManagementTitle.Text = LocalText("数据管理", "データ管理", "Data management");
+        DataManagementDescription.Text = LocalText(
+            "把本地备份与 WebDAV 云存档并列呈现；本地数据仍是唯一主数据源。",
+            "ローカル バックアップと WebDAV クラウド保存を並列表示します。ローカル データが引き続き唯一の主データです。",
+            "Local backup and WebDAV cloud archive are presented side by side; local data remains the single source of truth.");
 
-        WebDavCardTitle.Text = LocalText("WebDAV 云存档", "WebDAV クラウド保存", "WebDAV cloud archive");
-        WebDavHint.Text = LocalText("把书本文件与阅读数据打包为一个存档并双向同步；密码保存在 Windows 凭据保险库。", "書籍ファイルと読書データを 1 つのアーカイブにまとめて双方向同期します。パスワードは Windows 資格情報コンテナーに保存されます。", "Bundle book files and reading data into one archive for two-way sync. Passwords stay in Windows Password Vault.");
+        LocalBackupTitle.Text = LocalText("本地备份", "ローカル バックアップ", "Local backup");
+        LocalBackupDescription.Text = LocalText(
+            "导出或恢复完整 .pagearcbackup；书本文件与阅读数据会一起打包。",
+            "完全な .pagearcbackup を保存または復元します。書籍ファイルと読書データは一緒にパッケージ化されます。",
+            "Export or restore a complete .pagearcbackup; book files and reading data are bundled together.");
+        LocalBackupStatusLabel.Text = LocalText("状态", "状態", "Status");
+        ExportButton.Content = LocalText("导出数据", "データを書き出す", "Export data");
+        ImportButton.Content = LocalText("导入数据", "データを読み込む", "Import data");
+        ClearDataButton.Content = LocalText("清除缓存", "キャッシュを消去", "Clear cache");
+
+        WebDavTitle.Text = LocalText("WebDAV 云存档", "WebDAV クラウド保存", "WebDAV cloud archive");
+        WebDavDescription.Text = LocalText(
+            "使用完整备份包双向同步书本与阅读数据；凭据由 Windows Credential Locker 保存。",
+            "完全バックアップ パッケージで書籍と読書データを双方向同期します。資格情報は Windows Credential Locker に保存されます。",
+            "Two-way sync books and reading data with the complete backup package; credentials are stored in Windows Credential Locker.");
         WebDavStatusLabel.Text = LocalText("状态", "状態", "Status");
+        WebDavBackupButton.Content = LocalText("立即同步", "今すぐ同期", "Sync now");
+        WebDavRestoreButton.Content = LocalText("从云端恢复", "クラウドから復元", "Restore from cloud");
+        WebDavManageButton.Content = LocalText("管理存档", "アーカイブを管理", "Manage archive");
         WebDavConfigureButton.Content = LocalText("配置", "設定", "Configure");
-        WebDavSyncButton.Content = LocalText("立即同步", "今すぐ同期", "Sync now");
     }
 
     private static void SelectByTag(ComboBox comboBox, string tag)
@@ -304,12 +318,12 @@ public sealed partial class SettingsPage : Page
         try
         {
             await _webDavSyncService.TestConnectionAsync(settings, password);
-            WebDavStatusText.Text = LocalText("已连接 · 配置已保存", "接続済み · 設定を保存しました", "Connected · configuration saved");
+            WebDavStatusValue.Text = LocalText("已连接 · 配置已保存", "接続済み · 設定を保存しました", "Connected · configuration saved");
         }
         catch (Exception ex)
         {
             StartupDiagnostics.Log("WebDAV connection test failed", ex);
-            WebDavStatusText.Text = LocalText("连接测试失败 · 请检查文件夹地址和凭据", "接続テスト失敗 · フォルダー URL と資格情報を確認してください", "Connection test failed · check the folder URL and credentials");
+            WebDavStatusValue.Text = LocalText("连接测试失败 · 请检查文件夹地址和凭据", "接続テスト失敗 · フォルダー URL と資格情報を確認してください", "Connection test failed · check the folder URL and credentials");
         }
         finally { SetWebDavBusy(false); }
     }
@@ -337,7 +351,7 @@ public sealed partial class SettingsPage : Page
         var uploadPath = Path.Combine(Path.GetTempPath(), $"PageArc-upload-{Guid.NewGuid():N}{ReadingBackupService.PackageExtension}");
 
         SetWebDavBusy(true);
-        WebDavStatusText.Text = LocalText("正在下载、合并并同步书本与阅读数据…", "書籍と読書データをダウンロード、マージ、同期しています…", "Downloading, merging, and syncing books plus reading data…");
+        WebDavStatusValue.Text = LocalText("正在下载、合并并同步书本与阅读数据…", "書籍と読書データをダウンロード、マージ、同期しています…", "Downloading, merging, and syncing books plus reading data…");
         try
         {
             var password = _webDavCredentialStore.Read(settings.Endpoint, settings.Username) ?? string.Empty;
@@ -365,7 +379,7 @@ public sealed partial class SettingsPage : Page
         catch (Exception ex)
         {
             StartupDiagnostics.Log("WebDAV sync failed", ex);
-            WebDavStatusText.Text = LocalText(
+            WebDavStatusValue.Text = LocalText(
                 "同步失败 · 本地书本与阅读数据未被删除",
                 "同期失敗 · ローカルの書籍と読書データは削除されていません",
                 "Sync failed · local books and reading data were not deleted");
@@ -384,27 +398,27 @@ public sealed partial class SettingsPage : Page
 
         if (string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint))
         {
-            WebDavStatusText.Text = LocalText("未配置", "未設定", "Not configured");
+            WebDavStatusValue.Text = LocalText("未配置", "未設定", "Not configured");
         }
         else if (App.Settings.Current.WebDavLastSyncAt is DateTimeOffset lastSync)
         {
-            WebDavStatusText.Text = string.Format(
+            WebDavStatusValue.Text = string.Format(
                 LocalText("已连接 · 上次同步 {0:yyyy-MM-dd HH:mm}", "接続済み · 最終同期 {0:yyyy-MM-dd HH:mm}", "Connected · last synced {0:yyyy-MM-dd HH:mm}"),
                 lastSync.ToLocalTime());
         }
         else
         {
-            WebDavStatusText.Text = LocalText("已配置 · 尚未完成首次同步", "設定済み · 初回同期前", "Configured · first sync pending");
+            WebDavStatusValue.Text = LocalText("已配置 · 尚未完成首次同步", "設定済み · 初回同期前", "Configured · first sync pending");
         }
 
-        WebDavSyncButton.IsEnabled = !_webDavBusy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+        WebDavBackupButton.IsEnabled = !_webDavBusy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
     }
 
     private void UpdateLocalBackupStatus()
     {
         var total = App.Library.Books.Count;
         var available = App.Library.Books.Count(book => !book.IsMissing && File.Exists(book.FilePath));
-        LocalBackupStatusText.Text = string.Format(
+        LocalBackupStatus.Text = string.Format(
             LocalText("本地数据正常 · {0}/{1} 本书文件可用", "ローカル データ正常 · 書籍ファイル {0}/{1} 件利用可能", "Local data healthy · {0}/{1} book files available"),
             available,
             total);
@@ -413,10 +427,10 @@ public sealed partial class SettingsPage : Page
     private void SetWebDavBusy(bool busy)
     {
         _webDavBusy = busy;
-        WebDavProgressRing.IsActive = busy;
-        WebDavProgressRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        WebDavBackupButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+        WebDavRestoreButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
+        WebDavManageButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
         WebDavConfigureButton.IsEnabled = !busy;
-        WebDavSyncButton.IsEnabled = !busy && !string.IsNullOrWhiteSpace(App.Settings.Current.WebDavEndpoint);
     }
 
     private static void TryDelete(string path)
