@@ -55,72 +55,134 @@
                     </StackPanel>
                 </Border>
             </Grid>
-            <Border Grid.Row="6" Style="{StaticResource PageArcSectionStyle}">
-                <StackPanel Spacing="14">
-                    <StackPanel>
-                        <TextBlock x:Uid="Settings_DataStorage" FontSize="22" FontWeight="SemiBold"/>
-                        <TextBlock x:Name="DataSectionHint" Margin="0,3,0,0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <!-- Exact structural port from UrbanPlanToolbox Views/SettingsPage.xaml
+                 DataManagementCard @ 249bbf99088e5edc92b9a6f9b7635ca777cf847e.
+                 Only labels and handlers are PageArc-specific. -->
+            <Border x:Name="DataManagementCard" Grid.Row="6" Style="{StaticResource SettingsSectionCardStyle}" HorizontalAlignment="Stretch">
+                <StackPanel Spacing="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Name="DataManagementTitle" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                        <TextBlock x:Name="DataManagementDescription" Style="{StaticResource SettingsDescriptionStyle}" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <Grid x:Name="DataManagementCards" ColumnSpacing="18" RowSpacing="18">
+                    <Grid x:Name="DataManagementGrid" ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition x:Name="DataCloudColumn" Width="*"/>
+                            <ColumnDefinition Width="*" MinWidth="0"/>
+                            <ColumnDefinition Width="*" MinWidth="0"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <Border Style="{StaticResource PageArcInsetStyle}" Padding="20">
-                            <StackPanel Spacing="10">
-                                <TextBlock x:Name="LocalBackupTitle" FontSize="17" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="LocalBackupHint" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <StackPanel Margin="0,8,0,0" Spacing="2">
-                                    <TextBlock x:Name="LocalBackupStatusLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                    <TextBlock x:Name="LocalBackupStatusText" FontSize="14" FontWeight="SemiBold"/>
+                        <Border x:Name="DataLocalPanel"
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Grid.ColumnSpan="1"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="14"
+                                VerticalAlignment="Stretch">
+                            <StackPanel Spacing="12">
+                                <StackPanel Spacing="3">
+                                    <TextBlock x:Name="LocalBackupTitle" Style="{StaticResource SettingsRowLabelStyle}"/>
+                                    <TextBlock x:Name="LocalBackupDescription" Style="{StaticResource SettingsDescriptionStyle}" TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <StackPanel Margin="0,8,0,0" Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="BackupReadingDataButton" x:Uid="Settings_BackupButton" MinWidth="112" Height="36" Style="{StaticResource AccentButtonStyle}" Click="BackupReadingData_Click"/>
-                                    <Button x:Name="RestoreReadingDataButton" MinWidth="112" Height="36" Style="{StaticResource AccentButtonStyle}" Click="RestoreReadingData_Click"/>
+                                <StackPanel Spacing="2">
+                                    <TextBlock x:Name="LocalBackupStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                    <TextBlock x:Name="LocalBackupStatus" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
                                 </StackPanel>
+                                <Grid x:Name="DataActions" HorizontalAlignment="Left" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button x:Name="ExportButton" Grid.Column="0" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" Click="BackupReadingData_Click"/>
+                                    <Button x:Name="ImportButton" Grid.Column="1" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" Click="RestoreReadingData_Click"/>
+                                    <Button x:Name="ClearDataButton" Grid.Column="2" HorizontalAlignment="Left" Click="ClearCache_Click"/>
+                                </Grid>
+                                <InfoBar x:Name="DataStatusBar" IsOpen="False"/>
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="DataCloudCard" Grid.Column="1" Style="{StaticResource PageArcInsetStyle}" Padding="20">
-                            <StackPanel Spacing="10">
-                                <TextBlock x:Name="WebDavCardTitle" FontSize="17" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="WebDavHint" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <StackPanel Margin="0,8,0,0" Spacing="2">
-                                    <TextBlock x:Name="WebDavStatusLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                    <TextBlock x:Name="WebDavStatusText" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <Border x:Name="DataCloudPanel"
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Grid.ColumnSpan="1"
+                                Margin="0"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="14"
+                                VerticalAlignment="Stretch">
+                            <StackPanel Spacing="12">
+                                <StackPanel Spacing="3">
+                                    <TextBlock x:Name="WebDavTitle" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                                    <TextBlock x:Name="WebDavDescription" Style="{StaticResource SettingsDescriptionStyle}" TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <StackPanel Margin="0,8,0,0" Orientation="Horizontal" Spacing="8">
-                                    <ProgressRing x:Name="WebDavProgressRing" Width="20" Height="20" IsActive="False" Visibility="Collapsed"/>
-                                    <Button x:Name="WebDavSyncButton" MinWidth="112" Height="36" Style="{StaticResource AccentButtonStyle}" Click="SyncWebDav_Click"/>
-                                    <Button x:Name="WebDavConfigureButton" MinWidth="92" Height="36" Click="ConfigureWebDav_Click"/>
+                                <StackPanel Spacing="2">
+                                    <TextBlock x:Name="WebDavStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                    <TextBlock x:Name="WebDavStatusValue" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
                                 </StackPanel>
+                                <Grid HorizontalAlignment="Left" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button x:Name="WebDavBackupButton" Grid.Column="0" Style="{StaticResource AccentButtonStyle}" Click="SyncWebDav_Click"/>
+                                    <Button x:Name="WebDavRestoreButton" Grid.Column="1" Click="RestoreWebDav_Click"/>
+                                    <Button x:Name="WebDavManageButton" Grid.Column="2" Click="ManageWebDav_Click"/>
+                                    <Button x:Name="WebDavConfigureButton" Grid.Column="3" Click="ConfigureWebDav_Click"/>
+                                </Grid>
+                                <InfoBar x:Name="WebDavStatusBar" IsOpen="False"/>
                             </StackPanel>
                         </Border>
                     </Grid>
-
-                    <Border Style="{StaticResource PageArcInsetStyle}">
-                        <Grid Padding="18,0" Height="64">
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Uid="Settings_ClearCache"/>
-                                <TextBlock x:Uid="Settings_ClearCacheHint" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-                            <Button x:Uid="Settings_ClearCacheButton" MinWidth="110" Height="36" HorizontalAlignment="Right" VerticalAlignment="Center" Click="ClearCache_Click"/>
-                        </Grid>
-                    </Border>
                 </StackPanel>
             </Border>
-            <VisualStateManager.VisualStateGroups><VisualStateGroup>
-                <VisualState x:Name="NarrowSettings"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers><VisualState.Setters><Setter Target="ReadingColumn.Width" Value="0"/><Setter Target="ReadingCard.(Grid.Column)" Value="0"/><Setter Target="ReadingCard.(Grid.Row)" Value="1"/><Setter Target="SettingsLayout.Padding" Value="20,22,20,36"/>
-                    <Setter Target="DataCloudColumn.Width" Value="0"/>
-                    <Setter Target="DataCloudCard.(Grid.Column)" Value="0"/>
-                    <Setter Target="DataCloudCard.(Grid.Row)" Value="1"/></VisualState.Setters></VisualState>
-                <VisualState x:Name="DesktopSettings"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1050"/></VisualState.StateTriggers></VisualState>
-            </VisualStateGroup></VisualStateManager.VisualStateGroups>
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup>
+                    <VisualState x:Name="NarrowSettings">
+                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="ReadingColumn.Width" Value="0"/>
+                            <Setter Target="ReadingCard.(Grid.Column)" Value="0"/>
+                            <Setter Target="ReadingCard.(Grid.Row)" Value="1"/>
+                            <Setter Target="SettingsLayout.Padding" Value="20,22,20,36"/>
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="DesktopSettings">
+                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1050"/></VisualState.StateTriggers>
+                    </VisualState>
+                </VisualStateGroup>
+                <VisualStateGroup x:Name="DataManagementResponsiveStates">
+                    <VisualState x:Name="DataManagementCompact">
+                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="DataLocalPanel.(Grid.ColumnSpan)" Value="2"/>
+                            <Setter Target="DataCloudPanel.(Grid.Row)" Value="1"/>
+                            <Setter Target="DataCloudPanel.(Grid.Column)" Value="0"/>
+                            <Setter Target="DataCloudPanel.(Grid.ColumnSpan)" Value="2"/>
+                            <Setter Target="DataCloudPanel.Margin" Value="0,12,0,0"/>
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="DataManagementWide">
+                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="520"/></VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="DataLocalPanel.(Grid.ColumnSpan)" Value="1"/>
+                            <Setter Target="DataCloudPanel.(Grid.Row)" Value="0"/>
+                            <Setter Target="DataCloudPanel.(Grid.Column)" Value="1"/>
+                            <Setter Target="DataCloudPanel.(Grid.ColumnSpan)" Value="1"/>
+                            <Setter Target="DataCloudPanel.Margin" Value="0"/>
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
         </Grid>
     </ScrollViewer>
 </Page>
