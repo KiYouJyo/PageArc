@@ -1,15 +1,21 @@
-# PageArc
-
-[简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
-
-![Version](https://img.shields.io/badge/version-1.4-005fb8)
-![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
-![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
-![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
-![Offline First](https://img.shields.io/badge/offline-first-2E7D32)
-![License](https://img.shields.io/badge/license-MIT-blue)
-
-**PageArc** 是一个专注于流式电子书格式的 Windows 阅读器，采用 WinUI 3 / Windows App SDK 构建。界面以 PAGEARC Figma 为设计基准，优先保持本地、原文件不修改的阅读体验。
+<p align="center">
+  <img src="docs/assets/app-icon.png" width="128" height="128" alt="PageArc">
+</p>
+<h1 align="center">PageArc</h1>
+<p align="center">面向流式电子书的本地优先 Windows 阅读器。</p>
+<p align="center">
+  <a href="https://github.com/KiYouJyo/PageArc/releases/latest"><img src="https://img.shields.io/github/v/release/KiYouJyo/PageArc?display_name=tag&amp;sort=semver" alt="GitHub Release"></a>
+  <a href="https://github.com/KiYouJyo/PageArc/actions/workflows/ci.yml"><img src="https://github.com/KiYouJyo/PageArc/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/KiYouJyo/PageArc"><img src="https://img.shields.io/badge/Windows-WinUI%203-0078D4?logo=windows" alt="Windows"></a>
+  <a href="https://github.com/KiYouJyo/PageArc"><img src="https://img.shields.io/badge/Languages-中文%20%7C%20日本語%20%7C%20English-6F42C1" alt="Languages"></a>
+  <a href="https://github.com/KiYouJyo/PageArc"><img src="https://img.shields.io/badge/Design-Local--first-2EA043" alt="Local First"></a>
+  <a href="https://github.com/KiYouJyo/PageArc/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-D4A72C" alt="MIT License"></a>
+  <a href="https://kiyoujyo.github.io/PageArc/"><img src="https://img.shields.io/badge/Website-PageArc-0078D4" alt="Website"></a>
+</p>
+<p align="center">
+  <a href="https://get.microsoft.com/installer/download/9NTHMP210H9B?referrer=appbadge"><img src="https://get.microsoft.com/images/zh-cn%20dark.svg" width="240" alt="Get PageArc from Microsoft Store"></a>
+</p>
+<p align="center"><a href="README.md">简体中文</a> | <a href="README.ja.md">日本語</a> | <a href="README.en.md">English</a></p>
 
 ## v1.4
 
@@ -37,7 +43,7 @@ v1.0 在 v0.9.5 功能基础上完成阅读器、书库、设置、更新和 Win
 
 ## 获取版本
 
-正式版本与签名安装包发布在 [GitHub Releases](https://github.com/KiYouJyo/PageArc/releases)。应用内“检查更新”同样以 GitHub Releases 为更新源。
+推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9NTHMP210H9B) 安装，由商店管理更新。GitHub 侧载版与签名安装包继续通过 [GitHub Releases](https://github.com/KiYouJyo/PageArc/releases) 提供。两个渠道使用独立的包身份与更新来源。
 
 ## 设计基准
 

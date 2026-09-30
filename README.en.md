@@ -1,15 +1,21 @@
-# PageArc
-
-[简体中文](README.md) · [日本語](README.ja.md) · [English](README.en.md)
-
-![Version](https://img.shields.io/badge/version-1.4-005fb8)
-![Windows](https://img.shields.io/badge/Windows-11-0078D4?logo=windows11)
-![WinUI 3](https://img.shields.io/badge/WinUI-3-005FB8)
-![Languages](https://img.shields.io/badge/UI-中文%20%7C%20日本語%20%7C%20English-6A5ACD)
-![Offline First](https://img.shields.io/badge/offline-first-2E7D32)
-![License](https://img.shields.io/badge/license-MIT-blue)
-
-**PageArc** is a WinUI 3 / Windows App SDK ebook reader for Windows focused on reflowable formats. The UI follows the PAGEARC Figma source of truth while keeping reading local-first and leaving original ebook files untouched.
+<p align="center">
+  <img src="docs/assets/app-icon.png" width="128" height="128" alt="PageArc">
+</p>
+<h1 align="center">PageArc</h1>
+<p align="center">A local-first Windows reader for reflowable ebooks.</p>
+<p align="center">
+  <a href="https://github.com/KiYouJyo/PageArc/releases/latest"><img src="https://img.shields.io/github/v/release/KiYouJyo/PageArc?display_name=tag&amp;sort=semver" alt="GitHub Release"></a>
+  <a href="https://github.com/KiYouJyo/PageArc/actions/workflows/ci.yml"><img src="https://github.com/KiYouJyo/PageArc/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/KiYouJyo/PageArc"><img src="https://img.shields.io/badge/Windows-WinUI%203-0078D4?logo=windows" alt="Windows"></a>
+  <a href="https://github.com/KiYouJyo/PageArc"><img src="https://img.shields.io/badge/Languages-中文%20%7C%20日本語%20%7C%20English-6F42C1" alt="Languages"></a>
+  <a href="https://github.com/KiYouJyo/PageArc"><img src="https://img.shields.io/badge/Design-Local--first-2EA043" alt="Local First"></a>
+  <a href="https://github.com/KiYouJyo/PageArc/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-D4A72C" alt="MIT License"></a>
+  <a href="https://kiyoujyo.github.io/PageArc/"><img src="https://img.shields.io/badge/Website-PageArc-0078D4" alt="Website"></a>
+</p>
+<p align="center">
+  <a href="https://get.microsoft.com/installer/download/9NTHMP210H9B?referrer=appbadge"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="240" alt="Get PageArc from Microsoft Store"></a>
+</p>
+<p align="center"><a href="README.md">简体中文</a> | <a href="README.ja.md">日本語</a> | <a href="README.en.md">English</a></p>
 
 ## v1.4
 
@@ -36,7 +42,7 @@ v1.0 completes the production convergence of the reader, library, settings, upda
 
 ## Releases
 
-Official builds and signed installation packages are published on [GitHub Releases](https://github.com/KiYouJyo/PageArc/releases). The in-app update checker uses GitHub Releases as its update source as well.
+Install from [Microsoft Store](https://apps.microsoft.com/detail/9NTHMP210H9B) for Store-managed installation and updates. Signed sideload packages remain available through [GitHub Releases](https://github.com/KiYouJyo/PageArc/releases). The channels use separate package identities and update sources.
 
 ## Design source of truth
 
