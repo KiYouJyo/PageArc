@@ -52,7 +52,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Set up Microsoft Store Developer CLI
-        uses: microsoft/microsoft-store-apppublisher@v1.5
+        uses: microsoft/microsoft-store-apppublisher@v1.4
 
       - name: Authenticate to Partner Center
         shell: pwsh
