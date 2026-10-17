@@ -63,7 +63,7 @@ public sealed class V14ConversionRuntimeTests
     }
 
     [Fact]
-    public void V14VersionContract_IsLightReaderRelease()
+    public void V15VersionContract_IsLightReaderRelease()
     {
         var root = FindRepoRoot();
         var project = File.ReadAllText(Path.Combine(root, "PageArc.csproj"));
@@ -71,11 +71,11 @@ public sealed class V14ConversionRuntimeTests
         var acceptanceManifest = File.ReadAllText(Path.Combine(root, "Packaging", "PageArc.Package.appxmanifest"));
         var storeManifest = File.ReadAllText(Path.Combine(root, "Package.Store.appxmanifest"));
 
-        Assert.Contains("<Version>1.4.0</Version>", project, StringComparison.Ordinal);
-        Assert.Contains("<ApplicationDisplayVersion>1.4</ApplicationDisplayVersion>", project, StringComparison.Ordinal);
-        Assert.Contains("Version=\"1.4.0.0\"", githubManifest, StringComparison.Ordinal);
-        Assert.Contains("Version=\"1.4.0.0\"", acceptanceManifest, StringComparison.Ordinal);
-        Assert.Contains("Version=\"2026.904.140.0\"", storeManifest, StringComparison.Ordinal);
+        Assert.Contains("<Version>1.5.0</Version>", project, StringComparison.Ordinal);
+        Assert.Contains("<ApplicationDisplayVersion>1.5</ApplicationDisplayVersion>", project, StringComparison.Ordinal);
+        Assert.Contains("Version=\"1.5.0.0\"", githubManifest, StringComparison.Ordinal);
+        Assert.Contains("Version=\"1.5.0.0\"", acceptanceManifest, StringComparison.Ordinal);
+        Assert.Contains("Version=\"2026.1017.150.0\"", storeManifest, StringComparison.Ordinal);
     }
 
     private sealed class OfflineHandler : HttpMessageHandler

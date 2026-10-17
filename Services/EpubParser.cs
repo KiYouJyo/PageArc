@@ -32,30 +32,13 @@ public static class EpubParser
             throw new NotSupportedException("PageArc v0.1.0 reader core currently opens EPUB files.");
 
         var extractionRoot = Path.Combine(AppPaths.BooksCacheRoot, book.Id);
-        if (Directory.Exists(extractionRoot)) Directory.Delete(extractionRoot, true);
-        Directory.CreateDirectory(extractionRoot);
-
         using var archive = ZipFile.OpenRead(book.FilePath);
         if (HasUnsupportedEncryption(archive))
             throw new InvalidDataException("This EPUB contains encrypted/DRM content that PageArc cannot open.");
 
-        foreach (var entry in archive.Entries)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (string.IsNullOrEmpty(entry.Name)) continue;
-
-            var logicalPath = EpubPath.Normalize(entry.FullName);
-            if (string.IsNullOrWhiteSpace(logicalPath)) continue;
-            var target = Path.GetFullPath(Path.Combine(extractionRoot, logicalPath.Replace('/', Path.DirectorySeparatorChar)));
-            var safeRoot = Path.GetFullPath(extractionRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            if (!target.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("EPUB contains an unsafe path.");
-
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            await using var source = entry.Open();
-            await using var destination = File.Create(target);
-            await source.CopyToAsync(destination, cancellationToken);
-        }
+        // Only refresh when the source changed. An unchanged book reuses extracted images,
+        // fonts and XHTML instead of deleting and decompressing the entire archive.
+        await EpubExtractionCache.EnsureAsync(archive, book.FilePath, extractionRoot, cancellationToken).ConfigureAwait(false);
 
         var packagePath = ReadPackagePath(archive);
         var packageEntry = GetEntry(archive, packagePath);
@@ -86,7 +69,10 @@ public static class EpubParser
             .Select(id =>
             {
                 var item = manifest[id!];
-                return new EpubSpineItem(id!, EpubPath.Combine(packageDirectory, item.Href), string.IsNullOrWhiteSpace(item.MediaType) ? "application/xhtml+xml" : item.MediaType);
+                var path = EpubPath.Combine(packageDirectory, item.Href);
+                var size = archive.Entries.FirstOrDefault(entry =>
+                    string.Equals(EpubPath.Normalize(entry.FullName), path, StringComparison.OrdinalIgnoreCase))?.Length ?? 0;
+                return new EpubSpineItem(id!, path, string.IsNullOrWhiteSpace(item.MediaType) ? "application/xhtml+xml" : item.MediaType, size);
             })
             .ToList();
 

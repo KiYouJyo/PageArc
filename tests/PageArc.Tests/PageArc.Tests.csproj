@@ -65,6 +65,7 @@
     <Compile Include="../../Services/CalibreNormalizedFlowAdapter.cs" Link="Services/CalibreNormalizedFlowAdapter.cs" />
     <Compile Include="../../Services/LitFlowAdapter.cs" Link="Services/LitFlowAdapter.cs" />
     <Compile Include="../../Services/EpubParser.cs" Link="Services/EpubParser.cs" />
+    <Compile Include="../../Services/EpubExtractionCache.cs" Link="Services/EpubExtractionCache.cs" />
     <Compile Include="../../Services/EpubPath.cs" Link="Services/EpubPath.cs" />
     <Compile Include="../../Services/EpubWebRenderer.cs" Link="Services/EpubWebRenderer.cs" />
     <Compile Include="../../Services/Conversion/IEbookConversionProvider.cs" Link="Services/Conversion/IEbookConversionProvider.cs" />

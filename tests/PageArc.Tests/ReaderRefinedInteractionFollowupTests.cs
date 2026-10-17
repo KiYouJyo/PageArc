@@ -92,17 +92,15 @@ public sealed class ReaderRefinedInteractionFollowupTests
     }
 
     [Fact]
-    public void ReaderMeasuresEverySectionBeforeFreezingThePageTotal()
+    public void ReaderOpensRequestedSectionWithoutWholeBookPagination()
     {
         var root = FindRepoRoot();
         var reader = File.ReadAllText(Path.Combine(root, "Pages", "ReaderPage.xaml.cs"));
         var map = File.ReadAllText(Path.Combine(root, "Services", "FlowPageMap.cs"));
 
-        Assert.Contains("await MeasureAndFreezePageMapAsync()", reader, StringComparison.Ordinal);
-        Assert.Contains("for (var index = 0; index < _document.Sections.Count; index++)", reader, StringComparison.Ordinal);
-        Assert.Contains("await document.fonts?.ready", reader, StringComparison.Ordinal);
-        Assert.Contains("Promise.all(Array.from(document.images", reader, StringComparison.Ordinal);
-        Assert.Contains("map.FreezeMeasuredPages(measuredPages)", reader, StringComparison.Ordinal);
+        Assert.DoesNotContain("MeasureAndFreezePageMapAsync", reader, StringComparison.Ordinal);
+        Assert.Contains("_pageMap = new FlowPageMap(_document)", reader, StringComparison.Ordinal);
+        Assert.Contains("map.UpdateRenderedRange", reader, StringComparison.Ordinal);
         Assert.Contains("if (IsFrozen) return", map, StringComparison.Ordinal);
     }
 

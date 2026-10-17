@@ -29,12 +29,8 @@ public static class EpubWebRenderer
         var html = NormalizeForWebView(source, baseHref);
         var plainText = ExtractReadableText(source);
 
-        var renderDirectory = Path.Combine(document.ExtractionRoot, "__pagearc");
-        Directory.CreateDirectory(renderDirectory);
-        var renderFileName = $"spine-{spineIndex:D4}.html";
-        var renderPath = Path.Combine(renderDirectory, renderFileName);
-        await File.WriteAllTextAsync(renderPath, html, new UTF8Encoding(false), cancellationToken);
-        return new EpubRenderChapter(EpubPath.ToWebPath($"__pagearc/{renderFileName}"), html, plainText);
+        // The HTML is displayed via NavigateToString; no on-disk HTML copy is needed.
+        return new EpubRenderChapter(EpubPath.ToWebPath(item.RelativePath), html, plainText);
     }
 
     public static int ResolveInitialSpineIndex(EpubDocument document, int savedIndex, double progress)

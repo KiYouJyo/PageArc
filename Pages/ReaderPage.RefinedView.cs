@@ -42,7 +42,6 @@ public sealed partial class ReaderPage
         ReaderWebView.NavigationCompleted += async (_, args) =>
         {
             if (!args.IsSuccess || ReaderWebView.CoreWebView2 is null) return;
-            if (_pageMeasurementInProgress) return;
             HookReaderInputMessages();
             await InstallReaderInputBridgeAsync();
             await ApplyReaderViewEnhancementsAsync();

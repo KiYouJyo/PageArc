@@ -122,11 +122,11 @@ public sealed class FoundationTests
             Assert.Equal("OEBPS/Text/Chapter 1.xhtml#start", document.Toc[0].Href);
 
             var rendered = await EpubWebRenderer.PrepareAsync(document, 0);
-            Assert.Equal("__pagearc/spine-0000.html", rendered.WebPath);
+            Assert.Equal("OEBPS/Text/Chapter%201.xhtml", rendered.WebPath);
             Assert.Contains("<base href=\"https://pagearc.local/OEBPS/Text/Chapter%201.xhtml\">", rendered.Html, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("Hello PageArc.", rendered.Html, StringComparison.Ordinal);
             Assert.Contains("Hello PageArc.", rendered.PlainText, StringComparison.Ordinal);
-            Assert.True(File.Exists(Path.Combine(document.ExtractionRoot, "__pagearc", "spine-0000.html")));
+            Assert.False(File.Exists(Path.Combine(document.ExtractionRoot, "__pagearc", "spine-0000.html")));
         }
         finally
         {
