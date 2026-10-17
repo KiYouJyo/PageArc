@@ -126,7 +126,11 @@ public sealed class WebViewKindleParserRuntime : IKindleParserRuntime
         CopyRuntimeFile(Path.Combine(runtimeRoot, "mobi.js"), Path.Combine(workspace, "mobi.js"));
         CopyRuntimeFile(Path.Combine(runtimeRoot, "pagearc-host.html"), Path.Combine(workspace, "pagearc-host.html"));
         CopyRuntimeFile(Path.Combine(runtimeRoot, "vendor", "fflate.js"), Path.Combine(workspace, "vendor", "fflate.js"));
-        File.Copy(book.FilePath, GetWorkspaceSourcePath(book, workspace), overwrite: true);
+        var stagedSource = GetWorkspaceSourcePath(book, workspace);
+        var original = new FileInfo(book.FilePath);
+        var cached = new FileInfo(stagedSource);
+        if (!cached.Exists || cached.Length != original.Length || cached.LastWriteTimeUtc != original.LastWriteTimeUtc)
+            File.Copy(book.FilePath, stagedSource, overwrite: true);
         return workspace;
     }
 

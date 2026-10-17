@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0] - 2026-10-17
+
+### Performance
+- Open the saved reading chapter immediately, without rendering every chapter in WebView2 first.
+- Estimate whole-book pages from EPUB spine resource lengths and refine as visited.
+- Reuse validated EPUB extraction caches, skip redundant chapter HTML disk writes and move EPUB decompression off the UI dispatcher.
+- Lazily initialize restored reader tabs; reuse an unchanged local Kindle-parser source copy.
+
+### Fixed
+- Prevent the eager full-book pagination pass from overwriting saved reading location on open.
+- Keep GitHub sideload and Microsoft Store package identities/versioning separate.
+
+
 ## [1.4] - 2026-09-04
 
 ### Changed

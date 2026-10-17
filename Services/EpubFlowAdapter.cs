@@ -13,7 +13,8 @@ public sealed class EpubFlowAdapter : IFlowBookAdapter
 
     public async Task<IFlowBookSource> OpenAsync(BookEntry book, CancellationToken cancellationToken = default)
     {
-        var epub = await EpubParser.OpenAsync(book, cancellationToken);
+        // ZIP decompression and OPF parsing must not occupy the WinUI dispatcher.
+        var epub = await Task.Run(() => EpubParser.OpenAsync(book, cancellationToken), cancellationToken);
         return new Source(epub);
     }
 
@@ -25,7 +26,7 @@ public sealed class EpubFlowAdapter : IFlowBookAdapter
         {
             _epub = epub;
             var sections = epub.Spine
-                .Select(item => new FlowSection(item.Id, item.RelativePath, item.MediaType))
+                .Select(item => new FlowSection(item.Id, item.RelativePath, item.MediaType, item.Size))
                 .ToArray();
             var toc = epub.Toc
                 .Select(item => new FlowTocItem(item.Title, item.Href, ResolveSectionIndex(epub, item.Href)))

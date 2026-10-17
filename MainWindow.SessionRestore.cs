@@ -12,6 +12,7 @@ public sealed partial class MainWindow
     private readonly ShellSessionStore _shellSessionStore = new();
     private Microsoft.UI.Xaml.DispatcherTimer? _shellSessionTimer;
     private bool _shellSessionRestoreAttempted;
+    private readonly Dictionary<string, BookEntry> _pendingReaderBooks = new(StringComparer.Ordinal);
 
     private void MainWindow_SessionRestoreLoaded(object sender, RoutedEventArgs e)
     {
@@ -40,6 +41,7 @@ public sealed partial class MainWindow
         foreach (var frame in _readerFrames.Values)
             if (frame.Content is ReaderPage reader) reader.PrepareForClose();
         _readerFrames.Clear();
+        _pendingReaderBooks.Clear();
         ReaderHost.Children.Clear();
         _tabItems.Clear();
         ShellTabItems.Children.Clear();
@@ -63,9 +65,11 @@ public sealed partial class MainWindow
             if (book is null) continue;
 
             lastOpenedBeforeRestore[book.Id] = book.LastOpenedAt;
+            // Only materialize the active reader. Other restored tabs remain placeholders
+            // until first selection, avoiding simultaneous EPUB extraction/WebView startup.
             var frame = new Frame { Visibility = Visibility.Collapsed };
-            if (!frame.Navigate(typeof(ReaderPage), book, new SuppressNavigationTransitionInfo())) continue;
             var title = string.IsNullOrWhiteSpace(book.Title) ? Path.GetFileNameWithoutExtension(book.FilePath) : book.Title;
+            _pendingReaderBooks[session.Id] = book;
             _readerFrames[session.Id] = frame;
             _tabItems[session.Id] = CreateTabVisual(session.Id, title, Symbol.Library, 300);
             ReaderHost.Children.Add(frame);

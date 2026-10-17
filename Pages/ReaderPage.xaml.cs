@@ -35,7 +35,6 @@ public sealed partial class ReaderPage : Page
     private DateTimeOffset _lastProgressSave = DateTimeOffset.MinValue;
     private CancellationTokenSource? _searchCts;
     private ReaderSidebarMode _sidebarMode = ReaderSidebarMode.Contents;
-    private bool _pageMeasurementInProgress;
 
     public ReaderPage()
     {
@@ -86,7 +85,6 @@ public sealed partial class ReaderPage : Page
         BookTitleText.Text = _book.Title;
         BookmarksHeading.Text = AutomationProperties.GetName(BookmarkButton);
         if (string.IsNullOrWhiteSpace(BookmarksHeading.Text)) BookmarksHeading.Text = "Bookmarks";
-        App.Library.MarkOpened(_book);
         SelectByTag(ReaderThemeCombo, App.Settings.Current.ReadingTheme);
         ReaderFontScaleSlider.Value = App.Settings.Current.FontScale;
         ReaderLineHeightSlider.Value = App.Settings.Current.LineHeight;
@@ -131,8 +129,9 @@ public sealed partial class ReaderPage : Page
 
             ConfigureBookResourceMapping();
             RefreshBookmarks();
+            // Render the saved section immediately; page counts for other sections are
+            // estimates until visited. Exact full-book pagination must never block first paint.
             _pageMap = new FlowPageMap(_document);
-            await MeasureAndFreezePageMapAsync();
             var requestedIndex = ResolveInitialSectionIndex(_document, _book);
             _sectionFraction = Math.Clamp(_book.SectionFraction, 0, 1);
             await NavigateToSectionAsync(requestedIndex, preferReadableText: true, restoreSavedFraction: true);
@@ -277,53 +276,6 @@ public sealed partial class ReaderPage : Page
             fullRoot,
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
         _mappedCacheRoot = fullRoot;
-    }
-
-    private async Task MeasureAndFreezePageMapAsync()
-    {
-        if (_document is null || _source is null || ReaderWebView.CoreWebView2 is null) return;
-        var map = _pageMap ??= new FlowPageMap(_document);
-        var measuredPages = new int[_document.Sections.Count];
-        _pageMeasurementInProgress = true;
-        try
-        {
-            for (var index = 0; index < _document.Sections.Count; index++)
-            {
-                var content = await _source.LoadSectionAsync(index);
-                _navigationCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                ReaderWebView.CoreWebView2.NavigateToString(content.Html);
-                await _navigationCompletion.Task;
-                await ApplyWebReaderStyleAsync(0, forcePaginated: true);
-                await ApplyReaderViewEnhancementsAsync("single");
-
-                var result = await ReaderWebView.CoreWebView2.ExecuteScriptAsync("""
-                    (async () => {
-                      try { await document.fonts?.ready; } catch {}
-                      await Promise.all(Array.from(document.images || []).map(image => {
-                        if (image.complete) return image.decode?.().catch(() => {}) ?? Promise.resolve();
-                        return new Promise(resolve => {
-                          image.addEventListener('load', resolve, {once:true});
-                          image.addEventListener('error', resolve, {once:true});
-                        });
-                      }));
-                      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                      const metrics = window.__pagearc?.metrics?.();
-                      return Math.max(1, Number(metrics?.pages) || 1);
-                    })()
-                    """);
-                measuredPages[index] = int.TryParse(result, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pages)
-                    ? Math.Max(1, pages)
-                    : 1;
-            }
-
-            map.FreezeMeasuredPages(measuredPages);
-            StartupDiagnostics.Log($"Flow pagination frozen: sections={measuredPages.Length}, pages={map.TotalPages}.");
-            UpdateProgressUi(save: false);
-        }
-        finally
-        {
-            _pageMeasurementInProgress = false;
-        }
     }
 
     private async Task NavigateToSectionAsync(int index, bool preferReadableText = false, bool restoreSavedFraction = false)
@@ -676,7 +628,6 @@ public sealed partial class ReaderPage : Page
         double fraction;
         if (message.StartsWith("pagearc-progress:", StringComparison.Ordinal))
         {
-            if (_pageMeasurementInProgress) return;
             try
             {
                 using var payload = JsonDocument.Parse(message["pagearc-progress:".Length..]);

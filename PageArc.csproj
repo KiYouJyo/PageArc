@@ -17,11 +17,11 @@
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.4.0</Version>
-    <AssemblyVersion>1.4.0.0</AssemblyVersion>
-    <FileVersion>1.4.0.0</FileVersion>
-    <ApplicationDisplayVersion>1.4</ApplicationDisplayVersion>
-    <ApplicationVersion>23</ApplicationVersion>
+    <Version>1.5.0</Version>
+    <AssemblyVersion>1.5.0.0</AssemblyVersion>
+    <FileVersion>1.5.0.0</FileVersion>
+    <ApplicationDisplayVersion>1.5</ApplicationDisplayVersion>
+    <ApplicationVersion>24</ApplicationVersion>
     <PageArcDistributionChannel Condition="'$(PageArcDistributionChannel)' == ''">GitHub</PageArcDistributionChannel>
     <DefineConstants Condition="'$(PageArcDistributionChannel)' == 'Store'">$(DefineConstants);PAGEARC_STORE</DefineConstants>
   </PropertyGroup>

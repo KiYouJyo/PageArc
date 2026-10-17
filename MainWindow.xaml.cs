@@ -225,6 +225,7 @@ public sealed partial class MainWindow : Window
 
         if (session.Kind == ShellTabKind.Reader && _readerFrames.Remove(id, out var frame))
         {
+            _pendingReaderBooks.Remove(id);
             if (frame.Content is ReaderPage reader) reader.PrepareForClose();
             ReaderHost.Children.Remove(frame);
         }
@@ -438,6 +439,15 @@ public sealed partial class MainWindow : Window
             pair.Value.Visibility = readerSelected && string.Equals(pair.Key, session?.Id, StringComparison.Ordinal)
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+
+        if (readerSelected && session is not null &&
+            _pendingReaderBooks.TryGetValue(session.Id, out var book) &&
+            _readerFrames.TryGetValue(session.Id, out var frame))
+        {
+            _pendingReaderBooks.Remove(session.Id);
+            if (!frame.Navigate(typeof(ReaderPage), book, new SuppressNavigationTransitionInfo()))
+                StartupDiagnostics.Log($"Restored reader tab navigation failed for {book.Id}.");
+        }
     }
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)

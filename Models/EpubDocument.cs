@@ -1,6 +1,6 @@
 namespace PageArc.Models;
 
-public sealed record EpubSpineItem(string Id, string RelativePath, string MediaType);
+public sealed record EpubSpineItem(string Id, string RelativePath, string MediaType, long Size = 0);
 public sealed record EpubTocItem(string Title, string Href);
 
 public sealed class EpubDocument
