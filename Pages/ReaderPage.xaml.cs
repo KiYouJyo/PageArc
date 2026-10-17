@@ -120,7 +120,8 @@ public sealed partial class ReaderPage : Page
                 BookTitleText.Text = _document.Title;
             }
             if (!string.IsNullOrWhiteSpace(_document.Author)) _book.Author = _document.Author;
-            App.Library.Save();
+            // Navigation saves metadata together with the restored reading position.
+            // Avoid serializing the entire library before the first chapter appears.
 
             TocList.ItemsSource = _document.Toc.Count > 0
                 ? _document.Toc.Select(item => $"{new string('　', Math.Max(0, item.Depth))}{item.Title}").ToList()
